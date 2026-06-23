@@ -1,0 +1,128 @@
+@import url('https://fonts.googleapis.com/css2?family=Great+Vibes&family=Pinyon+Script&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Helvetica Neue", "Helvetica", "Arial", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  --font-serif: "Playfair Display", "Georgia", serif;
+  --font-display: "Playfair Display", "Georgia", serif;
+  --font-script: "Pinyon Script", "Great Vibes", cursive;
+}
+
+@layer base {
+  body {
+    @apply bg-slate-50/50 text-slate-900 font-sans transition-colors duration-200 antialiased;
+    background-image: radial-gradient(at 0% 0%, rgba(251, 191, 36, 0.04) 0px, transparent 50%),
+                      radial-gradient(at 100% 100%, rgba(99, 102, 241, 0.03) 0px, transparent 50%),
+                      radial-gradient(at 100% 0%, rgba(244, 63, 94, 0.03) 0px, transparent 50%);
+  }
+
+  /* Custom Elegant Scrollbars */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-slate-300 rounded-full hover:bg-slate-400 transition-colors;
+  }
+}
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-in-up {
+  animation: slideInUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.font-script {
+  font-family: "Pinyon Script", "Great Vibes", cursive;
+}
+
+.font-handwritten {
+  font-family: "Great Vibes", cursive;
+}
+
+.text-gold-gradient {
+  background: linear-gradient(135deg, #b45309 0%, #d97706 50%, #f59e0b 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.bg-gold-gradient {
+  background: linear-gradient(135deg, #d97706 0%, #f59e0b 100%);
+}
+
+.card-luxury {
+  @apply bg-white border border-amber-100/60 rounded-3xl p-6 shadow-xs relative overflow-hidden;
+  background-image: radial-gradient(at 100% 0%, rgba(251, 191, 36, 0.02) 0px, transparent 60%);
+}
+
+@media print {
+  html, body, #root, #root > div, main {
+    background-image: none !important;
+    background-color: white !important;
+    color: #000 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    font-family: "Playfair Display", "Georgia", serif !important;
+  }
+  header, aside, footer, .no-print, button, select, input, .toast-container {
+    display: none !important;
+  }
+  .fixed, [class*="fixed"] {
+    position: relative !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    inset: auto !important;
+    display: block !important;
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+    z-index: auto !important;
+  }
+  .fixed > div, [class*="fixed"] > div {
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    max-height: none !important;
+    height: auto !important;
+    overflow: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  #invoice-sheet-container {
+    padding: 0 !important;
+    margin: 0 !important;
+    background: white !important;
+    overflow: visible !important;
+    height: auto !important;
+    display: block !important;
+  }
+  #invoice-sheet {
+    padding: 0.4in !important;
+    margin: 0 auto !important;
+    overflow: visible !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    border: none !important;
+    box-shadow: none !important;
+    display: block !important;
+    page-break-inside: avoid;
+  }
+}
+

@@ -1,0 +1,6 @@
+{
+  "name": "Ateliê Sagrado ERP",
+  "description": "Sistema ERP completo para gestão de produção artesanal de terços, joias religiosas, artesanato personalizado e pequenos ateliês.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
