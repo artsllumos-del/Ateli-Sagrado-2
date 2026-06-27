@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { CheckCircle2, AlertOctagon, AlertTriangle, Info } from 'lucide-react';
 
 export interface ToastMessage {
  id: string;
@@ -51,11 +52,11 @@ export const ToastContainer: React.FC = () => {
  'bg-slate-50 border-slate-200 text-slate-900'
  }`}
  >
- <div className="mt-0.5 text-lg">
- {t.type === 'success' && '✨'}
- {t.type === 'error' && '🛑'}
- {t.type === 'warning' && '⚠️'}
- {t.type === 'info' && 'ℹ️'}
+ <div className="mt-0.5 shrink-0">
+ {t.type === 'success' && <CheckCircle2 size={18} className="text-emerald-600" />}
+ {t.type === 'error' && <AlertOctagon size={18} className="text-rose-600" />}
+ {t.type === 'warning' && <AlertTriangle size={18} className="text-amber-600" />}
+ {t.type === 'info' && <Info size={18} className="text-blue-600" />}
  </div>
  <div className="flex-1 min-w-0">
  <h4 className="font-semibold text-sm leading-tight">{t.title}</h4>
@@ -68,7 +69,7 @@ export const ToastContainer: React.FC = () => {
  ×
  </button>
  </div>
- ))}
+  ))}
  </div>
  );
 };

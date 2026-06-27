@@ -13,6 +13,8 @@ import { OrdersView } from './components/OrdersView';
 import { ProductionView } from './components/ProductionView';
 import { FinancialView } from './components/FinancialView';
 import { SettingsView } from './components/SettingsView';
+import { PurchasesView } from './components/PurchasesView';
+import { motion, AnimatePresence } from 'motion/react';
 import { ToastContainer, toast } from './components/Toast';
 
 const AppContent: React.FC = () => {
@@ -59,6 +61,8 @@ const AppContent: React.FC = () => {
  return <DashboardView onViewChange={setCurrentView} onQuickAction={handleQuickAction} />;
  case 'inventory':
  return <InventoryView />;
+ case 'purchases':
+ return <PurchasesView />;
  case 'products':
  return <ProductsView />;
  case 'pricing':
@@ -81,7 +85,7 @@ const AppContent: React.FC = () => {
  };
 
  return (
- <div className="min-h-screen bg-slate-50 text-slate-800 flex">
+ <div className="min-h-screen bg-bg-app text-ink-900 flex">
  
  {/* Fixed Sidebar component */}
  <Sidebar 
@@ -104,7 +108,17 @@ const AppContent: React.FC = () => {
 
  {/* Dynamic Inner views container */}
  <main className="p-6 max-w-[1600px] w-full mx-auto flex-1 pb-16">
- {renderMainContent()}
+ <AnimatePresence mode="wait">
+  <motion.div
+   key={currentView}
+   initial={{ opacity: 0, y: 10 }}
+   animate={{ opacity: 1, y: 0 }}
+   exit={{ opacity: 0, y: -10 }}
+   transition={{ duration: 0.22, ease: "easeInOut" }}
+  >
+   {renderMainContent()}
+  </motion.div>
+ </AnimatePresence>
  </main>
  </div>
 

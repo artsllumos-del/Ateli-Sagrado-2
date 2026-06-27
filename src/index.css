@@ -1,20 +1,82 @@
-@import url('https://fonts.googleapis.com/css2?family=Great+Vibes&family=Pinyon+Script&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&family=JetBrains+Mono:wght@400;500;600&display=swap');
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Helvetica Neue", "Helvetica", "Arial", sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  --font-sans: "Geist", "Inter", "Helvetica Neue", "Helvetica", "Arial", sans-serif;
+  --font-mono: "Geist Mono", "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
   --font-serif: "Playfair Display", "Georgia", serif;
   --font-display: "Playfair Display", "Georgia", serif;
   --font-script: "Pinyon Script", "Great Vibes", cursive;
+
+  /* Theme Palette */
+  --color-bg-app: #FAF7F2;
+  --color-bg-card: #FFFFFF;
+  --color-gold-500: #D4A039;
+  --color-gold-600: #B8862A;
+  --color-gold-700: #8F651B;
+  --color-terracotta-500: #B5563D;
+  --color-ink-900: #2A2420;
+  --color-ink-600: #6B6258;
+  --color-ink-300: #B8AFA3;
+
+  --color-linho-50: #FAF7F2;
+  --color-linho-100: #FAF3E7;
+  --color-linho-200: #F3EAD9;
+
+  --color-liturgical-500: #446C94;
+  --color-liturgical-bg: #EDF3F9;
+
+  --color-success-500: #3F9461;
+  --color-success-bg: #EAF6EE;
+  --color-warning-500: #D98C2B;
+  --color-warning-bg: #FCF1E0;
+  --color-info-500: #4C7FB0;
+}
+
+:root {
+  /* Design Tokens as custom properties */
+  --bg-app: #FAF7F2;
+  --bg-card: #FFFFFF;
+  --bg-card-soft: linear-gradient(135deg, #FFFDF9 0%, #FBF3E7 100%);
+
+  --gold-500: #D4A039;
+  --gold-600: #B8862A;
+  --gold-gradient: linear-gradient(135deg, #E8B85C 0%, #C9883A 100%);
+
+  --terracotta-500: #B5563D;
+  --terracotta-gradient: linear-gradient(135deg, #C97A5C 0%, #9C4530 100%);
+
+  --ink-900: #2A2420;
+  --ink-600: #6B6258;
+  --ink-300: #B8AFA3;
+
+  --success-500: #3F9461;
+  --success-bg: #EAF6EE;
+  --warning-500: #D98C2B;
+  --warning-bg: #FCF1E0;
+  --info-500: #4C7FB0;
+
+  --border-soft: rgba(42, 36, 32, 0.08);
+  --shadow-card: 0 4px 20px rgba(180, 130, 60, 0.05), 0 1px 3px rgba(0, 0, 0, 0.02);
+  --shadow-card-hover: 0 8px 30px rgba(180, 130, 60, 0.1), 0 2px 8px rgba(0, 0, 0, 0.03);
 }
 
 @layer base {
   body {
-    @apply bg-slate-50/50 text-slate-900 font-sans transition-colors duration-200 antialiased;
-    background-image: radial-gradient(at 0% 0%, rgba(251, 191, 36, 0.04) 0px, transparent 50%),
-                      radial-gradient(at 100% 100%, rgba(99, 102, 241, 0.03) 0px, transparent 50%),
-                      radial-gradient(at 100% 0%, rgba(244, 63, 94, 0.03) 0px, transparent 50%);
+    @apply bg-bg-app text-ink-900 font-sans transition-colors duration-200 antialiased;
+    background-image: radial-gradient(at 0% 0%, rgba(212, 160, 57, 0.04) 0px, transparent 50%),
+                      radial-gradient(at 100% 100%, rgba(181, 86, 61, 0.03) 0px, transparent 50%),
+                      radial-gradient(at 100% 0%, rgba(212, 160, 57, 0.03) 0px, transparent 50%);
+  }
+
+  /* Inputs redesign */
+  input, select, textarea {
+    @apply border border-slate-200 rounded-lg px-3 py-2 text-xs transition-all duration-150 focus:outline-none focus:border-gold-500 focus:ring-3 focus:ring-gold-500/15;
+  }
+
+  /* Button basic transition */
+  button {
+    @apply transition-all duration-200;
   }
 
   /* Custom Elegant Scrollbars */
@@ -26,7 +88,7 @@
     @apply bg-transparent;
   }
   ::-webkit-scrollbar-thumb {
-    @apply bg-slate-300 rounded-full hover:bg-slate-400 transition-colors;
+    @apply bg-slate-300/80 rounded-full hover:bg-slate-400 transition-colors;
   }
 }
 
@@ -53,19 +115,54 @@
   font-family: "Great Vibes", cursive;
 }
 
+/* Redesign Utility Classes */
 .text-gold-gradient {
-  background: linear-gradient(135deg, #b45309 0%, #d97706 50%, #f59e0b 100%);
+  background: var(--gold-gradient);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
 .bg-gold-gradient {
-  background: linear-gradient(135deg, #d97706 0%, #f59e0b 100%);
+  background: var(--gold-gradient);
+}
+
+.bg-terracotta-gradient {
+  background: var(--terracotta-gradient);
 }
 
 .card-luxury {
-  @apply bg-white border border-amber-100/60 rounded-3xl p-6 shadow-xs relative overflow-hidden;
-  background-image: radial-gradient(at 100% 0%, rgba(251, 191, 36, 0.02) 0px, transparent 60%);
+  background: var(--bg-card-soft);
+  border: 1px solid var(--border-soft);
+  border-radius: 16px;
+  box-shadow: var(--shadow-card);
+  transition: transform 200ms ease, box-shadow 200ms ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.card-luxury:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-card-hover);
+}
+
+.btn-primary {
+  background: var(--gold-gradient);
+  color: #FFFFFF;
+  border-radius: 10px;
+  padding: 10px 18px;
+  font-family: 'Geist', 'Inter', sans-serif;
+  font-weight: 500;
+  box-shadow: 0 2px 8px rgba(180, 130, 60, 0.2);
+  transition: transform 150ms ease, box-shadow 150ms ease, opacity 150ms ease;
+}
+
+.btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(180, 130, 60, 0.3);
+}
+
+.btn-primary:active {
+  transform: translateY(0);
 }
 
 @media print {

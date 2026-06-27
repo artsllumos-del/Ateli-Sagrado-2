@@ -171,12 +171,22 @@ export const QuotesView: React.FC = () => {
  setShowEditModal(false);
  };
 
+ const [conversionError, setConversionError] = useState<{ quoteCode: string; error: string; missingMaterials: { name: string; required: number; available: number; unit: string }[] } | null>(null);
+
  const handleConvertToOrder = (q: Quote) => {
  if (q.status === 'converted') {
  toast.info("Aviso", "Este orçamento já foi convertido em pedido anteriormente.");
  return;
  }
- convertToOrder(q.id);
+ const result = convertToOrder(q.id);
+ if (!result.success) {
+ setConversionError({
+ quoteCode: q.id.substring(6, 11).toUpperCase(),
+ error: result.error || 'Erro na conversão',
+ missingMaterials: result.missingMaterials || []
+ });
+ return;
+ }
  toast.success("Sucesso!", `Orçamento convertido em Pedido! Produção iniciada.`);
  };
 
@@ -219,6 +229,7 @@ export const QuotesView: React.FC = () => {
  return (
  <div className="space-y-6 animate-slide-in-up">
  
+ {!(showAddModal || showEditModal) && (
  <div className="space-y-6 no-print">
  {/* Control Filters Bar */}
  <div className="bg-white border border-slate-200/85 p-4 rounded-2xl shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -363,6 +374,7 @@ export const QuotesView: React.FC = () => {
  </div>
 
  </div>
+ )}
 
  {/* MODALS INVOICE & CREATE */}
 
@@ -530,182 +542,290 @@ export const QuotesView: React.FC = () => {
  <div className="pt-12 text-center text-[10px] text-slate-450 max-w-xs mx-auto space-y-1">
  <div className="border-t border-slate-300 pt-2" />
  <p className="font-bold">Ateliê Sagrado - Responsável Técnico</p>
- <p>Obrigado pela preferência e confiança!</p>
+ <p>Obrigado pela preferência!</p>
  </div>
-
  </div>
  </div>
  </div>
  </div>
  )}
 
- {/* 2. Create / Edit Quote Form Workspace */}
+ {/* 2. Create / Edit Quote Form Workspace (Full Page) */}
  {(showAddModal || showEditModal) && (
- <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
- <div className="bg-white border border-slate-200 w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden animate-slide-in-up max-h-[92vh] flex flex-col">
- <div className="h-14 border-b border-slate-150 px-6 flex items-center justify-between">
- <h3 className="font-bold text-sm text-slate-900 ">
- {showAddModal ? 'Criar Proposta de Orçamento' : 'Editar Orçamento'}
- </h3>
- <button onClick={() => { setShowAddModal(false); setShowEditModal(false); }} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
- </div>
+  <div className="max-w-4xl mx-auto space-y-6 animate-slide-in-up">
+    {/* Page Header */}
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-200 pb-4 gap-4">
+      <div>
+        <button
+          type="button"
+          onClick={() => { setShowAddModal(false); setShowEditModal(false); }}
+          className="inline-flex items-center gap-1.5 text-slate-500 hover:text-slate-800 text-xs font-bold transition-colors cursor-pointer mb-1.5"
+        >
+          <ArrowLeft size={14} /> Voltar para Orçamentos
+        </button>
+        <h2 className="font-serif font-bold text-2xl text-slate-900 tracking-tight">
+          {showAddModal ? 'Criar Proposta de Orçamento' : 'Editar Proposta de Orçamento'}
+        </h2>
+        <p className="text-xs text-slate-500 mt-1">
+          Simule preços de venda com base nos custos de insumos e margens do seu ateliê.
+        </p>
+      </div>
 
- <form onSubmit={showAddModal ? handleSaveAdd : handleSaveEdit} className="p-6 space-y-4 overflow-y-auto flex-1">
+      <div className="flex gap-3">
+        <button
+          type="button"
+          onClick={() => { setShowAddModal(false); setShowEditModal(false); }}
+          className="px-4 py-2 border border-slate-200 hover:bg-slate-50 rounded-xl text-xs font-bold text-slate-500 cursor-pointer transition-all active:scale-95"
+        >
+          Cancelar
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            const form = document.getElementById('quote-form') as HTMLFormElement;
+            if (form) form.requestSubmit();
+          }}
+          className="px-5 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold cursor-pointer transition-all hover:bg-slate-800 shadow-md active:scale-95"
+        >
+          {showAddModal ? 'Salvar Orçamento' : 'Salvar Alterações'}
+        </button>
+      </div>
+    </div>
+
+    {/* Form Card */}
+    <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6 sm:p-8">
+      <form id="quote-form" onSubmit={showAddModal ? handleSaveAdd : handleSaveEdit} className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          {/* Client selector */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Selecionar Cliente Destinatário *</label>
+            <select
+              value={clientId}
+              onChange={(e) => setClientId(e.target.value)}
+              className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 bg-slate-50 text-slate-800 focus:ring-2 focus:ring-amber-500/20 focus:outline-none"
+              required
+            >
+              <option value="" disabled>Selecione um cliente...</option>
+              {activeClients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          </div>
+
+          {/* Status selector */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Status Inicial</label>
+            <select
+              value={status}
+              onChange={(e) => setStatus(e.target.value as QuoteStatus)}
+              className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 bg-slate-50 text-slate-850 focus:ring-2 focus:ring-amber-500/20 focus:outline-none"
+            >
+              <option value="pending">Aguardando Aprovação (Pendente)</option>
+              <option value="analysis">Em Análise</option>
+              <option value="approved">Aprovado pelo Cliente</option>
+              <option value="rejected">Rejeitado</option>
+            </select>
+          </div>
+
+          {/* Shipping & Discount */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Valor de Frete / Remessa (R$)</label>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={shipping || ''}
+              onChange={(e) => setShipping(Number(e.target.value))}
+              className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 bg-slate-50 text-slate-850 font-mono focus:ring-2 focus:ring-amber-500/20 focus:outline-none"
+              placeholder="0.00"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Desconto Concedido (R$)</label>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={discount || ''}
+              onChange={(e) => setDiscount(Number(e.target.value))}
+              className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 bg-slate-50 text-slate-850 font-mono focus:ring-2 focus:ring-amber-500/20 focus:outline-none"
+              placeholder="0.00"
+            />
+          </div>
+        </div>
+
+        {/* Add item rows workspace */}
+        <div className="pt-6 border-t border-slate-100">
+          <h4 className="font-bold text-xs text-slate-800 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+            <ShoppingBag size={14} className="text-amber-500" /> Itens inclusos na proposta
+          </h4>
+
+          <div className="bg-slate-50 p-4 border border-slate-200 rounded-2xl flex flex-col sm:flex-row items-stretch sm:items-end gap-3 mb-5">
+            <div className="flex-1">
+              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Escolher Joia / Terço Artesanal</label>
+              <select
+                value={selectedProdId}
+                onChange={(e) => setSelectedProdId(e.target.value)}
+                className="w-full px-3 py-2.5 text-xs rounded-xl border border-slate-200 bg-white text-slate-800 focus:outline-none"
+              >
+                {activeProducts.map(p => (
+                  <option key={p.id} value={p.id}>{p.name} (R$ {p.sellingPrice.toFixed(2)})</option>
+                ))}
+              </select>
+            </div>
+            <div className="w-full sm:w-28">
+              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Quantidade</label>
+              <input
+                type="number"
+                min="1"
+                value={selectedQty}
+                onChange={(e) => setSelectedQty(Number(e.target.value))}
+                className="w-full px-3 py-2.5 text-xs rounded-xl border border-slate-200 bg-white text-slate-850 text-center focus:outline-none"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={handleAddItem}
+              className="px-5 py-2.5 bg-slate-900 text-white font-bold text-xs rounded-xl h-10 hover:bg-slate-800 transition-colors cursor-pointer"
+            >
+              + Vincular Item
+            </button>
+          </div>
+
+          {/* List of active items in proposal */}
+          <div className="border border-slate-200 rounded-2xl overflow-hidden divide-y divide-slate-150">
+            {items.map((item, idx) => (
+              <div key={idx} className="flex justify-between items-center px-5 py-3 bg-slate-50/15 text-xs font-semibold">
+                <div>
+                  <p className="text-slate-850">{item.productName}</p>
+                  <p className="text-[10px] text-slate-450 mt-0.5">Valor Unit: R$ {item.unitPrice.toFixed(2)}</p>
+                </div>
+                <div className="flex items-center gap-6">
+                  <p className="text-slate-650 font-bold">{item.quantity} un</p>
+                  <span className="font-mono text-slate-800 w-20 text-right">R$ {item.total.toFixed(2)}</span>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveItem(item.productId)}
+                    className="text-rose-500 hover:text-rose-600 font-bold text-lg px-2 cursor-pointer"
+                  >
+                    ×
+                  </button>
+                </div>
+              </div>
+            ))}
+            {items.length === 0 && (
+              <p className="p-5 text-center text-slate-400 text-xs italic">Nenhum item adicionado à proposta. Escolha acima.</p>
+            )}
+          </div>
+
+          {/* Subtotal summary worksheet */}
+          <div className="mt-5 pt-4 border-t border-slate-100 flex justify-end font-bold text-xs">
+            <div className="w-64 space-y-2">
+              <div className="flex justify-between text-slate-500">
+                <span>Subtotal de Itens:</span>
+                <span>R$ {subtotal.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between text-slate-500">
+                <span>Ajustes (Frete - Desc):</span>
+                <span>R$ {(shipping - discount).toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between text-slate-900 text-sm border-t border-slate-200 pt-2">
+                <span>TOTAL PROPOSTO:</span>
+                <span className="font-mono text-amber-600">R$ {total.toFixed(2)}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="pt-6 border-t border-slate-150 flex justify-end gap-3">
+          <button
+            type="button"
+            onClick={() => { setShowAddModal(false); setShowEditModal(false); }}
+            className="px-5 py-2.5 border border-slate-200 hover:bg-slate-50 rounded-xl text-xs font-bold text-slate-500 cursor-pointer"
+          >
+            Cancelar
+          </button>
+          <button
+            type="submit"
+            className="px-5 py-2.5 bg-slate-900 text-white rounded-xl text-xs font-bold cursor-pointer hover:bg-slate-800"
+          >
+            {showAddModal ? 'Adicionar Orçamento' : 'Salvar Alterações'}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+  )}
+
+ {conversionError && (
+ <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-[60] flex items-center justify-center p-4">
+ <div className="bg-white border-2 border-amber-500/30 w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden animate-slide-in-up">
+ <div className="bg-amber-50/50 border-b border-amber-100 p-5 flex items-center gap-3">
+ <div className="p-2.5 bg-amber-100 text-amber-700 rounded-xl">
+ <AlertTriangle size={22} />
+ </div>
+ <div>
+ <h3 className="font-serif font-bold text-base text-slate-900 leading-tight">Insumos Insuficientes</h3>
+ <span className="text-[10px] text-amber-600 font-semibold tracking-wider uppercase font-mono">
+ Bloqueio de Segurança — Estoque Inteligente
+ </span>
+ </div>
+ </div>
  
- <div className="grid grid-cols-2 gap-4">
+ <div className="p-6 space-y-4">
+ <p className="text-xs text-slate-600 leading-relaxed">
+ O orçamento <strong className="text-slate-900">#{conversionError.quoteCode}</strong> não pôde ser convertido em pedido porque a composição de seus produtos demanda mais matérias-primas do que o saldo atual em estoque.
+ </p>
+
+ <div className="bg-[#FAF8F5] border border-slate-100 rounded-xl p-4 space-y-3">
+ <span className="text-[10px] text-slate-450 font-bold uppercase tracking-wider block font-mono">
+ Materiais Faltantes Calculados:
+ </span>
  
- {/* Client selector */}
- <div>
- <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Selecionar Cliente Destinatário *</label>
- <select
- value={clientId}
- onChange={(e) => setClientId(e.target.value)}
- className="w-full px-3.5 py-2 text-xs rounded-lg border border-slate-200 bg-slate-50 text-slate-800"
- >
- <option value="" disabled>Selecione um cliente...</option>
- {activeClients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
- </select>
+ <div className="divide-y divide-slate-100 max-h-48 overflow-y-auto pr-1">
+ {conversionError.missingMaterials.map((mat, i) => {
+ const missingQty = Number((mat.required - mat.available).toFixed(2));
+ return (
+ <div key={i} className="py-2.5 flex items-center justify-between gap-4 text-xs first:pt-0 last:pb-0">
+ <div className="min-w-0 flex-1">
+ <span className="font-medium text-slate-800 block truncate">{mat.name}</span>
+ <span className="text-[10px] text-slate-400 font-mono">Unidade: {mat.unit}</span>
  </div>
-
- {/* Status selector */}
- <div>
- <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Status Inicial</label>
- <select
- value={status}
- onChange={(e) => setStatus(e.target.value as QuoteStatus)}
- className="w-full px-3.5 py-2 text-xs rounded-lg border border-slate-200 bg-slate-50 text-slate-850"
- >
- <option value="pending">Aguardando Aprovação (Pendente)</option>
- <option value="analysis">Em Análise</option>
- <option value="approved">Aprovado pelo Cliente</option>
- <option value="rejected">Rejeitado</option>
- </select>
+ <div className="text-right flex items-center gap-4">
+ <div className="text-[11px]">
+ <span className="text-slate-400 block">Necessário</span>
+ <span className="font-semibold text-slate-700">{mat.required}</span>
  </div>
-
- {/* Shipping & Discount */}
- <div>
- <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Valor de Frete / Remessa (R$)</label>
- <input
- type="number"
- min="0"
- value={shipping}
- onChange={(e) => setShipping(Number(e.target.value))}
- className="w-full px-3.5 py-2 text-xs rounded-lg border border-slate-200 bg-slate-50 text-slate-850 font-mono"
- />
+ <div className="text-[11px]">
+ <span className="text-slate-400 block">Disponível</span>
+ <span className="font-semibold text-slate-700">{mat.available}</span>
  </div>
-
- <div>
- <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Desconto Concedido (R$)</label>
- <input
- type="number"
- min="0"
- value={discount}
- onChange={(e) => setDiscount(Number(e.target.value))}
- className="w-full px-3.5 py-2 text-xs rounded-lg border border-slate-200 bg-slate-50 text-slate-850 font-mono"
- />
+ <div className="text-[11px] bg-amber-50 px-2 py-1 rounded-md text-amber-700 font-bold border border-amber-100/60">
+ <span className="text-[9px] text-amber-600 block leading-none font-medium">Faltam</span>
+ <span className="leading-normal">{missingQty}</span>
+ </div>
+ </div>
+ </div>
+ );
+ })}
  </div>
  </div>
 
- {/* Add item rows workspace */}
- <div className="pt-4 border-t border-slate-100 ">
- <h4 className="font-bold text-xs text-slate-800 uppercase tracking-wider mb-3 flex items-center gap-1.5">
- <ShoppingBag size={14} className="text-amber-500" /> Itens inclusos na proposta
- </h4>
+ <p className="text-[11px] text-[#446C94] bg-[#EDF3F9] px-3 py-2.5 rounded-lg border border-[#446C94]/15 leading-relaxed flex items-start gap-2">
+ <span className="font-bold text-sm leading-none mt-0.5">ℹ</span>
+ <span>
+ <strong>Dica do Sistema:</strong> Registre uma compra no painel de Estoque ou confira as necessidades totais no novo dashboard de <strong>"Compras Necessárias"</strong> para restabelecer os saldos.
+ </span>
+ </p>
+ </div>
 
- <div className="bg-slate-50 p-3.5 border border-slate-200 rounded-xl flex items-end gap-3 mb-4">
- <div className="flex-1">
- <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Escolher Joia / Terço Artesanal</label>
- <select
- value={selectedProdId}
- onChange={(e) => setSelectedProdId(e.target.value)}
- className="w-full px-3 py-2 text-xs rounded-lg border border-slate-200 bg-white text-slate-800"
- >
- {activeProducts.map(p => (
- <option key={p.id} value={p.id}>{p.name} (R$ {p.sellingPrice.toFixed(2)})</option>
- ))}
- </select>
- </div>
- <div className="w-24">
- <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Quantidade</label>
- <input
- type="number"
- min="1"
- value={selectedQty}
- onChange={(e) => setSelectedQty(Number(e.target.value))}
- className="w-full px-3 py-2 text-xs rounded-lg border border-slate-200 bg-white text-slate-850 text-center"
- />
- </div>
+ <div className="bg-slate-50/80 border-t border-slate-100 px-6 py-4 flex justify-end gap-3">
  <button
- type="button"
- onClick={handleAddItem}
- className="px-4 py-2 bg-slate-900 text-white font-bold text-xs rounded-lg h-9"
+ onClick={() => setConversionError(null)}
+ className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold cursor-pointer shadow-md transition-all duration-150 active:scale-95"
  >
- + Vincular
+ Compreendido
  </button>
  </div>
-
- {/* List of active items in proposal */}
- <div className="border border-slate-100 rounded-xl overflow-hidden divide-y divide-slate-100 ">
- {items.map((item, idx) => (
- <div key={idx} className="flex justify-between items-center px-4 py-2 bg-slate-50/20 text-xs font-semibold">
- <div>
- <p className="text-slate-850 ">{item.productName}</p>
- <p className="text-[10px] text-slate-450 mt-0.5">Valor Unit: R$ {item.unitPrice.toFixed(2)}</p>
- </div>
- <div className="flex items-center gap-6">
- <p className="text-slate-650 font-bold">{item.quantity} un</p>
- <span className="font-mono text-slate-800 w-20 text-right">R$ {item.total.toFixed(2)}</span>
- <button
- type="button"
- onClick={() => handleRemoveItem(item.productId)}
- className="text-rose-500 hover:text-rose-600 font-bold text-lg px-2 cursor-pointer"
- >
- ×
- </button>
- </div>
- </div>
- ))}
- {items.length === 0 && (
- <p className="p-4 text-center text-slate-400 text-xs italic">Nenhum item adicionado à proposta. Escolha acima.</p>
- )}
- </div>
-
- {/* Subtotal summary worksheet */}
- <div className="mt-4 pt-3 border-t border-slate-100 flex justify-end font-bold text-xs space-y-1">
- <div className="w-56 space-y-1">
- <div className="flex justify-between text-slate-500">
- <span>Subtotal de Itens:</span>
- <span>R$ {subtotal.toFixed(2)}</span>
- </div>
- <div className="flex justify-between text-slate-500">
- <span>Ajustes (Frete - Desc):</span>
- <span>R$ {(shipping - discount).toFixed(2)}</span>
- </div>
- <div className="flex justify-between text-slate-900 text-sm border-t border-slate-200 pt-1">
- <span>TOTAL PROPOSTO:</span>
- <span>R$ {total.toFixed(2)}</span>
- </div>
- </div>
- </div>
-
- </div>
-
- <div className="pt-4 border-t border-slate-150 flex justify-end gap-3">
- <button
- type="button"
- onClick={() => { setShowAddModal(false); setShowEditModal(false); }}
- className="px-4 py-2 border border-slate-200 hover:bg-slate-50 rounded-xl text-xs font-bold text-slate-500 cursor-pointer"
- >
- Cancelar
- </button>
- <button
- type="submit"
- className="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold cursor-pointer"
- >
- {showAddModal ? 'Adicionar Orçamento' : 'Salvar Alterações'}
- </button>
- </div>
- </form>
  </div>
  </div>
  )}

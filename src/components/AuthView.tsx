@@ -55,8 +55,12 @@ export const AuthView: React.FC = () => {
  
  {/* Luxury Brand Header */}
  <div className="text-center mb-8">
- <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-tr from-amber-50 via-amber-100/50 to-amber-50 border border-amber-200/50 text-slate-700 mb-5 shadow-sm">
- <span className="text-4xl filter drop-shadow-sm">📿</span>
+ <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-tr from-amber-50 via-amber-100/50 to-amber-50 border border-amber-200/50 text-amber-600 mb-5 shadow-sm relative overflow-hidden">
+ <div className="absolute inset-1.5 border border-amber-500/10 rounded-full animate-pulse"></div>
+  <svg className="w-10 h-10 text-amber-600 drop-shadow-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 3v17M8 8h8" />
+    <circle cx="12" cy="8" r="3" stroke="currentColor" strokeWidth="0.8" strokeDasharray="1.5 1.5" />
+  </svg>
  </div>
  <h1 className="text-4xl font-serif tracking-wide text-slate-900 font-medium">
  Ateliê Sagrado
@@ -112,7 +116,7 @@ export const AuthView: React.FC = () => {
  className="w-full px-4 py-3 rounded-2xl border border-slate-200/80 bg-slate-50/50 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 focus:bg-white transition-all text-sm font-medium"
  />
  <span className="text-[10px] text-amber-600/90 font-medium mt-1.5 block">
- ✨ Senha preenchida por padrão para o seu conforto (<strong>123456</strong>).
+ <Sparkles size={10} className="text-amber-500 shrink-0 animate-pulse inline mr-1" /> Senha preenchida por padrão para o seu conforto (<strong>123456</strong>).
  </span>
  </div>
  )}

@@ -18,9 +18,9 @@ export const ProductionView: React.FC = () => {
 
  // Kanban Columns
  const todoTasks = activeTasks.filter(t => t.status === 'todo');
- const inProgressTasks = activeTasks.filter(t => t.status === 'in_production');
- const finishingTasks = activeTasks.filter(t => t.status === 'in_finishing');
- const completedTasks = activeTasks.filter(t => t.status === 'completed');
+ const inProgressTasks = activeTasks.filter(t => t.status === 'producing');
+ const finishingTasks = activeTasks.filter(t => t.status === 'finishing');
+ const completedTasks = activeTasks.filter(t => t.status === 'done');
 
  // Indicators / Stats calculations
  const dailyProdCount = completedTasks.filter(t => t.endDate === new Date().toISOString().split('T')[0]).length;
@@ -29,11 +29,11 @@ export const ProductionView: React.FC = () => {
  const efficiency = totalTasks > 0 ? Math.round((completedTasks.length / totalTasks) * 100) : 100;
  
  // Tasks past due date
- const delayedTasks = activeTasks.filter(t => t.status !== 'completed' && new Date(t.dueDate) < new Date()).length;
+ const delayedTasks = activeTasks.filter(t => t.status !== 'done' && new Date(t.dueDate) < new Date()).length;
 
  const handleStartTask = (id: string) => {
  updateProductionTask(id, { 
- status: 'in_production',
+ status: 'producing',
  startDate: new Date().toISOString().split('T')[0]
  });
  toast.success("Produção Iniciada", "A tarefa foi movida para 'Em Produção'.");
@@ -41,16 +41,16 @@ export const ProductionView: React.FC = () => {
 
  const handleFinishPhase = (id: string) => {
  updateProductionTask(id, { 
- status: 'in_finishing'
+ status: 'finishing'
  });
  toast.success("Fase de Acabamento", "A peça foi enviada para o polimento e banho.");
  };
 
  const handleCompleteTask = (id: string) => {
  updateProductionTask(id, { 
- status: 'completed',
+ status: 'done',
  endDate: new Date().toISOString().split('T')[0],
- timeSpentMin: 45 // Simulated default final time
+ timeSpentMinutes: 45 // Simulated default final time
  });
  toast.success("Peça Concluída!", "Joia finalizada com sucesso e pronta para remessa.");
  };
@@ -263,7 +263,7 @@ export const ProductionView: React.FC = () => {
 
  <div className="text-[10px] space-y-1 text-slate-450 font-semibold">
  <p>Artesão: <strong>{task.responsible || 'Ateliê'}</strong></p>
- <p>Tempo investido: <strong>{task.timeSpentMin} minutos</strong></p>
+ <p>Tempo investido: <strong>{task.timeSpentMinutes} minutos</strong></p>
  </div>
  </div>
  ))}

@@ -42,6 +42,8 @@ export interface InventoryItem {
  status: InventoryStatus;
  isDeleted?: boolean;
  createdAt: string;
+ reserved?: number;
+ available?: number;
 }
 
 export interface ProductMaterialComposition {
@@ -171,3 +173,14 @@ export interface SystemSettings {
  language: 'pt-BR' | 'en';
  notificationsEnabled: boolean;
 }
+
+export interface SystemNotification {
+ id: string;
+ title: string;
+ message: string;
+ type: 'low_stock' | 'critical_stock' | 'delayed_order' | 'info' | 'success';
+ date: string;
+ read: boolean;
+ isDeleted?: boolean;
+}
+

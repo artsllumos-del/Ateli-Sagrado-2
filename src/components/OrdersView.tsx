@@ -103,16 +103,29 @@ export const OrdersView: React.FC = () => {
  }
 
  const client = clients.find(c => c.id === clientId);
- addOrder({
- clientId,
- clientName: client?.name || "Cliente",
- items,
- totalValue: subtotalValue,
- date: new Date().toISOString().split('T')[0],
- dueDate,
- status,
- productionProgress: 0
+ const result = addOrder({
+  clientId,
+  clientName: client?.name || "Cliente",
+  items,
+  totalValue: subtotalValue,
+  date: new Date().toISOString().split('T')[0],
+  dueDate,
+  status,
+  productionProgress: 0
  });
+
+ if (!result.success) {
+  if (result.missingMaterials && result.missingMaterials.length > 0) {
+   const missingDetails = result.missingMaterials.map(m => `• ${m.name} (Necessário: ${m.required} ${m.unit} | Disponível: ${m.available} ${m.unit})`).join('\n');
+   toast.error(
+    "Estoque Insuficiente",
+    `Não é possível finalizar a venda. Insumos em falta no estoque:\n${missingDetails}`
+   );
+  } else {
+   toast.error("Erro ao registrar", result.error || "Ocorreu um erro ao salvar o pedido.");
+  }
+  return;
+ }
 
  toast.success("Pedido registrado!", "Pedido gerado e matérias-primas baixadas do estoque.");
  setShowAddModal(false);

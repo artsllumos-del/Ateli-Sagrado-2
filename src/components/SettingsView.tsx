@@ -191,7 +191,7 @@ export const SettingsView: React.FC = () => {
  <option value="light">Marfim Clássico & Ouro Real</option>
  </select>
  <span className="text-[10px] text-amber-600 font-medium mt-1.5 block">
- ✨ Estilo claro luxuoso ativo por padrão!
+ <Sparkles size={10} className="text-amber-500 inline mr-1 animate-pulse" /> Estilo claro luxuoso ativo por padrão!
  </span>
  </div>
 

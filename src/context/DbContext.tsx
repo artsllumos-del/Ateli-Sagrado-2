@@ -10,10 +10,12 @@ import {
  SystemSettings,
  QuoteStatus,
  OrderStatus,
- ProductionStatus
+ ProductionStatus,
+ OrderTimelineEvent,
+ SystemNotification
 } from '../types/erp';
 
-interface DbContextType {
+ interface DbContextType {
  clients: Client[];
  inventory: InventoryItem[];
  products: Product[];
@@ -22,6 +24,7 @@ interface DbContextType {
  productionTasks: ProductionTask[];
  transactions: FinancialTransaction[];
  settings: SystemSettings;
+ notifications: SystemNotification[];
  
  // Auth simulation
  user: { name: string; email: string } | null;
@@ -47,9 +50,9 @@ interface DbContextType {
  updateQuote: (id: string, quote: Partial<Quote>) => void;
  deleteQuote: (id: string) => void;
  duplicateQuote: (id: string) => void;
- convertToOrder: (id: string) => void;
+ convertToOrder: (id: string) => { success: boolean; error?: string; missingMaterials?: { name: string; required: number; available: number; unit: string }[] };
 
- addOrder: (order: Omit<Order, 'id' | 'createdAt' | 'orderNumber' | 'timeline'>) => void;
+ addOrder: (order: Omit<Order, 'id' | 'createdAt' | 'orderNumber' | 'timeline'>) => { success: boolean; error?: string; missingMaterials?: { name: string; required: number; available: number; unit: string }[] };
  updateOrder: (id: string, order: Partial<Order>) => void;
  deleteOrder: (id: string) => void;
  addOrderTimeline: (id: string, description: string) => void;
@@ -61,6 +64,16 @@ interface DbContextType {
  deleteTransaction: (id: string) => void;
 
  updateSettings: (settings: Partial<SystemSettings>) => void;
+
+ // Notification methods
+ addNotification: (title: string, message: string, type: SystemNotification['type']) => void;
+ toggleNotificationRead: (id: string) => void;
+ markNotificationAsRead: (id: string) => void;
+ markAllNotificationsAsRead: () => void;
+ clearNotification: (id: string) => void;
+ clearAllNotifications: () => void;
+ scanReceipt: (imageBase64: string) => Promise<{ success: boolean; data?: any; error?: string }>;
+ importFinancialFile: (fileType: 'csv' | 'ofx' | 'xlsx', fileContent: string) => Promise<{ success: boolean; count?: number; error?: string }>;
 }
 
 const DbContext = createContext<DbContextType | undefined>(undefined);
@@ -475,6 +488,7 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
  const [transactions, setTransactions] = useState<FinancialTransaction[]>([]);
  const [settings, setSettings] = useState<SystemSettings>(defaultSettings);
  const [user, setUser] = useState<{ name: string; email: string } | null>(null);
+ const [notifications, setNotifications] = useState<SystemNotification[]>([]);
 
  // Initialize and load from LocalStorage
  useEffect(() => {
@@ -509,6 +523,27 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
  setOrders(loadData('orders', initialOrders));
  setProductionTasks(loadData('production_tasks', initialProductionTasks));
  setTransactions(loadData('transactions', initialTransactions));
+
+ // Seed notifications if empty
+ const initialNotifications: SystemNotification[] = [
+  {
+    id: 'notif_1',
+    title: '🎉 Bem-vindo ao Sistema do Ateliê Sagrado',
+    message: 'Seu painel integrado está pronto! Acompanhe as suas vendas, estoque e produção em tempo real.',
+    type: 'success',
+    date: new Date(Date.now() - 3600000).toISOString(),
+    read: false
+  },
+  {
+    id: 'notif_2',
+    title: '⚠️ Alerta de Estoque',
+    message: 'O insumo "Crucifixo 4cm Folheado" está próximo ao limite mínimo configurado.',
+    type: 'low_stock',
+    date: new Date(Date.now() - 7200000).toISOString(),
+    read: true
+  }
+ ];
+ setNotifications(loadData('notifications', initialNotifications));
 
  const storedSettings = localStorage.getItem('as_settings');
  let loadedSettings = defaultSettings;
@@ -601,9 +636,29 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
  };
 
  const updateInventoryItem = (id: string, updatedFields: Partial<InventoryItem>) => {
- const updated = inventory.map(i => i.id === id ? { ...i, ...updatedFields } : i);
- setInventory(updated);
- saveToLocal('inventory', updated);
+  const itemBefore = inventory.find(i => i.id === id);
+  const updated = inventory.map(i => i.id === id ? { ...i, ...updatedFields } : i);
+  setInventory(updated);
+  saveToLocal('inventory', updated);
+
+  const itemAfter = updated.find(i => i.id === id);
+  if (itemBefore && itemAfter && updatedFields.quantity !== undefined && updatedFields.quantity !== itemBefore.quantity) {
+   const newQty = itemAfter.quantity;
+   const minQty = itemAfter.minQuantity;
+   if (newQty === 0 && itemBefore.quantity > 0) {
+    addNotification(
+     "🚨 Estoque Crítico",
+     `O insumo "${itemAfter.name}" está totalmente esgotado (0 ${itemAfter.unit}). Providencie a reposição imediata!`,
+     "critical_stock"
+    );
+   } else if (newQty <= minQty && itemBefore.quantity > minQty) {
+    addNotification(
+     "⚠️ Estoque Baixo",
+     `O insumo "${itemAfter.name}" atingiu o nível mínimo. Quantidade atual: ${newQty} ${itemAfter.unit} (Mínimo: ${minQty} ${itemAfter.unit}).`,
+     "low_stock"
+    );
+   }
+  }
  };
 
  const deleteInventoryItem = (id: string) => {
@@ -613,16 +668,22 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
  saveToLocal('inventory', updated);
  };
 
- const adjustStock = (id: string, amount: number, notes: string, category: string, contactName: string) => {
+ const adjustStock = (id: string, amount: number, notes: string, category: string, contactName: string, newUnitValue?: number, customExpenseValue?: number) => {
  const target = inventory.find(i => i.id === id);
  if (!target) return;
 
  const newQty = Math.max(0, target.quantity + amount);
- updateInventoryItem(id, { quantity: newQty });
+	const updatedFields: Partial<InventoryItem> = { quantity: newQty };
+	if (newUnitValue !== undefined && newUnitValue > 0) {
+		updatedFields.unitValue = newUnitValue;
+	}
+ updateInventoryItem(id, updatedFields);
 
  // Record financial transaction if buying stock (negative amount means purchasing/expense)
  if (amount > 0) {
- const value = amount * target.unitValue;
+ const value = customExpenseValue !== undefined && customExpenseValue > 0
+		? customExpenseValue
+		: amount * (newUnitValue || target.unitValue);
  addTransaction({
  type: 'expense',
  category: 'Compra de Matéria-Prima',
@@ -671,6 +732,12 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
  const updated = [newQuote, ...quotes];
  setQuotes(updated);
  saveToLocal('quotes', updated);
+
+ addNotification(
+  "📝 Novo Orçamento",
+  `Orçamento para o cliente "${quoteData.clientName}" registrado no valor de R$ ${quoteData.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}. Insumos reservados para orçamento com sucesso!`,
+  "info"
+ );
  };
 
  const updateQuote = (id: string, updatedFields: Partial<Quote>) => {
@@ -701,14 +768,82 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
  saveToLocal('quotes', updated);
  };
 
- const convertToOrder = (quoteId: string) => {
+ const convertToOrder = (quoteId: string): { success: boolean; error?: string; missingMaterials?: { name: string; required: number; available: number; unit: string }[] } => {
  const quote = quotes.find(q => q.id === quoteId);
- if (!quote) return;
+ if (!quote) return { success: false, error: 'Orçamento não encontrado.' };
 
- // 1. Update quote status to converted
+ // 1. Check material requirements and inventory
+ const materialRequirements: Record<string, { required: number; name: string; unit: string; available: number }> = {};
+
+ for (const item of quote.items) {
+ const prod = products.find(p => p.id === item.productId);
+ if (prod && prod.composition) {
+ for (const comp of prod.composition) {
+ const mat = inventory.find(m => m.id === comp.materialId);
+ if (mat) {
+ const needed = comp.quantity * item.quantity;
+ if (!materialRequirements[comp.materialId]) {
+ materialRequirements[comp.materialId] = {
+ required: 0,
+ name: mat.name,
+ unit: mat.unit,
+ available: mat.quantity
+ };
+ }
+ materialRequirements[comp.materialId].required += needed;
+ }
+ }
+ }
+ }
+
+ // Verify if any requirement exceeds available stock
+ const missing: { name: string; required: number; available: number; unit: string }[] = [];
+ for (const matId of Object.keys(materialRequirements)) {
+ const req = materialRequirements[matId];
+ if (req.required > req.available) {
+ missing.push({
+ name: req.name,
+ required: Number(req.required.toFixed(2)),
+ available: Number(req.available.toFixed(2)),
+ unit: req.unit
+ });
+ }
+ }
+
+ if (missing.length > 0) {
+ return {
+ success: false,
+ error: 'Insumos insuficientes em estoque para realizar a conversão.',
+ missingMaterials: missing
+ };
+ }
+
+ // 2. Deduct materials from Inventory for this converted order
+ let updatedInventory = [...inventory];
+ quote.items.forEach(item => {
+ const prod = products.find(p => p.id === item.productId);
+ if (prod && prod.composition) {
+ prod.composition.forEach(comp => {
+ updatedInventory = updatedInventory.map(m => {
+ if (m.id === comp.materialId) {
+ const deductedQty = comp.quantity * item.quantity;
+ return {
+ ...m,
+ quantity: Math.max(0, m.quantity - deductedQty)
+ };
+ }
+ return m;
+ });
+ });
+ }
+ });
+ setInventory(updatedInventory);
+ saveToLocal('inventory', updatedInventory);
+
+ // 3. Update quote status to converted
  updateQuote(quoteId, { status: 'converted' });
 
- // 2. Generate new Order
+ // 4. Generate new Order
  const year = new Date().getFullYear();
  const orderNum = `PED-${year}-${Math.floor(1000 + Math.random() * 9000)}`;
  const newOrder: Order = {
@@ -743,7 +878,7 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
  setOrders(updatedOrders);
  saveToLocal('orders', updatedOrders);
 
- // 3. Register a Production task for each item in the order
+ // 5. Register a Production task for each item in the order
  const newTasks: ProductionTask[] = quote.items.map((item, idx) => {
  const prod = products.find(p => p.id === item.productId);
  return {
@@ -766,7 +901,7 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
  setProductionTasks(updatedTasks);
  saveToLocal('production_tasks', updatedTasks);
 
- // 4. Automatically post Financial Receipt (since we assume converting a quote into order is a confirmed sales value)
+ // 6. Automatically post Financial Receipt (since we assume converting a quote into order is a confirmed sales value)
  addTransaction({
  type: 'income',
  category: 'Venda de Produtos',
@@ -776,10 +911,64 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
  paymentMethod: 'Pix',
  notes: `Venda Ref. Pedido ${orderNum}`
  });
+
+ addNotification(
+  "🛒 Orçamento Convertido",
+  `O orçamento do cliente "${quote.clientName}" foi convertido com sucesso no Pedido ${orderNum}. Insumos deduzidos do estoque.`,
+  "success"
+ );
+
+ return { success: true };
  };
 
  // ORDERS CRUD
- const addOrder = (orderData: Omit<Order, 'id' | 'createdAt' | 'orderNumber' | 'timeline'>) => {
+ const addOrder = (orderData: Omit<Order, 'id' | 'createdAt' | 'orderNumber' | 'timeline'>): { success: boolean; error?: string; missingMaterials?: { name: string; required: number; available: number; unit: string }[] } => {
+ // 1. Check material requirements and inventory
+ const materialRequirements: Record<string, { required: number; name: string; unit: string; available: number }> = {};
+
+ for (const item of orderData.items) {
+ const prod = products.find(p => p.id === item.productId);
+ if (prod && prod.composition) {
+ for (const comp of prod.composition) {
+ const mat = inventory.find(m => m.id === comp.materialId);
+ if (mat) {
+ const needed = comp.quantity * item.quantity;
+ if (!materialRequirements[comp.materialId]) {
+ materialRequirements[comp.materialId] = {
+ required: 0,
+ name: mat.name,
+ unit: mat.unit,
+ available: mat.quantity
+ };
+ }
+ materialRequirements[comp.materialId].required += needed;
+ }
+ }
+ }
+ }
+
+ // Verify if any requirement exceeds available stock
+ const missing: { name: string; required: number; available: number; unit: string }[] = [];
+ for (const matId of Object.keys(materialRequirements)) {
+ const req = materialRequirements[matId];
+ if (req.required > req.available) {
+ missing.push({
+ name: req.name,
+ required: Number(req.required.toFixed(2)),
+ available: Number(req.available.toFixed(2)),
+ unit: req.unit
+ });
+ }
+ }
+
+ if (missing.length > 0) {
+ return {
+ success: false,
+ error: 'Insumos insuficientes em estoque para realizar a venda do pedido.',
+ missingMaterials: missing
+ };
+ }
+
  const year = new Date().getFullYear();
  const orderNum = `PED-${year}-${Math.floor(1000 + Math.random() * 9000)}`;
  const newOrder: Order = {
@@ -822,19 +1011,47 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
  setProductionTasks(updatedTasks);
  saveToLocal('production_tasks', updatedTasks);
 
- // Also deduct materials from Inventory for this order!
+ // Deduct materials from Inventory for this order in batch
+ let updatedInventory = [...inventory];
  orderData.items.forEach(item => {
  const prod = products.find(p => p.id === item.productId);
  if (prod && prod.composition) {
  prod.composition.forEach(comp => {
- const mat = inventory.find(m => m.id === comp.materialId);
- if (mat) {
+ updatedInventory = updatedInventory.map(m => {
+ if (m.id === comp.materialId) {
  const deductedQty = comp.quantity * item.quantity;
- updateInventoryItem(mat.id, {
- quantity: Math.max(0, mat.quantity - deductedQty)
+ return {
+ ...m,
+ quantity: Math.max(0, Number((m.quantity - deductedQty).toFixed(2)))
+ };
+ }
+ return m;
+ });
  });
  }
  });
+ setInventory(updatedInventory);
+ saveToLocal('inventory', updatedInventory);
+
+ // Trigger notifications for depleted/low items based on the batch deduction
+ updatedInventory.forEach(itemAfter => {
+ const itemBefore = inventory.find(i => i.id === itemAfter.id);
+ if (itemBefore && itemAfter.quantity < itemBefore.quantity) {
+ const newQty = itemAfter.quantity;
+ const minQty = itemAfter.minQuantity;
+ if (newQty === 0 && itemBefore.quantity > 0) {
+ addNotification(
+ "🚨 Estoque Crítico",
+ `O insumo "${itemAfter.name}" está totalmente esgotado (0 ${itemAfter.unit}). Providencie a reposição imediata!`,
+ "critical_stock"
+ );
+ } else if (newQty <= minQty && itemBefore.quantity > minQty) {
+ addNotification(
+ "⚠️ Estoque Baixo",
+ `O insumo "${itemAfter.name}" atingiu o nível mínimo. Quantidade atual: ${newQty} ${itemAfter.unit} (Mínimo: ${minQty} ${itemAfter.unit}).`,
+ "low_stock"
+ );
+ }
  }
  });
 
@@ -848,37 +1065,114 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
  paymentMethod: 'Pix',
  notes: `Venda Ref. Pedido ${orderNum}`
  });
+
+ addNotification(
+  "🛍️ Novo Pedido de Venda",
+  `Pedido ${orderNum} para o cliente "${orderData.clientName}" foi cadastrado com sucesso (R$ ${orderData.totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}). Insumos deduzidos do estoque.`,
+  "success"
+ );
+
+ return { success: true };
  };
 
  const updateOrder = (id: string, updatedFields: Partial<Order>) => {
- const updated = orders.map(o => {
- if (o.id === id) {
- const newTimeline = [...o.timeline];
- if (updatedFields.status && updatedFields.status !== o.status) {
- newTimeline.push({
- id: 't_' + Date.now(),
- date: new Date().toISOString().replace('T', ' ').substring(0, 16),
- description: `Status alterado de ${getStatusLabel(o.status)} para ${getStatusLabel(updatedFields.status)}`,
- user: user?.name || "Ateliê Sagrado"
- });
- }
- return {
- ...o,
- ...updatedFields,
- timeline: newTimeline
- };
- }
- return o;
- });
- setOrders(updated);
- saveToLocal('orders', updated);
+  let orderProgress = updatedFields.productionProgress;
 
- // Also update production tasks status if needed
- if (updatedFields.status === 'completed' || updatedFields.status === 'shipped' || updatedFields.status === 'delivered') {
- const updatedT = productionTasks.map(t => t.orderId === id ? { ...t, status: 'done' as ProductionStatus } : t);
- setProductionTasks(updatedT);
- saveToLocal('production_tasks', updatedT);
- }
+  // Auto-calculate progress based on status if not provided
+  if (updatedFields.status && orderProgress === undefined) {
+   if (updatedFields.status === 'completed' || updatedFields.status === 'shipped' || updatedFields.status === 'delivered') {
+    orderProgress = 100;
+   } else if (updatedFields.status === 'finishing') {
+    orderProgress = 85;
+   } else if (updatedFields.status === 'production') {
+    orderProgress = 50;
+   } else if (updatedFields.status === 'received' || updatedFields.status === 'approved') {
+    orderProgress = 0;
+   }
+  }
+
+  const fieldsToUpdate = {
+   ...updatedFields,
+   ...(orderProgress !== undefined ? { productionProgress: orderProgress } : {})
+  };
+
+  const updated = orders.map(o => {
+   if (o.id === id) {
+    const newTimeline = [...o.timeline];
+    if (fieldsToUpdate.status && fieldsToUpdate.status !== o.status) {
+     newTimeline.push({
+      id: 't_' + Date.now() + '_status',
+      date: new Date().toISOString().replace('T', ' ').substring(0, 16),
+      description: `Status do pedido alterado para "${getStatusLabel(fieldsToUpdate.status)}"`,
+      user: user?.name || "Ateliê Sagrado"
+     });
+    }
+    return {
+     ...o,
+     ...fieldsToUpdate,
+     timeline: newTimeline
+    };
+   }
+   return o;
+  });
+  setOrders(updated);
+  saveToLocal('orders', updated);
+
+  const originalOrder = orders.find(o => o.id === id);
+  if (originalOrder && fieldsToUpdate.status && fieldsToUpdate.status !== originalOrder.status) {
+   const status = fieldsToUpdate.status;
+   if (status === 'completed' || status === 'shipped' || status === 'delivered') {
+    const statusLabels: Record<string, string> = {
+     completed: 'Finalizado',
+     shipped: 'Enviado',
+     delivered: 'Entregue'
+    };
+    addNotification(
+     "📦 Saída de Produto",
+     `O Pedido ${originalOrder.orderNumber} do cliente "${originalOrder.clientName}" foi marcado como "${statusLabels[status]}". Saída de produto do ateliê concluída.`,
+     "success"
+    );
+   } else {
+    addNotification(
+     "ℹ️ Status de Pedido",
+     `O Pedido ${originalOrder.orderNumber} avançou para o status "${getStatusLabel(status)}".`,
+     "info"
+    );
+   }
+  }
+
+  // Sync to production tasks
+  if (fieldsToUpdate.status) {
+   let targetTaskStatus: ProductionStatus | null = null;
+   if (fieldsToUpdate.status === 'completed' || fieldsToUpdate.status === 'shipped' || fieldsToUpdate.status === 'delivered') {
+    targetTaskStatus = 'done';
+   } else if (fieldsToUpdate.status === 'finishing') {
+    targetTaskStatus = 'finishing';
+   } else if (fieldsToUpdate.status === 'production') {
+    targetTaskStatus = 'producing';
+   } else if (fieldsToUpdate.status === 'received' || fieldsToUpdate.status === 'approved') {
+    targetTaskStatus = 'todo';
+   }
+
+   if (targetTaskStatus) {
+    const updatedT = productionTasks.map(t => {
+     if (t.orderId === id) {
+      if (targetTaskStatus === 'todo') {
+       return { ...t, status: 'todo' as ProductionStatus, startDate: null, endDate: null };
+      } else if (targetTaskStatus === 'done' && t.status !== 'done') {
+       return { ...t, status: 'done' as ProductionStatus, endDate: new Date().toISOString().split('T')[0] };
+      } else if (targetTaskStatus === 'finishing' && t.status !== 'done' && t.status !== 'finishing') {
+       return { ...t, status: 'finishing' as ProductionStatus };
+      } else if (targetTaskStatus === 'producing' && t.status === 'todo') {
+       return { ...t, status: 'producing' as ProductionStatus, startDate: new Date().toISOString().split('T')[0] };
+      }
+     }
+     return t;
+    });
+    setProductionTasks(updatedT);
+    saveToLocal('production_tasks', updatedT);
+   }
+  }
  };
 
  const deleteOrder = (id: string) => {
@@ -911,50 +1205,108 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
 
  // PRODUCTION TASKS
  const updateProductionTask = (id: string, updatedFields: Partial<ProductionTask>) => {
- const updated = productionTasks.map(t => {
- if (t.id === id) {
- const task = { ...t, ...updatedFields };
- 
- // If status changed, update corresponding order progress
- if (updatedFields.status && updatedFields.status !== t.status) {
- setTimeout(() => {
- // Recalculate order overall progress
- const siblings = productionTasks.filter(pt => pt.orderId === t.orderId);
- const siblingsCount = siblings.length;
- if (siblingsCount > 0) {
- const doneCount = siblings.reduce((acc, curr) => {
- const checkId = curr.id === id ? updatedFields.status : curr.status;
- if (checkId === 'done') return acc + 1;
- if (checkId === 'finishing') return acc + 0.85;
- if (checkId === 'producing') return acc + 0.5;
- return acc;
- }, 0);
- const progress = Math.round((doneCount / siblingsCount) * 100);
- 
- // Determine new order status based on task state
- let orderStatus: OrderStatus | undefined = undefined;
- if (progress === 100) {
- orderStatus = 'completed';
- } else if (progress > 50) {
- orderStatus = 'finishing';
- } else if (progress > 0) {
- orderStatus = 'production';
- }
+  let targetOrderId = "";
+  let affectedTask: ProductionTask | null = null;
 
- updateOrder(t.orderId, { 
- productionProgress: progress,
- ...(orderStatus ? { status: orderStatus } : {})
- });
- }
- }, 50);
- }
+  const updated = productionTasks.map(t => {
+   if (t.id === id) {
+    affectedTask = { ...t, ...updatedFields };
+    targetOrderId = t.orderId;
+    return affectedTask;
+   }
+   return t;
+  });
 
- return task;
- }
- return t;
- });
- setProductionTasks(updated);
- saveToLocal('production_tasks', updated);
+  setProductionTasks(updated);
+  saveToLocal('production_tasks', updated);
+
+  if (!affectedTask || !targetOrderId) return;
+
+  setTimeout(() => {
+   const parentOrder = orders.find(o => o.id === targetOrderId);
+   if (!parentOrder) return;
+
+   const siblings = updated.filter(pt => pt.orderId === targetOrderId);
+   const siblingsCount = siblings.length;
+   
+   if (siblingsCount > 0) {
+    const doneCount = siblings.reduce((acc, curr) => {
+     if (curr.status === 'done') return acc + 1;
+     if (curr.status === 'finishing') return acc + 0.85;
+     if (curr.status === 'producing') return acc + 0.5;
+     return acc;
+    }, 0);
+    const progress = Math.round((doneCount / siblingsCount) * 100);
+
+    let orderStatus: OrderStatus = parentOrder.status;
+    if (progress === 100) {
+     orderStatus = 'completed';
+    } else if (progress >= 85) {
+     orderStatus = 'finishing';
+    } else if (progress > 0) {
+     if (parentOrder.status === 'received' || parentOrder.status === 'approved') {
+      orderStatus = 'production';
+     }
+    }
+
+    const timelineEventsToAdd: OrderTimelineEvent[] = [];
+    const currentTask = productionTasks.find(pt => pt.id === id);
+    
+    if (updatedFields.status && currentTask && updatedFields.status !== currentTask.status) {
+     const statusLabels: Record<ProductionStatus, string> = {
+      todo: 'Pendente',
+      producing: 'Em Produção',
+      finishing: 'Em Acabamento',
+      done: 'Concluído'
+     };
+     const newStatusLabel = statusLabels[updatedFields.status] || updatedFields.status;
+     timelineEventsToAdd.push({
+      id: 't_' + Date.now() + '_task_status',
+      date: new Date().toISOString().replace('T', ' ').substring(0, 16),
+      description: `Chão de Fábrica: Item "${affectedTask!.productName}" avançou para o estágio "${newStatusLabel}"`,
+      user: user?.name || "Ateliê Sagrado"
+     });
+
+     if (updatedFields.status === 'done') {
+      addNotification(
+       "🛠️ Item Concluído",
+       `Chão de Fábrica: O item "${affectedTask!.productName}" do Pedido ${affectedTask!.orderNumber} foi concluído!`,
+       "success"
+      );
+     } else {
+      addNotification(
+       "🛠️ Produção Avançou",
+       `Chão de Fábrica: O item "${affectedTask!.productName}" do Pedido ${affectedTask!.orderNumber} avançou para "${newStatusLabel}".`,
+       "info"
+      );
+     }
+    }
+
+    if (updatedFields.responsible && currentTask && updatedFields.responsible !== currentTask.responsible) {
+     timelineEventsToAdd.push({
+      id: 't_' + Date.now() + '_task_resp',
+      date: new Date().toISOString().replace('T', ' ').substring(0, 16),
+      description: `Chão de Fábrica: Artesão "${updatedFields.responsible}" vinculado como responsável pelo item "${affectedTask!.productName}"`,
+      user: user?.name || "Ateliê Sagrado"
+     });
+    }
+
+    const updatedOrders = orders.map(o => {
+     if (o.id === targetOrderId) {
+      return {
+       ...o,
+       productionProgress: progress,
+       status: orderStatus,
+       timeline: [...o.timeline, ...timelineEventsToAdd]
+      };
+     }
+     return o;
+    });
+
+    setOrders(updatedOrders);
+    saveToLocal('orders', updatedOrders);
+   }
+  }, 50);
  };
 
  // FINANCIAL TRANSACTIONS CRUD
@@ -1004,10 +1356,155 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
  return labels[status] || status;
  };
 
+ // Dynamically compute reserved and available quantities in real-time
+ const inventoryWithReserved = React.useMemo(() => {
+  return inventory.map(item => {
+   let reserved = 0;
+   quotes.forEach(q => {
+    if (!q.isDeleted && (q.status === 'pending' || q.status === 'analysis' || q.status === 'approved')) {
+     q.items.forEach(qi => {
+      const prod = products.find(p => p.id === qi.productId);
+      if (prod && prod.composition) {
+       prod.composition.forEach(comp => {
+        if (comp.materialId === item.id) {
+         reserved += comp.quantity * qi.quantity;
+        }
+       });
+      }
+     });
+    }
+   });
+   const reservedRounded = Number(reserved.toFixed(2));
+   return {
+    ...item,
+    reserved: reservedRounded,
+    available: Math.max(0, Number((item.quantity - reservedRounded).toFixed(2)))
+   };
+  });
+ }, [inventory, quotes, products]);
+
+ // Notification Actions
+ const addNotification = (title: string, message: string, type: SystemNotification['type']) => {
+  const newNotif: SystemNotification = {
+   id: 'notif_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
+   title,
+   message,
+   type,
+   date: new Date().toISOString(),
+   read: false
+  };
+  setNotifications(prev => {
+   const updated = [newNotif, ...prev];
+   saveToLocal('notifications', updated);
+   return updated;
+  });
+ };
+
+ const toggleNotificationRead = (id: string) => {
+  setNotifications(prev => {
+   const updated = prev.map(n => n.id === id ? { ...n, read: !n.read } : n);
+   saveToLocal('notifications', updated);
+   return updated;
+  });
+ };
+
+ const markNotificationAsRead = (id: string) => {
+  setNotifications(prev => {
+   const updated = prev.map(n => n.id === id ? { ...n, read: true } : n);
+   saveToLocal('notifications', updated);
+   return updated;
+  });
+ };
+
+ const markAllNotificationsAsRead = () => {
+  setNotifications(prev => {
+   const updated = prev.map(n => ({ ...n, read: true }));
+   saveToLocal('notifications', updated);
+   return updated;
+  });
+ };
+
+ const clearNotification = (id: string) => {
+  setNotifications(prev => {
+   const updated = prev.filter(n => n.id !== id);
+   saveToLocal('notifications', updated);
+   return updated;
+  });
+ };
+
+ const clearAllNotifications = () => {
+  setNotifications([]);
+  saveToLocal('notifications', []);
+ };
+
+ const scanReceipt = async (imageBase64: string): Promise<{ success: boolean; data?: any; error?: string }> => {
+  try {
+   const token = localStorage.getItem('as_jwt');
+   const res = await fetch('/api/ocr/receipt', {
+    method: 'POST',
+    headers: {
+     'Content-Type': 'application/json',
+     'Authorization': token ? `Bearer ${token}` : ''
+    },
+    body: JSON.stringify({ imageBase64 })
+   });
+   const data = await res.json();
+   if (!res.ok) throw new Error(data.message || 'Erro ao processar recibo.');
+   
+   addNotification(
+    "✨ Recibo Processado via IA",
+    `Os dados do fornecedor "${data.data.vendorName}" de R$ ${data.data.totalAmount.toFixed(2)} foram extraídos com inteligência artificial.`,
+    "success"
+   );
+   
+   return { success: true, data: data.data };
+  } catch (e: any) {
+   return { success: false, error: e.message };
+  }
+ };
+
+ const importFinancialFile = async (fileType: 'csv' | 'ofx' | 'xlsx', fileContent: string): Promise<{ success: boolean; count?: number; error?: string }> => {
+  try {
+   const token = localStorage.getItem('as_jwt');
+   const res = await fetch('/api/financial/import', {
+    method: 'POST',
+    headers: {
+     'Content-Type': 'application/json',
+     'Authorization': token ? `Bearer ${token}` : ''
+    },
+    body: JSON.stringify({ fileType, fileContent })
+   });
+   const data = await res.json();
+   if (!res.ok) throw new Error(data.message || 'Erro ao importar arquivo financeiro.');
+   
+   // Reload financial transactions to keep in sync if backend is active
+   if (token) {
+    const resTrans = await fetch('/api/financial', {
+     headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (resTrans.ok) {
+     const transList = await resTrans.json();
+     setTransactions(transList);
+     saveToLocal('transactions', transList);
+    }
+   }
+   
+   addNotification(
+    "📂 Importação Concluída",
+    `${data.count} lançamentos financeiros foram importados e reconciliados com sucesso do extrato bancário.`,
+    "success"
+   );
+   
+   return { success: true, count: data.count };
+  } catch (e: any) {
+   return { success: false, error: e.message };
+  }
+ };
+
  return (
  <DbContext.Provider value={{
  clients,
- inventory,
+ inventory: inventoryWithReserved,
  products,
  quotes,
  orders,
@@ -1049,7 +1546,16 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
  updateTransaction,
  deleteTransaction,
 
- updateSettings
+ updateSettings,
+ notifications,
+ addNotification,
+ toggleNotificationRead,
+ markNotificationAsRead,
+ markAllNotificationsAsRead,
+ clearNotification,
+ clearAllNotifications,
+ scanReceipt,
+ importFinancialFile
  }}>
  {children}
  </DbContext.Provider>
