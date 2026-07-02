@@ -33,6 +33,11 @@ import {
   User,
   FileText,
   CheckCircle2,
+  Eye,
+  EyeOff,
+  Image as ImageIcon,
+  Upload,
+  BookOpen,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -68,7 +73,9 @@ export const InventoryView: React.FC = () => {
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [selectedStatus, setSelectedStatus] = useState("all");
-  const [viewMode, setViewMode] = useState<"table" | "cards">("table");
+  const [viewMode, setViewMode] = useState<"table" | "cards" | "catalog">("table");
+  const [commercialMode, setCommercialMode] = useState(false);
+  const [showStockInCatalog, setShowStockInCatalog] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showAdjustModal, setShowAdjustModal] = useState(false);
@@ -408,6 +415,7 @@ export const InventoryView: React.FC = () => {
     calcMethod: "fixed" as CalcMethod,
     notes: "",
     status: "active" as InventoryStatus,
+    imageUrl: "",
   });
 
   // Smart Calculator States (integrated in modal form)
@@ -618,6 +626,28 @@ export const InventoryView: React.FC = () => {
 
   // Unique categories & suppliers for filters
   const activeItems = inventory.filter((item) => !item.isDeleted);
+
+  const valorTotalGeralEstoque = useMemo(() => {
+    return activeItems.reduce((sum, item) => sum + ((item.quantity || 0) * (item.unitValue || 0)), 0);
+  }, [activeItems]);
+
+  const stockByCategory = useMemo(() => {
+    const stats: Record<string, { quantity: number; value: number }> = {};
+    activeItems.forEach(item => {
+      const cat = item.category || "Geral";
+      if (!stats[cat]) {
+        stats[cat] = { quantity: 0, value: 0 };
+      }
+      stats[cat].quantity += item.quantity || 0;
+      stats[cat].value += (item.quantity || 0) * (item.unitValue || 0);
+    });
+    return Object.entries(stats).map(([category, data]) => ({
+      category,
+      quantity: data.quantity,
+      value: data.value
+    })).sort((a, b) => b.value - a.value);
+  }, [activeItems]);
+
   const categories = Array.from(new Set(activeItems.map((i) => i.category)));
   const suppliers = Array.from(
     new Set(activeItems.map((i) => i.supplier).filter(Boolean)),
@@ -636,9 +666,9 @@ export const InventoryView: React.FC = () => {
   // Filter & Search Logic
   const filteredItems = activeItems.filter((item) => {
     const matchesSearch =
-      item.name.toLowerCase().includes(search.toLowerCase()) ||
-      item.code.toLowerCase().includes(search.toLowerCase()) ||
-      item.supplier.toLowerCase().includes(search.toLowerCase());
+      (item.name || "").toLowerCase().includes((search || "").toLowerCase()) ||
+      (item.code || "").toLowerCase().includes((search || "").toLowerCase()) ||
+      (item.supplier || "").toLowerCase().includes((search || "").toLowerCase());
     const matchesCategory =
       selectedCategory === "all" || item.category === selectedCategory;
     const matchesStatus =
@@ -662,6 +692,7 @@ export const InventoryView: React.FC = () => {
       calcMethod: "fixed",
       notes: "",
       status: "active",
+      imageUrl: "",
     });
 
     // Reset calculator states
@@ -693,6 +724,7 @@ export const InventoryView: React.FC = () => {
       calcMethod: item.calcMethod,
       notes: item.notes,
       status: item.status,
+      imageUrl: item.imageUrl || "",
     });
 
     // Load calculator values if possible or keep manual override by default for existing
@@ -850,6 +882,80 @@ export const InventoryView: React.FC = () => {
 
   return (
     <div className="space-y-8 animate-slide-in-up">
+      {/* Resumo Consolidado do Estoque */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        {/* Card Valor Total */}
+        <div className="lg:col-span-1 bg-white p-6 rounded-[24px] shadow-sm relative overflow-hidden border border-slate-100 hover:border-amber-250 hover:shadow-md transition-all duration-300">
+          <div className="absolute right-[-20px] top-[-20px] w-40 h-40 bg-amber-500/5 rounded-full blur-2xl pointer-events-none animate-pulse"></div>
+          <div className="relative z-10 flex flex-col justify-between h-full min-h-[140px]">
+            <div>
+              <div className="flex items-center gap-2 text-amber-600">
+                <DollarSign size={15} />
+                <span className="text-[10px] font-bold uppercase tracking-widest font-mono">Valorização Patrimonial</span>
+              </div>
+              <h3 className="text-xs text-slate-500 mt-2 font-medium">Valor Total do Estoque</h3>
+              <p className="text-3xl font-serif font-black text-slate-900 tracking-tight mt-1">
+                R$ {valorTotalGeralEstoque.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </p>
+            </div>
+            <div className="pt-4 border-t border-slate-100 text-[10.5px] text-slate-450 flex justify-between items-center">
+              <span>Atualizado em tempo real</span>
+              <span className="bg-amber-50 text-amber-700 border border-amber-200/50 font-bold px-2 py-0.5 rounded-full text-[9px] uppercase tracking-wide">Ateliê Sagrado</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Distribuição por Categoria (Quantidade e Valor) */}
+        <div className="lg:col-span-2 bg-white border border-[rgba(42,36,32,0.06)] p-6 rounded-[24px] shadow-xs">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-xs font-bold text-ink-900 uppercase tracking-wider flex items-center gap-2">
+              <BarChart2 size={14} className="text-gold-600" />
+              Consolidado por Categoria
+            </h3>
+            <span className="text-[10px] font-semibold text-slate-400 bg-slate-50 px-2 py-0.5 rounded-full">
+              {stockByCategory.length} categorias ativas
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[160px] overflow-y-auto pr-2 custom-scrollbar">
+            {stockByCategory.map((cat, idx) => {
+              const percentage = valorTotalGeralEstoque > 0 ? (cat.value / valorTotalGeralEstoque) * 100 : 0;
+              return (
+                <div key={cat.category} className="p-3 bg-slate-50/60 rounded-xl border border-slate-100 flex flex-col justify-between hover:bg-slate-50 transition-colors">
+                  <div className="flex justify-between items-start gap-2">
+                    <span className="text-xs font-bold text-slate-700 truncate" title={cat.category}>
+                      {cat.category}
+                    </span>
+                    <span className="text-[10px] font-mono font-bold text-gold-600 bg-gold-50 px-1.5 py-0.5 rounded">
+                      {percentage.toFixed(1)}%
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 mt-2 pt-2 border-t border-slate-100/60 text-[11px]">
+                    <div>
+                      <span className="text-slate-400 block text-[9px] uppercase font-semibold">Qtd Total</span>
+                      <span className="font-semibold text-slate-800 font-mono">
+                        {cat.quantity.toLocaleString("pt-BR")} un/g
+                      </span>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-slate-400 block text-[9px] uppercase font-semibold">Valoração</span>
+                      <span className="font-bold text-slate-900 font-mono">
+                        R$ {cat.value.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+            {stockByCategory.length === 0 && (
+              <div className="col-span-2 text-center text-slate-400 italic py-8 text-xs">
+                Nenhum insumo ou categoria cadastrada.
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
       {/* Header Summary Cards / Indicators */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
         <div className="bg-white border border-[rgba(42,36,32,0.06)] p-5 rounded-[20px] shadow-xs flex items-center justify-between">
@@ -960,6 +1066,7 @@ export const InventoryView: React.FC = () => {
             {/* Grid / Table View Toggles */}
             <div className="flex items-center border border-slate-200 rounded-lg p-1 bg-slate-50">
               <button
+                type="button"
                 onClick={() => setViewMode("table")}
                 className={`p-1.5 rounded-md transition-colors cursor-pointer ${viewMode === "table" ? "bg-white text-ink-900 shadow-xs" : "text-slate-400 hover:text-ink-600"}`}
                 title="Visualização em Tabela"
@@ -967,13 +1074,46 @@ export const InventoryView: React.FC = () => {
                 <List size={14} />
               </button>
               <button
+                type="button"
                 onClick={() => setViewMode("cards")}
                 className={`p-1.5 rounded-md transition-colors cursor-pointer ${viewMode === "cards" ? "bg-white text-ink-900 shadow-xs" : "text-slate-400 hover:text-ink-600"}`}
                 title="Visualização em Cards"
               >
                 <Grid size={14} />
               </button>
+              <button
+                type="button"
+                onClick={() => setViewMode("catalog")}
+                className={`p-1.5 rounded-md transition-colors cursor-pointer ${viewMode === "catalog" ? "bg-white text-ink-900 shadow-xs" : "text-slate-400 hover:text-ink-600"}`}
+                title="Visualização em Catálogo"
+              >
+                <BookOpen size={14} />
+              </button>
             </div>
+
+            {/* Modo Comercial Toggle */}
+            <button
+              type="button"
+              onClick={() => setCommercialMode(!commercialMode)}
+              className={`px-3.5 py-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs ${commercialMode ? "bg-emerald-50 border-emerald-300 text-emerald-700 font-bold" : "bg-slate-50 border-slate-200 text-slate-500 hover:text-ink-600"}`}
+              title="Apresentação para clientes: oculta preços e custos internos"
+            >
+              {commercialMode ? <EyeOff size={13} /> : <Eye size={13} />}
+              <span>{commercialMode ? "Modo Comercial: ATIVO" : "Modo Comercial"}</span>
+            </button>
+
+            {/* Option to show stock in Catalog, visible only when viewMode is catalog */}
+            {viewMode === "catalog" && (
+              <label className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={showStockInCatalog}
+                  onChange={(e) => setShowStockInCatalog(e.target.checked)}
+                  className="rounded border-slate-300 text-gold-600 focus:ring-gold-500 cursor-pointer"
+                />
+                <span>Exibir Estoque</span>
+              </label>
+            )}
 
             {/* Selection Mode Toggle */}
             <button
@@ -1200,11 +1340,17 @@ export const InventoryView: React.FC = () => {
                         {item.supplier || "-"}
                       </td>
                       <td className="px-5 py-4 font-bold font-mono text-ink-900">
-                        R${" "}
-                        {item.unitValue.toLocaleString("pt-BR", {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 4,
-                        })}
+                        {commercialMode ? (
+                          <span className="text-slate-400 font-sans text-xs font-normal">Sob consulta</span>
+                        ) : (
+                          <>
+                            R${" "}
+                            {item.unitValue.toLocaleString("pt-BR", {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 4,
+                            })}
+                          </>
+                        )}
                       </td>
                       <td className="px-5 py-4">
                         <div className="flex flex-col gap-1">
@@ -1303,7 +1449,7 @@ export const InventoryView: React.FC = () => {
             </table>
           </div>
         </div>
-      ) : (
+      ) : viewMode === "cards" ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredItems.map((item) => {
             const isLow =
@@ -1380,6 +1526,17 @@ export const InventoryView: React.FC = () => {
                     </span>
                   </div>
 
+                  {!!item.imageUrl && (
+                    <div className="w-full h-32 rounded-xl overflow-hidden mt-3 relative bg-slate-100 border border-slate-100 shrink-0">
+                      <img
+                        src={item.imageUrl}
+                        alt={item.name}
+                        referrerPolicy="no-referrer"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  )}
+
                   <h3 className="font-serif font-semibold text-base text-ink-900 mt-3 truncate">
                     {item.name}
                   </h3>
@@ -1402,11 +1559,17 @@ export const InventoryView: React.FC = () => {
                         Preço Unitário
                       </p>
                       <p className="font-bold text-slate-700 mt-0.5">
-                        R${" "}
-                        {item.unitValue.toLocaleString("pt-BR", {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 4,
-                        })}
+                        {commercialMode ? (
+                          <span className="text-slate-400 font-sans text-xs font-normal">Sob consulta</span>
+                        ) : (
+                          <>
+                            R${" "}
+                            {item.unitValue.toLocaleString("pt-BR", {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 4,
+                            })}
+                          </>
+                        )}
                       </p>
                     </div>
                   </div>
@@ -1454,14 +1617,162 @@ export const InventoryView: React.FC = () => {
             );
           })}
         </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+          {filteredItems.map((item) => {
+            const isAvailable = item.quantity > 0;
+            const isLow = item.quantity <= item.minQuantity && item.quantity > 0;
+
+            const getPlaceholderBg = (cat: string) => {
+              switch (cat) {
+                case "Contas e Pérolas":
+                  return "from-rose-50 to-rose-100 text-rose-500";
+                case "Metais e Entremeios":
+                  return "from-amber-50 to-amber-100 text-amber-500";
+                case "Fios e Cordões":
+                  return "from-indigo-50 to-indigo-100 text-indigo-500";
+                case "Embalagens":
+                  return "from-teal-50 to-teal-100 text-teal-500";
+                default:
+                  return "from-slate-50 to-slate-100 text-slate-500";
+              }
+            };
+
+            return (
+              <div
+                key={item.id}
+                className="bg-white border border-[rgba(42,36,32,0.06)] rounded-2xl overflow-hidden shadow-xs hover:shadow-md transition-all flex flex-col justify-between hover:-translate-y-0.5 duration-200"
+              >
+                <div>
+                  {/* Image/Photo Block */}
+                  <div className="h-44 w-full bg-slate-50 relative overflow-hidden border-b border-slate-100 flex items-center justify-center">
+                    {item.imageUrl ? (
+                      <img
+                        src={item.imageUrl}
+                        alt={item.name}
+                        referrerPolicy="no-referrer"
+                        className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
+                      />
+                    ) : (
+                      <div className={`w-full h-full bg-gradient-to-br ${getPlaceholderBg(item.category)} flex flex-col items-center justify-center p-4`}>
+                        <ImageIcon size={32} className="opacity-40 mb-1" />
+                        <span className="text-[10px] font-bold uppercase tracking-wider opacity-60">Sem Foto</span>
+                      </div>
+                    )}
+
+                    {/* Category Badge - top left */}
+                    <span className="absolute top-3 left-3 px-2 py-1 bg-white/95 backdrop-blur-xs text-[9px] font-bold text-ink-900 rounded-md shadow-xs border border-slate-150 uppercase tracking-wider">
+                      {item.category}
+                    </span>
+
+                    {/* Status/Availability Badge - top right */}
+                    <span
+                      className={`absolute top-3 right-3 px-2.5 py-1 rounded-full text-[9px] font-bold shadow-xs border backdrop-blur-xs ${
+                        isAvailable
+                          ? "bg-emerald-500 text-white border-emerald-400"
+                          : "bg-rose-500 text-white border-rose-400"
+                      }`}
+                    >
+                      {isAvailable ? "Disponível" : "Esgotado"}
+                    </span>
+                  </div>
+
+                  {/* Body Info */}
+                  <div className="p-4">
+                    <h3 className="font-serif font-semibold text-sm text-ink-900 line-clamp-2 min-h-[40px] leading-tight">
+                      {item.name}
+                    </h3>
+                    
+                    {item.code && (
+                      <p className="text-[10px] font-mono text-slate-400 mt-1 uppercase font-semibold">
+                        Código: {item.code}
+                      </p>
+                    )}
+
+                    <div className="mt-4 space-y-2.5 pt-3.5 border-t border-slate-100 text-xs">
+                      {/* Show stock count if either commercialMode is off, OR the optional showStockInCatalog is active */}
+                      {(!commercialMode || showStockInCatalog) && (
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="text-slate-400 font-medium">Estoque:</span>
+                          <span className={`font-mono font-bold ${isLow ? "text-amber-600" : isAvailable ? "text-slate-800" : "text-rose-500"}`}>
+                            {item.quantity} {item.unit}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Financial details: hidden in Commercial Mode */}
+                      {!commercialMode ? (
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="text-slate-400 font-medium">Valor Unitário:</span>
+                          <span className="font-bold text-slate-800">
+                            R$ {item.unitValue.toLocaleString("pt-BR", {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 4,
+                            })}
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-between text-[11px] bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-100">
+                          <span className="text-slate-400 font-medium text-[10px]">Preço Comercial:</span>
+                          <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider flex items-center gap-1">
+                            Sob Consulta
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Actions Block */}
+                <div className="p-4 pt-0">
+                  <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
+                    <button
+                      onClick={() => handleOpenDetails(item)}
+                      title="Ver Informações"
+                      className="flex-1 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600 hover:text-amber-600 cursor-pointer text-[11px] font-semibold flex items-center justify-center gap-1 transition-colors"
+                    >
+                      <Info size={12} />
+                      Detalhes
+                    </button>
+                    
+                    {/* Hide edit actions in commercial mode to make presentation for clients safer */}
+                    {!commercialMode && (
+                      <>
+                        <button
+                          onClick={() => handleOpenAdjust(item)}
+                          title="Movimentar Estoque"
+                          className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600 hover:text-gold-600 cursor-pointer transition-colors"
+                        >
+                          <ArrowUpDown size={12} />
+                        </button>
+                        <button
+                          onClick={() => handleOpenEdit(item)}
+                          title="Editar Insumo"
+                          className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600 hover:text-indigo-600 cursor-pointer transition-colors"
+                        >
+                          <Edit3 size={12} />
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+          {filteredItems.length === 0 && (
+            <div className="col-span-full p-12 text-center text-slate-400 bg-white border border-dashed border-slate-200 rounded-2xl">
+              Nenhum item encontrado para as configurações de filtro atuais.
+            </div>
+          )}
+        </div>
       )}
 
       {/* MODALS SECTION */}
 
       {/* 1. Create Insumo Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <div className="bg-white border border-slate-200 w-full max-w-2xl rounded-[24px] shadow-2xl overflow-hidden animate-slide-in-up max-h-[92vh] flex flex-col">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 lg:p-6 overflow-hidden">
+          <div className="bg-white border border-slate-200 w-full max-w-2xl max-h-[85vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-slide-in-up">
             <div className="h-16 border-b border-slate-150 px-6 flex items-center justify-between">
               <div>
                 <h3 className="font-serif font-semibold text-lg text-ink-900">
@@ -1481,8 +1792,9 @@ export const InventoryView: React.FC = () => {
 
             <form
               onSubmit={handleSaveAdd}
-              className="p-6 space-y-6 overflow-y-auto flex-1"
+              className="flex-1 flex flex-col min-h-0"
             >
+              <div className="p-6 space-y-6 overflow-y-auto flex-1 min-h-0">
               {/* Wizard Toggle: Smart vs Manual */}
               <div className="flex items-center justify-between p-3.5 bg-gradient-to-r from-amber-50 to-amber-100/50 border border-amber-200/60 rounded-xl">
                 <div className="flex items-center gap-2.5">
@@ -1810,7 +2122,7 @@ export const InventoryView: React.FC = () => {
                   </div>
 
                   {/* Live results banner */}
-                  <div className="bg-slate-900 text-slate-100 p-4 rounded-xl border border-slate-800 shadow-sm space-y-2 text-xs font-mono">
+                  <div className="bg-slate-900 text-slate-100 p-4 rounded-xl border border-slate-800/40 shadow-sm space-y-2 text-xs font-mono">
                     <div className="text-[10px] text-slate-400 uppercase tracking-widest font-bold flex items-center justify-between">
                       <span>⚡ Custo Real & Estoque Calculados</span>
                       <span className="text-gold-500">Tempo Real</span>
@@ -2064,6 +2376,84 @@ export const InventoryView: React.FC = () => {
                 </div>
               </div>
 
+              {/* Foto / Imagem do Insumo */}
+              <div className="border-t border-slate-100 pt-5 space-y-3">
+                <h4 className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                  <ImageIcon size={14} className="text-gold-500" /> Foto do Insumo
+                </h4>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* Preview Container */}
+                  <div className="md:col-span-1 h-32 rounded-xl border border-slate-200 bg-slate-50 overflow-hidden flex flex-col items-center justify-center p-2 relative group">
+                    {formData.imageUrl ? (
+                      <>
+                        <img
+                          src={formData.imageUrl}
+                          alt="Prévia do Insumo"
+                          referrerPolicy="no-referrer"
+                          className="w-full h-full object-cover rounded-lg"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setFormData({ ...formData, imageUrl: "" })}
+                          className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-[10px] font-bold rounded-lg cursor-pointer"
+                        >
+                          Remover Foto
+                        </button>
+                      </>
+                    ) : (
+                      <div className="text-center p-2 text-slate-400">
+                        <ImageIcon size={24} className="mx-auto mb-1 opacity-40" />
+                        <span className="text-[9px] font-medium block">Sem foto cadastrada</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Inputs Container */}
+                  <div className="md:col-span-2 space-y-3 flex flex-col justify-between">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
+                        URL da Imagem
+                      </label>
+                      <input
+                        type="url"
+                        value={formData.imageUrl}
+                        onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
+                        placeholder="https://exemplo.com/foto.jpg"
+                        className="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-200 bg-slate-50 text-ink-900 focus:outline-none placeholder:text-slate-400 font-mono"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
+                        Ou Fazer Upload de Imagem
+                      </label>
+                      <div className="relative border border-dashed border-slate-200 hover:border-gold-500/50 rounded-lg p-2.5 bg-slate-50 text-center transition-all cursor-pointer">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              const reader = new FileReader();
+                              reader.onloadend = () => {
+                                setFormData({ ...formData, imageUrl: reader.result as string });
+                              };
+                              reader.readAsDataURL(file);
+                            }
+                          }}
+                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                        />
+                        <div className="flex items-center justify-center gap-1.5 text-slate-500">
+                          <Upload size={12} className="text-slate-400" />
+                          <span className="text-[11px] font-medium">Selecione um arquivo de imagem</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <div>
                 <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
                   Instruções de Manuseio / Notas
@@ -2078,8 +2468,9 @@ export const InventoryView: React.FC = () => {
                   className="w-full px-3.5 py-2 text-xs rounded-lg border border-slate-200 bg-slate-50 text-ink-900"
                 />
               </div>
+              </div>
 
-              <div className="pt-4 border-t border-slate-150 flex justify-end gap-3">
+              <div className="p-4 border-t border-slate-150 flex justify-end gap-3 bg-slate-50 shrink-0">
                 <button
                   type="button"
                   onClick={() => setShowAddModal(false)}
@@ -2101,8 +2492,8 @@ export const InventoryView: React.FC = () => {
 
       {/* 2. Edit Insumo Modal */}
       {showEditModal && selectedItem && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <div className="bg-white border border-slate-200 w-full max-w-2xl rounded-[24px] shadow-2xl overflow-hidden animate-slide-in-up max-h-[92vh] flex flex-col">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 lg:p-6 overflow-hidden">
+          <div className="bg-white border border-slate-200 w-full max-w-2xl max-h-[85vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-slide-in-up">
             <div className="h-16 border-b border-slate-150 px-6 flex items-center justify-between">
               <div>
                 <h3 className="font-serif font-semibold text-lg text-ink-900">
@@ -2122,8 +2513,9 @@ export const InventoryView: React.FC = () => {
 
             <form
               onSubmit={handleSaveEdit}
-              className="p-6 space-y-6 overflow-y-auto flex-1"
+              className="flex-1 flex flex-col min-h-0"
             >
+              <div className="p-6 space-y-6 overflow-y-auto flex-1 min-h-0">
               {/* Converter Toggle */}
               <div className="flex items-center justify-between p-3.5 bg-gradient-to-r from-amber-50 to-amber-100/50 border border-amber-200/60 rounded-xl">
                 <div className="flex items-center gap-2.5">
@@ -2594,6 +2986,84 @@ export const InventoryView: React.FC = () => {
                 </div>
               </div>
 
+              {/* Foto / Imagem do Insumo */}
+              <div className="border-t border-slate-100 pt-5 space-y-3">
+                <h4 className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                  <ImageIcon size={14} className="text-gold-500" /> Foto do Insumo
+                </h4>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* Preview Container */}
+                  <div className="md:col-span-1 h-32 rounded-xl border border-slate-200 bg-slate-50 overflow-hidden flex flex-col items-center justify-center p-2 relative group">
+                    {formData.imageUrl ? (
+                      <>
+                        <img
+                          src={formData.imageUrl}
+                          alt="Prévia do Insumo"
+                          referrerPolicy="no-referrer"
+                          className="w-full h-full object-cover rounded-lg"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setFormData({ ...formData, imageUrl: "" })}
+                          className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-[10px] font-bold rounded-lg cursor-pointer"
+                        >
+                          Remover Foto
+                        </button>
+                      </>
+                    ) : (
+                      <div className="text-center p-2 text-slate-400">
+                        <ImageIcon size={24} className="mx-auto mb-1 opacity-40" />
+                        <span className="text-[9px] font-medium block">Sem foto cadastrada</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Inputs Container */}
+                  <div className="md:col-span-2 space-y-3 flex flex-col justify-between">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
+                        URL da Imagem
+                      </label>
+                      <input
+                        type="url"
+                        value={formData.imageUrl}
+                        onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
+                        placeholder="https://exemplo.com/foto.jpg"
+                        className="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-200 bg-slate-50 text-ink-900 focus:outline-none placeholder:text-slate-400 font-mono"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
+                        Ou Fazer Upload de Imagem
+                      </label>
+                      <div className="relative border border-dashed border-slate-200 hover:border-gold-500/50 rounded-lg p-2.5 bg-slate-50 text-center transition-all cursor-pointer">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              const reader = new FileReader();
+                              reader.onloadend = () => {
+                                setFormData({ ...formData, imageUrl: reader.result as string });
+                              };
+                              reader.readAsDataURL(file);
+                            }
+                          }}
+                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                        />
+                        <div className="flex items-center justify-center gap-1.5 text-slate-500">
+                          <Upload size={12} className="text-slate-400" />
+                          <span className="text-[11px] font-medium">Selecione um arquivo de imagem</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <div>
                 <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
                   Observações
@@ -2607,8 +3077,9 @@ export const InventoryView: React.FC = () => {
                   className="w-full px-3.5 py-2 text-xs rounded-lg border border-slate-200 bg-slate-50 text-ink-900"
                 />
               </div>
+              </div>
 
-              <div className="pt-4 border-t border-slate-150 flex justify-end gap-3">
+              <div className="p-4 border-t border-slate-150 flex justify-end gap-3 bg-slate-50 shrink-0">
                 <button
                   type="button"
                   onClick={() => setShowEditModal(false)}
@@ -2630,8 +3101,8 @@ export const InventoryView: React.FC = () => {
 
       {/* 3. Adjust Stock Balance Modal */}
       {showAdjustModal && selectedItem && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <div className="bg-white border border-slate-200 w-full max-w-md rounded-[24px] shadow-2xl overflow-hidden animate-slide-in-up max-h-[90vh] flex flex-col">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 lg:p-6 overflow-hidden">
+          <div className="bg-white border border-slate-200 w-full max-w-2xl max-h-[85vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-slide-in-up">
             <div className="h-16 border-b border-slate-150 px-6 flex items-center justify-between bg-slate-50">
               <h3 className="font-serif font-semibold text-base text-ink-900">
                 Movimentar Estoque
@@ -2646,8 +3117,9 @@ export const InventoryView: React.FC = () => {
 
             <form
               onSubmit={handleSaveAdjust}
-              className="p-6 space-y-4 overflow-y-auto flex-1 text-xs"
+              className="flex-1 flex flex-col min-h-0 text-xs"
             >
+              <div className="p-6 space-y-4 overflow-y-auto flex-1 min-h-0">
               <div className="p-4 bg-slate-50 border border-slate-100 rounded-2xl">
                 <p className="text-[10px] uppercase font-bold text-slate-450 tracking-wider">
                   Insumo Selecionado
@@ -2916,8 +3388,9 @@ export const InventoryView: React.FC = () => {
                   className="w-full px-3 py-2 text-xs rounded-lg border border-slate-200 bg-slate-50 text-ink-900 focus:outline-none"
                 />
               </div>
+              </div>
 
-              <div className="pt-4 border-t border-slate-150 flex justify-end gap-3">
+              <div className="p-4 border-t border-slate-150 flex justify-end gap-3 bg-slate-50 shrink-0">
                 <button
                   type="button"
                   onClick={() => setShowAdjustModal(false)}
@@ -3039,9 +3512,9 @@ export const InventoryView: React.FC = () => {
 
       {/* Batch Adjust Modal */}
       {showBatchAdjustModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-[60] flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white border border-slate-200 w-full max-w-lg rounded-[24px] shadow-2xl p-6 my-8 space-y-5 animate-slide-in-up">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-[60] flex items-center justify-center p-4 lg:p-6 overflow-hidden">
+          <div className="bg-white border border-slate-200 w-full max-w-4xl max-h-[85vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-slide-in-up">
+            <div className="px-6 py-4 border-b border-slate-150 flex items-center justify-between shrink-0 bg-slate-50/50">
               <div className="flex items-center gap-2.5">
                 <div className="p-2 bg-gold-500/10 rounded-xl text-gold-600">
                   <Package size={20} />
@@ -3138,8 +3611,9 @@ export const InventoryView: React.FC = () => {
                 setIsSelectionMode(false);
                 setShowBatchAdjustModal(false);
               }}
-              className="space-y-4"
+              className="flex-1 flex flex-col min-h-0"
             >
+              <div className="p-6 space-y-6 overflow-y-auto flex-1 min-h-0">
               {/* List of items being adjusted */}
               <div>
                 <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5">
@@ -3453,7 +3927,9 @@ export const InventoryView: React.FC = () => {
                 </div>
               )}
 
-              <div className="pt-4 border-t border-slate-150 flex justify-end gap-3">
+              </div>
+
+              <div className="p-4 border-t border-slate-150 flex justify-end gap-3 bg-slate-50 shrink-0">
                 <button
                   type="button"
                   onClick={() => setShowBatchAdjustModal(false)}
@@ -3476,8 +3952,8 @@ export const InventoryView: React.FC = () => {
 
       {/* 6. Insumo Information, History & Performance Modal */}
       {showDetailsModal && detailsItem && itemDetailsData && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white border border-slate-200 w-full max-w-5xl rounded-[28px] shadow-2xl overflow-hidden max-h-[90vh] flex flex-col animate-slide-in-up">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 lg:p-6 overflow-hidden">
+          <div className="bg-white border border-slate-200 w-full max-w-4xl max-h-[85vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-slide-in-up">
             
             {/* Modal Header */}
             <div className="h-20 border-b border-slate-150 px-8 flex items-center justify-between bg-slate-50/50">

@@ -1,596 +1,678 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useDb } from '../context/DbContext';
-import { 
- XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area,
- PieChart, Pie, Cell
-} from 'recharts';
-import { 
- TrendingUp, Users, ShoppingCart, AlertTriangle, Hammer, DollarSign,
- ArrowRight, Sparkles, Clock, Settings2, ChevronUp, ChevronDown, Check
-} from 'lucide-react';
+import { Settings2, RotateCcw, Clock, Eye, EyeOff, ChevronUp, ChevronDown, Check, X, Sparkles, LayoutGrid } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { toast } from './Toast';
+
+// Sub-widgets imports
+import { DashboardHeader, BannerConfig, DEFAULT_BANNER } from './dashboard/DashboardHeader';
+import { DashboardAlerts } from './dashboard/DashboardAlerts';
+import { DashboardKpis } from './dashboard/DashboardKpis';
+import { DashboardProduction } from './dashboard/DashboardProduction';
+import { DashboardFinanceSales } from './dashboard/DashboardFinanceSales';
+import { DashboardProductsPlatform } from './dashboard/DashboardProductsPlatform';
+import { DashboardStockGoals } from './dashboard/DashboardStockGoals';
+import { DashboardAgendaActivities, AgendaItem } from './dashboard/DashboardAgendaActivities';
 
 interface DashboardViewProps {
- onViewChange: (view: string) => void;
- onQuickAction: (actionType: 'order' | 'client' | 'product' | 'quote') => void;
+  onViewChange: (view: string) => void;
+  onQuickAction: (actionType: 'order' | 'client' | 'product' | 'quote') => void;
 }
 
-interface WidgetItem {
- id: string;
- label: string;
- visible: boolean;
+export interface WidgetItem {
+  id: string;
+  label: string;
+  visible: boolean;
+  width: 'half' | 'full';
+  pinned?: boolean;
 }
 
 const DEFAULT_WIDGETS: WidgetItem[] = [
- { id: 'welcome', label: 'Banner do Ateliê', visible: true },
- { id: 'kpis', label: 'Indicadores de Sucesso (KPIs)', visible: true },
- { id: 'financial_chart', label: 'Gráfico de Desempenho Financeiro', visible: true },
- { id: 'best_sellers', label: 'Gráfico de Itens Mais Vendidos', visible: true },
- { id: 'recent_orders', label: 'Tabela de Pedidos Recentes', visible: true },
- { id: 'critical_stock', label: 'Alertas de Insumos Críticos', visible: true }
+  { id: 'alerts', label: 'Alertas Críticos e Avisos', visible: true, width: 'full', pinned: true },
+  { id: 'kpis', label: 'Indicadores Financeiros & Operacionais (KPIs)', visible: true, width: 'full' },
+  { id: 'production', label: 'Controle de Produção (Chão de Fábrica)', visible: true, width: 'full' },
+  { id: 'finance_sales', label: 'Análise de Receitas, Despesas & Saldo', visible: true, width: 'half' },
+  { id: 'products_platform', label: 'Produtos Mais Vendidos & Canais', visible: true, width: 'half' },
+  { id: 'stock_goals', label: 'Acompanhamento de Estoque & Metas', visible: true, width: 'half' },
+  { id: 'agenda_activities', label: 'Agenda do Dia & Histórico do ERP', visible: true, width: 'half' },
 ];
 
 export const DashboardView: React.FC<DashboardViewProps> = ({ onViewChange, onQuickAction }) => {
- const { clients, inventory, products, orders, transactions } = useDb();
- const [widgets, setWidgets] = useState<WidgetItem[]>(DEFAULT_WIDGETS);
- const [showCustomizeModal, setShowCustomizeModal] = useState(false);
+  const { clients, inventory, products, orders, transactions, productionTasks, syncAllData } = useDb();
 
- // Load widget configuration from localStorage on mount
- useEffect(() => {
-  const saved = localStorage.getItem('as_dashboard_widgets');
-  if (saved) {
-   try {
-    const parsed = JSON.parse(saved) as WidgetItem[];
-    // Ensure all standard widgets are present
-    const validated = DEFAULT_WIDGETS.map(def => {
-     const match = parsed.find(p => p.id === def.id);
-     return match ? { ...def, visible: match.visible } : def;
+  // Core configurations state
+  const [widgets, setWidgets] = useState<WidgetItem[]>(DEFAULT_WIDGETS);
+  const [bannerConfig, setBannerConfig] = useState<BannerConfig>(DEFAULT_BANNER);
+  const [goals, setGoals] = useState({ faturamento: 3000, lucro: 1500, vendas: 10, producao: 12 });
+  const [agendaItems, setAgendaItems] = useState<AgendaItem[]>([]);
+  const [pausedTaskIds, setPausedTaskIds] = useState<string[]>([]);
+
+  // UI state
+  const [showCustomizeModal, setShowCustomizeModal] = useState(false);
+  const [activeTab, setActiveTab] = useState<'widgets' | 'banner' | 'goals'>('widgets');
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [lastSyncTime, setLastSyncTime] = useState('');
+  const [loadingSkeleton, setLoadingSkeleton] = useState(true);
+
+  // Filtered active lists
+  const activeOrders = useMemo(() => orders.filter(o => !o.isDeleted), [orders]);
+  const activeTransactions = useMemo(() => transactions.filter(t => !t.isDeleted), [transactions]);
+  const activeInventory = useMemo(() => inventory.filter(i => !i.isDeleted), [inventory]);
+
+  // Load persistent configurations on mount
+  useEffect(() => {
+    // 1. Load Widgets
+    const savedWidgets = localStorage.getItem('as_dashboard_widgets_v2');
+    if (savedWidgets) {
+      try {
+        const parsed = JSON.parse(savedWidgets) as WidgetItem[];
+        const validated = DEFAULT_WIDGETS.map(def => {
+          const match = parsed.find(p => p.id === def.id);
+          return match ? { ...def, visible: match.visible, width: match.width, pinned: match.pinned } : def;
+        });
+        
+        // Re-order based on saved index, keeping pinned at top
+        const ordered = [...validated].sort((a, b) => {
+          if (a.pinned && !b.pinned) return -1;
+          if (!a.pinned && b.pinned) return 1;
+          const idxA = parsed.findIndex(p => p.id === a.id);
+          const idxB = parsed.findIndex(p => p.id === b.id);
+          if (idxA === -1) return 1;
+          if (idxB === -1) return -1;
+          return idxA - idxB;
+        });
+        setWidgets(ordered);
+      } catch (e) {
+        setWidgets(DEFAULT_WIDGETS);
+      }
+    }
+
+    // 2. Load Banner Config
+    const savedBanner = localStorage.getItem('as_dashboard_banner_config');
+    if (savedBanner) {
+      try {
+        setBannerConfig(JSON.parse(savedBanner));
+      } catch (e) {}
+    }
+
+    // 3. Load Goals Config
+    const savedGoals = localStorage.getItem('as_dashboard_goals');
+    if (savedGoals) {
+      try {
+        setGoals(JSON.parse(savedGoals));
+      } catch (e) {}
+    }
+
+    // 4. Load Agenda manual items
+    const savedAgenda = localStorage.getItem('as_dashboard_agenda_items');
+    if (savedAgenda) {
+      try {
+        setAgendaItems(JSON.parse(savedAgenda));
+      } catch (e) {}
+    }
+
+    // 5. Load Paused Tasks
+    const savedPaused = localStorage.getItem('as_paused_production_tasks');
+    if (savedPaused) {
+      try {
+        setPausedTaskIds(JSON.parse(savedPaused));
+      } catch (e) {}
+    }
+
+    // Set initial sync timestamp
+    const now = new Date();
+    setLastSyncTime(now.toLocaleTimeString('pt-BR'));
+
+    // Trigger skeleton loading
+    const timer = setTimeout(() => {
+      setLoadingSkeleton(false);
+    }, 800);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Save changes wrapper functions
+  const saveWidgetsToLocal = (updated: WidgetItem[]) => {
+    setWidgets(updated);
+    localStorage.setItem('as_dashboard_widgets_v2', JSON.stringify(updated));
+  };
+
+  const saveBannerToLocal = (updated: BannerConfig) => {
+    setBannerConfig(updated);
+    localStorage.setItem('as_dashboard_banner_config', JSON.stringify(updated));
+  };
+
+  const saveGoalsToLocal = (updated: typeof goals) => {
+    setGoals(updated);
+    localStorage.setItem('as_dashboard_goals', JSON.stringify(updated));
+  };
+
+  // Persist manual Agenda items when changed
+  useEffect(() => {
+    if (agendaItems.length > 0) {
+      localStorage.setItem('as_dashboard_agenda_items', JSON.stringify(agendaItems));
+    }
+  }, [agendaItems]);
+
+  // Persist paused tasks
+  useEffect(() => {
+    localStorage.setItem('as_paused_production_tasks', JSON.stringify(pausedTaskIds));
+  }, [pausedTaskIds]);
+
+  // Auto-refresh mechanism (every 45 seconds)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = new Date();
+      setLastSyncTime(now.toLocaleTimeString('pt-BR'));
+      // Subtle flash or toast
+    }, 45000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Manual Trigger Refresh Sincronizar
+  const handleManualSync = () => {
+    setIsSyncing(true);
+    toast.info("Sincronizando...", "Buscando atualizações de vendas e estoque.");
+    
+    setTimeout(() => {
+      syncAllData();
+      const now = new Date();
+      setLastSyncTime(now.toLocaleTimeString('pt-BR'));
+      setIsSyncing(false);
+      toast.success("Dados Sincronizados", "O painel executivo foi atualizado com todas as informações reais em tempo real.");
+    }, 600);
+  };
+
+  // Reorder widgets
+  const handleMoveWidget = (index: number, direction: 'up' | 'down') => {
+    const targetIdx = direction === 'up' ? index - 1 : index + 1;
+    if (targetIdx < 0 || targetIdx >= widgets.length) return;
+
+    // Prevent moving pinned widgets below unpinned, or vice-versa
+    const updated = [...widgets];
+    const [moved] = updated.splice(index, 1);
+    updated.splice(targetIdx, 0, moved);
+    saveWidgetsToLocal(updated);
+  };
+
+  const handleTogglePin = (id: string) => {
+    const updated = widgets.map(w => {
+      if (w.id === id) {
+        const nextPinned = !w.pinned;
+        if (nextPinned) {
+          toast.success("Widget Fixado", "Este painel será exibido na parte superior.");
+        }
+        return { ...w, pinned: nextPinned };
+      }
+      return w;
     });
-    // Order based on saved, keeping missing at the end
-    const ordered = [...validated];
-    ordered.sort((a, b) => {
-     const idxA = parsed.findIndex(p => p.id === a.id);
-     const idxB = parsed.findIndex(p => p.id === b.id);
-     if (idxA === -1) return 1;
-     if (idxB === -1) return -1;
-     return idxA - idxB;
+
+    // Re-sort to bring pinned to the top
+    updated.sort((a, b) => {
+      if (a.pinned && !b.pinned) return -1;
+      if (!a.pinned && b.pinned) return 1;
+      return 0;
     });
-    setWidgets(ordered);
-   } catch (e) {
-    setWidgets(DEFAULT_WIDGETS);
-   }
-  }
- }, []);
 
- const saveWidgets = (newWidgets: WidgetItem[]) => {
-  setWidgets(newWidgets);
-  localStorage.setItem('as_dashboard_widgets', JSON.stringify(newWidgets));
- };
+    saveWidgetsToLocal(updated);
+  };
 
- const toggleWidgetVisibility = (id: string) => {
-  const updated = widgets.map(w => w.id === id ? { ...w, visible: !w.visible } : w);
-  saveWidgets(updated);
- };
+  const handleResetLayout = () => {
+    saveWidgetsToLocal(DEFAULT_WIDGETS);
+    saveBannerToLocal(DEFAULT_BANNER);
+    saveGoalsToLocal({ faturamento: 3000, lucro: 1500, vendas: 10, producao: 12 });
+    toast.success("Restaurado", "O layout do painel foi redefinido para o padrão.");
+  };
 
- const moveWidget = (index: number, direction: 'up' | 'down') => {
-  const newIndex = direction === 'up' ? index - 1 : index + 1;
-  if (newIndex < 0 || newIndex >= widgets.length) return;
+  // Month-to-date calculation variables
+  const todayStr = new Date().toISOString().split('T')[0];
+  const currentMonthStr = todayStr.substring(0, 7);
 
-  const updated = [...widgets];
-  const [removed] = updated.splice(index, 1);
-  updated.splice(newIndex, 0, removed);
-  saveWidgets(updated);
- };
+  const currentMonthTransactions = useMemo(() => {
+    return activeTransactions.filter(t => t.date.startsWith(currentMonthStr));
+  }, [activeTransactions, currentMonthStr]);
 
- // Filters out deleted entries
- const activeClients = clients.filter(c => !c.isDeleted);
- const activeInventory = inventory.filter(i => !i.isDeleted);
- const activeOrders = orders.filter(o => !o.isDeleted);
- const activeTransactions = transactions.filter(t => !t.isDeleted);
+  const currentMonthFaturamento = useMemo(() => {
+    return currentMonthTransactions
+      .filter(t => t.type === 'income')
+      .reduce((sum, t) => sum + t.value, 0);
+  }, [currentMonthTransactions]);
 
- // Stock Alerts
- const lowStockCount = activeInventory.filter(i => i.quantity <= i.minQuantity && i.quantity > 0).length;
- const criticalStockCount = activeInventory.filter(i => i.quantity === 0).length;
+  const currentMonthDespesas = useMemo(() => {
+    return currentMonthTransactions
+      .filter(t => t.type === 'expense')
+      .reduce((sum, t) => sum + t.value, 0);
+  }, [currentMonthTransactions]);
 
- // Orders in Production
- const inProductionCount = activeOrders.filter(o => ['production', 'finishing'].includes(o.status)).length;
+  const currentMonthLucro = currentMonthFaturamento - currentMonthDespesas;
 
- // Finance calculation
- const currentMonthStr = "2026-06"; // Fixed current local time month
- const currentMonthTransactions = activeTransactions.filter(t => t.date.startsWith(currentMonthStr));
- 
- const faturamentoMes = currentMonthTransactions
- .filter(t => t.type === 'income')
- .reduce((sum, t) => sum + t.value, 0);
+  const currentMonthOrdersCount = useMemo(() => {
+    return activeOrders.filter(o => o.date.startsWith(currentMonthStr)).length;
+  }, [activeOrders, currentMonthStr]);
 
- const despesasMes = currentMonthTransactions
- .filter(t => t.type === 'expense')
- .reduce((sum, t) => sum + t.value, 0);
+  const currentMonthProducaoCount = useMemo(() => {
+    return productionTasks.filter(t => t.status === 'done' && t.endDate?.startsWith(currentMonthStr)).length;
+  }, [productionTasks, currentMonthStr]);
 
- const lucroLiquido = faturamentoMes - despesasMes;
-
- // Chart Data preparation
- const monthlyData = [
-  { name: 'Abril', receita: 3200, despesa: 1100, lucro: 2100 },
-  { name: 'Maio', receita: 4350, despesa: 1700, lucro: 2650 },
-  { name: 'Junho', receita: faturamentoMes || 530, despesa: despesasMes || 275, lucro: lucroLiquido || 255 }
- ];
-
- // Best selling products pie/bar
- const productSellCounts: Record<string, number> = {};
- activeOrders.forEach(o => {
-  o.items.forEach(item => {
-   productSellCounts[item.productName] = (productSellCounts[item.productName] || 0) + item.quantity;
-  });
- });
-
- const bestSellersData = Object.keys(productSellCounts).map(name => ({
-  name,
-  vendas: productSellCounts[name]
- })).sort((a, b) => b.vendas - a.vendas).slice(0, 4);
-
- // If no actual orders, provide beautiful default product list metrics
- const fallbackBestSellers = bestSellersData.length > 0 ? bestSellersData : [
-  { name: 'Terço Imperial Pérola', vendas: 12 },
-  { name: 'Pulseira São Bento', vendas: 8 },
-  { name: 'Dezena Madeira Imbuia', vendas: 5 }
- ];
-
- // Editorial Palette
- const COLORS = ['#D4A039', '#B5563D', '#4C7FB0', '#6B6258'];
-
- return (
-  <div className="space-y-6 animate-slide-in-up">
-   
-   {/* Customize Floating Controls */}
-   <div className="flex items-center justify-between">
-    <div />
-    <button
-     id="btn-personalizar-dashboard"
-     onClick={() => setShowCustomizeModal(true)}
-     className="flex items-center gap-1.5 px-4 py-2 bg-white hover:bg-slate-50 text-slate-700 hover:text-gold-600 font-semibold text-xs rounded-xl border border-slate-200 transition-all cursor-pointer shadow-xs active:scale-98"
-    >
-     <Settings2 size={13} />
-     Personalizar Painel
-    </button>
-   </div>
-
-   {/* Render active and sorted widgets inside a Framer Motion grid */}
-   <motion.div layout className="space-y-6">
-    {widgets.filter(w => w.visible).map(widget => {
-     switch (widget.id) {
-      case 'welcome':
-       return (
-        <motion.div layout key="welcome" className="relative overflow-hidden bg-gradient-to-br from-[#FFFDF9] via-[#FAF3E7] to-[#FFFDF9] text-ink-900 p-8 sm:p-10 rounded-[24px] border border-[rgba(212,160,57,0.15)] shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-8">
-         <div className="absolute top-0 right-0 w-96 h-96 bg-[rgba(212,160,57,0.06)] rounded-full blur-3xl pointer-events-none"></div>
-         <div className="absolute bottom-0 left-0 w-72 h-72 bg-[rgba(181,86,61,0.04)] rounded-full blur-3xl pointer-events-none"></div>
-         
-         <div className="absolute right-6 top-1/2 -translate-y-1/2 opacity-[0.06] pointer-events-none hidden md:block">
-          <svg width="200" height="200" viewBox="0 0 100 100" fill="none" stroke="currentColor">
-           <circle cx="50" cy="50" r="40" strokeWidth="0.5" />
-           <circle cx="50" cy="50" r="30" strokeWidth="0.5" />
-           <circle cx="50" cy="50" r="20" strokeWidth="0.5" />
-           <path d="M50 0 L50 100 M0 50 L100 50 M15 15 L85 85 M15 85 L85 15" strokeWidth="0.5" />
-          </svg>
-         </div>
-
-         <div className="space-y-3 relative z-10 max-w-xl">
-          <span style={{ fontFamily: 'Georgia' }} className="inline-flex items-center px-3 py-1 bg-gradient-to-r from-[rgba(181,86,61,0.1)] to-[rgba(181,86,61,0.05)] border border-[rgba(181,86,61,0.2)] text-terracotta-500 text-[10px] font-bold tracking-widest uppercase rounded-full">
-           <Sparkles size={10} className="inline mr-1 text-terracotta-500 animate-pulse" /> Foco Ateliê & Joias Religiosas
-          </span>
-          <h2 className="text-3xl sm:text-4xl font-serif font-semibold tracking-tight text-ink-900 mt-1">
-           Gestão Ateliê Sagrado
-          </h2>
-          <p className="text-ink-600 text-xs sm:text-sm leading-relaxed">
-           Bem-vindo ao painel de controle do seu ERP. Acompanhe a produção, nível dos insumos de pérolas, faturamento em tempo real e saúde financeira.
-          </p>
-         </div>
-         
-         <div className="grid grid-cols-2 gap-3.5 shrink-0 relative z-10 w-full md:w-auto">
-          <button 
-           id="btn-quick-order"
-           onClick={() => onQuickAction('order')}
-           className="px-5 py-3 bg-gradient-to-br from-ink-900 to-slate-800 text-white hover:opacity-95 font-medium text-xs rounded-xl active:scale-98 transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md"
-          >
-           <ShoppingCart size={14} className="text-gold-500" />
-           Novo Pedido
-          </button>
-          <button 
-           id="btn-quick-client"
-           onClick={() => onQuickAction('client')}
-           className="px-5 py-3 bg-white text-ink-900 hover:bg-slate-50/80 font-medium text-xs rounded-xl active:scale-98 transition-all flex items-center justify-center gap-2 cursor-pointer border border-slate-200/80 shadow-xs"
-          >
-           <Users size={14} className="text-terracotta-500" />
-           Novo Cliente
-          </button>
-          <button 
-           id="btn-quick-product"
-           onClick={() => onQuickAction('product')}
-           className="px-5 py-3 bg-white text-ink-900 hover:bg-slate-50/80 font-medium text-xs rounded-xl active:scale-98 transition-all flex items-center justify-center gap-2 cursor-pointer border border-slate-200/80 shadow-xs"
-          >
-           <Sparkles size={14} className="text-gold-500" />
-           Novo Produto
-          </button>
-          <button 
-           id="btn-quick-pricing"
-           onClick={() => onQuickAction('quote')}
-           className="px-5 py-3 bg-gradient-to-br from-[#E8B85C] to-[#C9883A] text-white hover:opacity-95 font-medium text-xs rounded-xl active:scale-98 transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-gold-500/20 ring-1 ring-gold-600/15"
-          >
-           <DollarSign size={14} />
-           Preço Inteligente
-          </button>
-         </div>
-        </motion.div>
-       );
-
-      case 'kpis':
-       return (
-        <motion.div layout key="kpis" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-         {/* KPI: Monthly Revenue */}
-         <div id="kpi-faturamento" className="bg-white border border-[rgba(42,36,32,0.06)] p-6 rounded-[20px] shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-           <span className="text-[10px] font-bold text-ink-600 uppercase tracking-wider">Faturamento (Mês)</span>
-           <div className="w-9 h-9 rounded-xl bg-gold-500/10 flex items-center justify-center text-gold-600">
-            <TrendingUp size={16} />
-           </div>
+  // SKELETON LOADER
+  if (loadingSkeleton) {
+    return (
+      <div className="space-y-6 animate-pulse">
+        {/* Header Skeleton */}
+        <div className="h-28 bg-white border border-slate-100 rounded-2xl p-6 flex justify-between items-center">
+          <div className="space-y-3 w-1/3">
+            <div className="h-4 bg-slate-200 rounded w-1/2" />
+            <div className="h-8 bg-slate-200 rounded" />
           </div>
-          <div className="mt-5">
-           <h3 className="text-2xl sm:text-3xl font-bold font-serif tracking-tight text-ink-900">
-            R$ {faturamentoMes.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-           </h3>
-           <p className="text-[10px] text-emerald-600 font-semibold mt-1.5 flex items-center gap-1">
-            <span>+18% versus mês anterior</span>
-           </p>
-          </div>
-         </div>
-
-         {/* KPI: Net Profit */}
-         <div id="kpi-lucro" className="bg-white border border-[rgba(42,36,32,0.06)] p-6 rounded-[20px] shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-           <span className="text-[10px] font-bold text-ink-600 uppercase tracking-wider">Lucro Líquido</span>
-           <div className="w-9 h-9 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-600">
-            <DollarSign size={16} />
-           </div>
-          </div>
-          <div className="mt-5">
-           <h3 className="text-2xl sm:text-3xl font-bold font-serif tracking-tight text-ink-900">
-            R$ {lucroLiquido.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-           </h3>
-           <p className="text-[10px] text-emerald-600 font-semibold mt-1.5 flex items-center gap-1">
-            <span>Margem líquida est. {(faturamentoMes > 0 ? Math.round((lucroLiquido / faturamentoMes) * 100) : 60)}%</span>
-           </p>
-          </div>
-         </div>
-
-         {/* KPI: Orders Status */}
-         <div id="kpi-producao" className="bg-white border border-[rgba(42,36,32,0.06)] p-6 rounded-[20px] shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-           <span className="text-[10px] font-bold text-ink-600 uppercase tracking-wider">Produção Ativa</span>
-           <div className="w-9 h-9 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-600">
-            <Hammer size={16} />
-           </div>
-          </div>
-          <div className="mt-5">
-           <h3 className="text-2xl sm:text-3xl font-bold font-serif tracking-tight text-ink-900">
-            {inProductionCount} Pedidos
-           </h3>
-           <p className="text-[10px] text-ink-600 mt-1.5 flex items-center gap-1">
-            <span>Total de {activeOrders.length} pedidos em carteira</span>
-           </p>
-          </div>
-         </div>
-
-         {/* KPI: Critical Stock Warnings */}
-         <div id="kpi-estoque" className="bg-white border border-[rgba(42,36,32,0.06)] p-6 rounded-[20px] shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-           <span className="text-[10px] font-bold text-ink-600 uppercase tracking-wider">Alertas de Estoque</span>
-           <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${
-            criticalStockCount > 0 ? 'bg-rose-500/10 text-rose-600' : 'bg-warning-500/10 text-warning-500'
-           }`}>
-            <AlertTriangle size={16} />
-           </div>
-          </div>
-          <div className="mt-5">
-           <h3 className="text-2xl sm:text-3xl font-bold font-serif tracking-tight text-ink-900">
-            {criticalStockCount + lowStockCount} Itens
-           </h3>
-           <p className="text-[10px] mt-1.5 font-semibold flex items-center gap-1.5">
-            {criticalStockCount > 0 ? (
-             <span className="text-rose-600">● {criticalStockCount} Críticos (Esgotado!)</span>
-            ) : (
-             <span className="text-warning-500">● {lowStockCount} Abaixo do mínimo</span>
-            )}
-           </p>
-          </div>
-         </div>
-        </motion.div>
-       );
-
-      case 'financial_chart':
-       return (
-        <motion.div layout key="financial_chart" className="bg-white border border-[rgba(42,36,32,0.06)] p-6 rounded-[20px] shadow-sm hover:shadow-md transition-all duration-300">
-         <div className="flex items-center justify-between mb-6">
-          <div>
-           <h3 className="font-serif font-semibold text-lg text-ink-900">Desempenho Financeiro</h3>
-           <p className="text-[11px] text-ink-600">Fluxo histórico de receitas e despesas do Ateliê</p>
-          </div>
-          <div className="flex items-center gap-3 text-[10px] font-bold">
-           <span className="flex items-center gap-1.5 text-gold-600">
-            <span className="w-2.5 h-2.5 rounded-full bg-gold-500 block" /> Receita
-           </span>
-           <span className="flex items-center gap-1.5 text-success-500">
-            <span className="w-2.5 h-2.5 rounded-full bg-success-500 block" /> Lucro
-           </span>
-          </div>
-         </div>
-         <div className="h-68">
-          <ResponsiveContainer width="100%" height="100%">
-           <AreaChart data={monthlyData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-            <defs>
-             <linearGradient id="colorReceita" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#D4A039" stopOpacity={0.25}/>
-              <stop offset="95%" stopColor="#D4A039" stopOpacity={0}/>
-             </linearGradient>
-             <linearGradient id="colorLucro" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#3F9461" stopOpacity={0.25}/>
-              <stop offset="95%" stopColor="#3F9461" stopOpacity={0}/>
-             </linearGradient>
-            </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(42,36,32,0.04)" />
-            <XAxis dataKey="name" stroke="#6B6258" fontSize={11} tickLine={false} />
-            <YAxis stroke="#6B6258" fontSize={11} tickLine={false} unit="R$" />
-            <Tooltip 
-             contentStyle={{ backgroundColor: '#2A2420', border: 'none', borderRadius: '12px', color: '#fff', fontSize: '12px' }}
-             labelStyle={{ fontWeight: 'bold', color: '#D4A039' }}
-            />
-            <Area type="monotone" dataKey="receita" stroke="#D4A039" strokeWidth={2.5} strokeLinecap="round" fillOpacity={1} fill="url(#colorReceita)" />
-            <Area type="monotone" dataKey="lucro" stroke="#3F9461" strokeWidth={2.5} strokeLinecap="round" fillOpacity={1} fill="url(#colorLucro)" />
-           </AreaChart>
-          </ResponsiveContainer>
-         </div>
-        </motion.div>
-       );
-
-      case 'best_sellers':
-       return (
-        <motion.div layout key="best_sellers" className="bg-white border border-[rgba(42,36,32,0.06)] p-6 rounded-[20px] shadow-sm hover:shadow-md transition-all duration-300">
-         <div className="mb-6">
-          <h3 className="font-serif font-semibold text-lg text-ink-900">Produtos Mais Vendidos</h3>
-          <p className="text-[11px] text-ink-600">Fatia de vendas por item artesanal</p>
-         </div>
-         <div className="h-56 flex items-center justify-center relative">
-          <ResponsiveContainer width="100%" height="100%">
-           <PieChart>
-            <Pie
-             data={fallbackBestSellers}
-             cx="50%"
-             cy="50%"
-             innerRadius={62}
-             outerRadius={80}
-             paddingAngle={5}
-             dataKey="vendas"
-            >
-             {fallbackBestSellers.map((entry, index) => (
-              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-             ))}
-            </Pie>
-            <Tooltip contentStyle={{ borderRadius: '12px', fontSize: '11px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }} />
-           </PieChart>
-          </ResponsiveContainer>
-          <div className="absolute flex flex-col items-center">
-           <span className="text-2xl font-semibold font-serif text-ink-900 leading-none">
-            {fallbackBestSellers.reduce((a, b) => a + b.vendas, 0)}
-           </span>
-           <span className="text-[10px] text-ink-600 uppercase tracking-widest mt-1">Vendas</span>
-          </div>
-         </div>
-         <div className="grid grid-cols-2 gap-3 mt-4">
-          {fallbackBestSellers.map((item, idx) => (
-           <div key={item.name} className="flex items-center gap-2 text-[10px] font-medium text-ink-600 truncate">
-            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: COLORS[idx % COLORS.length] }} />
-            <span className="truncate">{item.name}</span>
-           </div>
-          ))}
-         </div>
-        </motion.div>
-       );
-
-      case 'recent_orders':
-       return (
-        <motion.div layout key="recent_orders" className="bg-white border border-[rgba(42,36,32,0.06)] p-6 rounded-[20px] shadow-sm hover:shadow-md transition-all duration-300">
-         <div className="flex items-center justify-between mb-6">
-          <div>
-           <h3 className="font-serif font-semibold text-lg text-ink-900">Últimos Pedidos Cadastrados</h3>
-           <p className="text-[11px] text-ink-600">Acompanhamento imediato das vendas recentes</p>
-          </div>
-          <button 
-           onClick={() => onViewChange('orders')}
-           className="text-xs font-semibold text-gold-600 hover:text-gold-500 flex items-center gap-1 cursor-pointer font-serif"
-          >
-           Ver todos <ArrowRight size={14} />
-          </button>
-         </div>
-
-         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-           <thead>
-            <tr className="bg-bg-app border-b border-slate-100 text-ink-600 font-bold uppercase tracking-wider">
-             <th className="px-4 py-3 font-semibold text-[10px]">Cód/Número</th>
-             <th className="px-4 py-3 font-semibold text-[10px]">Cliente</th>
-             <th className="px-4 py-3 font-semibold text-[10px]">Data Prevista</th>
-             <th className="px-4 py-3 font-semibold text-[10px]">Valor Total</th>
-             <th className="px-4 py-3 font-semibold text-[10px]">Status</th>
-            </tr>
-           </thead>
-           <tbody className="divide-y divide-slate-100">
-            {activeOrders.slice(0, 4).map(o => (
-             <tr key={o.id} className="hover:bg-[#FAF7F2]/40 transition-colors">
-              <td className="px-4 py-3.5 font-mono font-bold text-ink-900">{o.orderNumber}</td>
-              <td className="px-4 py-3.5 font-medium text-slate-700">{o.clientName}</td>
-              <td className="px-4 py-3.5 text-slate-500">{o.dueDate}</td>
-              <td className="px-4 py-3.5 font-bold font-mono text-slate-800">
-               R$ {o.totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-              </td>
-              <td className="px-4 py-3.5">
-               <span className={`px-2.5 py-1 rounded-full text-[10px] font-semibold ${
-                o.status === 'delivered' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' :
-                o.status === 'completed' ? 'bg-teal-50 text-teal-600 border border-teal-100' :
-                o.status === 'production' ? 'bg-amber-50 text-amber-600 border border-amber-100' :
-                o.status === 'finishing' ? 'bg-purple-50 text-purple-600 border border-purple-100' :
-                'bg-slate-50 text-slate-600 border border-slate-100'
-               }`}>
-                {o.status.toUpperCase()}
-               </span>
-              </td>
-             </tr>
-            ))}
-            {activeOrders.length === 0 && (
-             <tr>
-              <td colSpan={5} className="py-12 text-center text-slate-400">
-               Nenhum pedido ativo cadastrado no sistema.
-              </td>
-             </tr>
-            )}
-           </tbody>
-          </table>
-         </div>
-        </motion.div>
-       );
-
-      case 'critical_stock':
-       return (
-        <motion.div layout key="critical_stock" className="bg-white border border-[rgba(42,36,32,0.06)] p-6 rounded-[20px] shadow-sm hover:shadow-md transition-all duration-300 flex flex-col justify-between">
-         <div>
-          <h3 className="font-serif font-semibold text-lg text-ink-900">Insumos Críticos / Baixos</h3>
-          <p className="text-[11px] text-ink-600 mb-5">Compre matérias-primas antes de zerar</p>
-
-          <div className="space-y-3">
-           {activeInventory
-           .filter(i => i.quantity <= i.minQuantity)
-           .slice(0, 4)
-           .map(item => (
-            <div key={item.id} className="flex items-center justify-between p-3 rounded-xl border border-slate-100 bg-bg-app/50">
-             <div className="min-w-0">
-              <p className="font-bold text-xs text-ink-900 truncate">{item.name}</p>
-              <p className="text-[10px] text-slate-500 mt-0.5">Qtd Mínima: {item.minQuantity} {item.unit}</p>
-             </div>
-             <div className="text-right">
-              <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${
-               item.quantity === 0 ? 'bg-rose-50 text-rose-600 border border-rose-100' : 'bg-warning-bg text-warning-500 border border-warning-bg'
-              }`}>
-               {item.quantity} restando
-              </span>
-             </div>
-            </div>
-           ))}
-           {activeInventory.filter(i => i.quantity <= i.minQuantity).length === 0 && (
-            <div className="py-12 text-center text-slate-400">
-             <p className="text-xs">Todos os insumos com níveis saudáveis! <Sparkles size={12} className="text-emerald-500 animate-pulse inline ml-1" /></p>
-            </div>
-           )}
-          </div>
-         </div>
-
-         <div className="pt-5 border-t border-slate-100 mt-5">
-          <h4 className="font-bold text-xs text-slate-800 flex items-center gap-2">
-           <Clock size={12} className="text-gold-500" /> Atividades Recentes
-          </h4>
-          <div className="mt-3 space-y-2">
-           <p className="text-[10px] text-ink-600 leading-relaxed font-medium">
-            ● <strong>Rosana Santos</strong> gerou pedido PED-2026-0001
-           </p>
-           <p className="text-[10px] text-ink-600 leading-relaxed font-medium">
-            ● <strong>Ana Paula (Artesã)</strong> iniciou produção do Terço Imperial
-           </p>
-          </div>
-         </div>
-        </motion.div>
-       );
-
-      default:
-       return null;
-     }
-    })}
-   </motion.div>
-
-   {/* Customization Modal */}
-   <AnimatePresence>
-    {showCustomizeModal && (
-     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs no-print">
-      <motion.div
-       initial={{ opacity: 0, scale: 0.95, y: 15 }}
-       animate={{ opacity: 1, scale: 1, y: 0 }}
-       exit={{ opacity: 0, scale: 0.95, y: 15 }}
-       className="bg-white rounded-[24px] border border-slate-200 shadow-xl w-full max-w-lg p-6 overflow-hidden mx-4 max-h-[85vh] flex flex-col animate-scale-in"
-      >
-       <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-        <div>
-         <h3 className="text-base font-serif font-semibold text-ink-900">Personalizar Seu Painel</h3>
-         <p className="text-[11px] text-ink-600">Reordene e ative os blocos de dados do Dashboard</p>
+          <div className="h-12 bg-slate-200 rounded w-1/5" />
         </div>
-        <button
-         onClick={() => setShowCustomizeModal(false)}
-         className="w-8 h-8 rounded-full bg-slate-50 hover:bg-slate-100 text-slate-500 flex items-center justify-center cursor-pointer transition-all"
-        >
-         ✕
-        </button>
-       </div>
 
-       {/* Widget Items list with Reorder Buttons */}
-       <div className="py-4 space-y-2 overflow-y-auto flex-1">
-        {widgets.map((widget, idx) => (
-         <div
-          key={widget.id}
-          className="flex items-center justify-between p-3 bg-[#FAF8F5] border border-slate-200/80 rounded-xl"
-         >
-          <div className="flex items-center gap-3">
-           <button
-            onClick={() => toggleWidgetVisibility(widget.id)}
-            className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all cursor-pointer ${
-             widget.visible 
-              ? 'bg-gold-500 border-gold-500 text-white shadow-xs' 
-              : 'bg-white border-slate-200 hover:border-slate-300'
-            }`}
-           >
-            {widget.visible && <Check size={12} strokeWidth={3} />}
-           </button>
-           <span className={`text-xs font-semibold ${widget.visible ? 'text-ink-900' : 'text-slate-400 line-through'}`}>
-            {widget.label}
-           </span>
+        {/* Banner Skeleton */}
+        <div className="h-44 bg-slate-100/50 rounded-2xl" />
+
+        {/* KPIs Skeleton */}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          {[1, 2, 3, 4, 5].map(i => (
+            <div key={i} className="h-28 bg-white border border-slate-100 rounded-xl" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6 animate-slide-in-up">
+      
+      {/* Synchronization & Customization Top Bar */}
+      <div className="flex flex-wrap items-center justify-between gap-3 no-print">
+        <div className="flex items-center gap-1.5 text-[10.5px] font-bold text-slate-500 font-mono bg-white border border-slate-100/80 px-3 py-1.5 rounded-full shadow-3xs">
+          <Clock size={12} className={isSyncing ? 'animate-spin text-amber-500' : 'text-slate-400'} />
+          <span>Última sincronização: <strong className="text-slate-700 font-bold">{lastSyncTime}</strong></span>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleManualSync}
+            className="px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-3xs"
+          >
+            Sincronizar
+          </button>
+
+          <button
+            onClick={() => setShowCustomizeModal(true)}
+            className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-md"
+          >
+            <Settings2 size={13} /> Personalizar Painel
+          </button>
+        </div>
+      </div>
+
+      {/* Header and Banner */}
+      <DashboardHeader
+        onQuickAction={onQuickAction}
+        activeOrders={activeOrders}
+        quotes={orders} // fallback
+        bannerConfig={bannerConfig}
+        setBannerConfig={setBannerConfig}
+      />
+
+      {/* RENDER CUSTOMIZED ACTIVE WIDGET GRID */}
+      <div className="grid grid-cols-12 gap-6">
+        {widgets.filter(w => w.visible).map((widget, index) => {
+          const colSpan = widget.width === 'half' ? 'col-span-12 lg:col-span-6' : 'col-span-12';
+
+          return (
+            <div key={widget.id} className={`${colSpan} space-y-4`}>
+              {widget.id === 'alerts' && (
+                <DashboardAlerts
+                  onViewChange={onViewChange}
+                  activeOrders={activeOrders}
+                  inventory={activeInventory}
+                  quotes={orders} // fallback
+                  productionTasks={productionTasks}
+                  pausedTaskIds={pausedTaskIds}
+                />
+              )}
+
+              {widget.id === 'kpis' && (
+                <DashboardKpis
+                  onViewChange={onViewChange}
+                  activeOrders={activeOrders}
+                  inventory={activeInventory}
+                  quotes={orders} // fallback
+                  transactions={activeTransactions}
+                  productionTasks={productionTasks}
+                />
+              )}
+
+              {widget.id === 'production' && (
+                <DashboardProduction
+                  onViewChange={onViewChange}
+                  productionTasks={productionTasks}
+                  pausedTaskIds={pausedTaskIds}
+                  setPausedTaskIds={setPausedTaskIds}
+                />
+              )}
+
+              {widget.id === 'finance_sales' && (
+                <DashboardFinanceSales
+                  transactions={activeTransactions}
+                  activeOrders={activeOrders}
+                  quotes={orders} // fallback
+                />
+              )}
+
+              {widget.id === 'products_platform' && (
+                <DashboardProductsPlatform
+                  activeOrders={activeOrders}
+                  products={products}
+                  inventory={activeInventory}
+                />
+              )}
+
+              {widget.id === 'stock_goals' && (
+                <DashboardStockGoals
+                  inventory={activeInventory}
+                  activeOrders={activeOrders}
+                  goals={goals}
+                  currentMonthFaturamento={currentMonthFaturamento}
+                  currentMonthLucro={currentMonthLucro}
+                  currentMonthOrdersCount={currentMonthOrdersCount}
+                  currentMonthProducaoCount={currentMonthProducaoCount}
+                />
+              )}
+
+              {widget.id === 'agenda_activities' && (
+                <DashboardAgendaActivities
+                  onViewChange={onViewChange}
+                  activeOrders={activeOrders}
+                  transactions={activeTransactions}
+                  agendaItems={agendaItems}
+                  setAgendaItems={setAgendaItems}
+                />
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* MASTER CUSTOMIZATION DIALOG */}
+      {showCustomizeModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-3xs p-4 no-print">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-xl w-full max-w-xl overflow-hidden flex flex-col max-h-[85vh] animate-scale-in">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-5 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <LayoutGrid size={18} className="text-amber-500" />
+                <div>
+                  <h3 className="font-serif font-semibold text-slate-900 text-base">Personalizar Painel Executivo</h3>
+                  <p className="text-[10px] text-slate-500">Ajuste o layout, reordene widgets e configure o banner ou metas</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowCustomizeModal(false)}
+                className="w-7 h-7 rounded-full bg-slate-50 hover:bg-slate-100 text-slate-500 flex items-center justify-center cursor-pointer"
+              >
+                <X size={14} />
+              </button>
+            </div>
+
+            {/* Modal Tabs navigation */}
+            <div className="flex bg-slate-50 border-b border-slate-100 px-4 text-xs">
+              <button
+                onClick={() => setActiveTab('widgets')}
+                className={`px-4 py-3.5 font-bold cursor-pointer border-b-2 transition-all ${
+                  activeTab === 'widgets' ? 'border-amber-500 text-amber-700 font-bold' : 'border-transparent text-slate-400 hover:text-slate-600'
+                }`}
+              >
+                Organização (Widgets)
+              </button>
+              <button
+                onClick={() => setActiveTab('banner')}
+                className={`px-4 py-3.5 font-bold cursor-pointer border-b-2 transition-all ${
+                  activeTab === 'banner' ? 'border-amber-500 text-amber-700 font-bold' : 'border-transparent text-slate-400 hover:text-slate-600'
+                }`}
+              >
+                Personalizar Banner
+              </button>
+              <button
+                onClick={() => setActiveTab('goals')}
+                className={`px-4 py-3.5 font-bold cursor-pointer border-b-2 transition-all ${
+                  activeTab === 'goals' ? 'border-amber-500 text-amber-700 font-bold' : 'border-transparent text-slate-400 hover:text-slate-600'
+                }`}
+              >
+                Definir Metas do Mês
+              </button>
+            </div>
+
+            {/* Scrollable Content */}
+            <div className="p-6 overflow-y-auto flex-1 space-y-5 text-xs">
+              
+              {/* TAB 1: ORGANIZAR WIDGETS */}
+              {activeTab === 'widgets' && (
+                <div className="space-y-3">
+                  <p className="text-slate-500 pb-1 leading-relaxed">
+                    Ative ou desative seções, reordene sua prioridade na página e ajuste se devem ocupar metade (50%) ou a largura inteira (100%) da tela.
+                  </p>
+
+                  <div className="space-y-2 border border-slate-100 rounded-xl p-2.5 bg-slate-50/50">
+                    {widgets.map((widget, idx) => (
+                      <div
+                        key={widget.id}
+                        className={`flex items-center justify-between p-3 rounded-lg border bg-white shadow-3xs ${
+                          widget.pinned ? 'border-amber-200 bg-amber-50/5' : 'border-slate-100'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleTogglePin(widget.id)}
+                            className={`p-1 rounded cursor-pointer ${
+                              widget.pinned ? 'text-amber-500 bg-amber-50' : 'text-slate-300 hover:text-slate-500'
+                            }`}
+                            title={widget.pinned ? 'Desafixar do topo' : 'Fixar no topo'}
+                          >
+                            <Sparkles size={13} />
+                          </button>
+                          <span className="font-bold text-slate-800">{widget.label}</span>
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                          {/* Sizing dropdown */}
+                          <select
+                            value={widget.width}
+                            onChange={(e) => {
+                              const updated = widgets.map(w => w.id === widget.id ? { ...w, width: e.target.value as any } : w);
+                              saveWidgetsToLocal(updated);
+                            }}
+                            className="text-[10px] bg-slate-50 border border-slate-200 rounded px-1.5 py-0.5"
+                          >
+                            <option value="half">50% Largura</option>
+                            <option value="full">100% Largura</option>
+                          </select>
+
+                          {/* Visibility Toggle */}
+                          <button
+                            onClick={() => {
+                              const updated = widgets.map(w => w.id === widget.id ? { ...w, visible: !w.visible } : w);
+                              saveWidgetsToLocal(updated);
+                            }}
+                            className={`p-1.5 rounded cursor-pointer ${
+                              widget.visible ? 'text-slate-800 bg-slate-100 hover:bg-slate-200' : 'text-slate-300 hover:text-slate-400'
+                            }`}
+                          >
+                            {widget.visible ? <Eye size={13} /> : <EyeOff size={13} />}
+                          </button>
+
+                          {/* Position controls */}
+                          <div className="flex items-center gap-0.5 border-l border-slate-150 pl-2">
+                            <button
+                              disabled={idx === 0}
+                              onClick={() => handleMoveWidget(idx, 'up')}
+                              className="p-1 text-slate-400 hover:text-slate-800 disabled:opacity-30 cursor-pointer"
+                            >
+                              <ChevronUp size={13} />
+                            </button>
+                            <button
+                              disabled={idx === widgets.length - 1}
+                              onClick={() => handleMoveWidget(idx, 'down')}
+                              className="p-1 text-slate-400 hover:text-slate-800 disabled:opacity-30 cursor-pointer"
+                            >
+                              <ChevronDown size={13} />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 2: PERSONALIZAR BANNER */}
+              {activeTab === 'banner' && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                    <span className="font-bold text-slate-800">Status do Banner</span>
+                    <label className="relative inline-flex items-center cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={bannerConfig.showBanner}
+                        onChange={(e) => saveBannerToLocal({ ...bannerConfig, showBanner: e.target.checked })}
+                        className="sr-only peer"
+                      />
+                      <div className="w-8 h-4 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-amber-500" />
+                      <span className="ml-2 text-[11px] font-bold text-slate-500">Exibir Banner</span>
+                    </label>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="font-bold text-slate-700">Título Principal</label>
+                      <input
+                        type="text"
+                        value={bannerConfig.title}
+                        onChange={(e) => saveBannerToLocal({ ...bannerConfig, title: e.target.value })}
+                        className="w-full"
+                        placeholder="Ex: Ateliê Sagrado"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="font-bold text-slate-700">Cor de Destaque (Accent)</label>
+                      <div className="flex items-center gap-1.5">
+                        {['#D4A039', '#B5563D', '#4C7FB0', '#446C94', '#3F9461'].map(color => (
+                          <button
+                            key={color}
+                            type="button"
+                            onClick={() => saveBannerToLocal({ ...bannerConfig, highlightColor: color })}
+                            className={`w-6 h-6 rounded-full border border-slate-300 cursor-pointer flex items-center justify-center transition-all ${
+                              bannerConfig.highlightColor === color ? 'ring-2 ring-slate-900 scale-105' : ''
+                            }`}
+                            style={{ backgroundColor: color }}
+                          >
+                            {bannerConfig.highlightColor === color && <Check size={11} className="text-white" />}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5 md:col-span-2">
+                      <label className="font-bold text-slate-700">Texto de Descrição</label>
+                      <textarea
+                        value={bannerConfig.description}
+                        onChange={(e) => saveBannerToLocal({ ...bannerConfig, description: e.target.value })}
+                        className="w-full text-xs rounded-lg px-2.5 py-1.5 border border-slate-200 h-16 focus:ring-2 focus:ring-amber-500/20"
+                        placeholder="Texto descritivo do ateliê..."
+                      />
+                    </div>
+
+                    <div className="space-y-1.5 md:col-span-2">
+                      <label className="font-bold text-slate-700 font-mono">URL da Imagem de Fundo (Opcional)</label>
+                      <input
+                        type="text"
+                        value={bannerConfig.bgImage}
+                        onChange={(e) => saveBannerToLocal({ ...bannerConfig, bgImage: e.target.value })}
+                        className="w-full"
+                        placeholder="https://images.unsplash.com/photo-..."
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 3: CONFIGURAR METAS */}
+              {activeTab === 'goals' && (
+                <div className="space-y-4">
+                  <p className="text-slate-500 leading-relaxed pb-2 border-b border-slate-100">
+                    Defina as metas mensais para calcular as barras de progresso operacionais. Os cálculos de porcentagem serão atualizados instantaneamente.
+                  </p>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="font-bold text-slate-700">Meta de Faturamento (R$)</label>
+                      <input
+                        type="number"
+                        value={goals.faturamento}
+                        onChange={(e) => saveGoalsToLocal({ ...goals, faturamento: Number(e.target.value) })}
+                        className="w-full"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="font-bold text-slate-700">Meta de Lucro Líquido (R$)</label>
+                      <input
+                        type="number"
+                        value={goals.lucro}
+                        onChange={(e) => saveGoalsToLocal({ ...goals, lucro: Number(e.target.value) })}
+                        className="w-full"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="font-bold text-slate-700">Meta de Pedidos Vendidos</label>
+                      <input
+                        type="number"
+                        value={goals.vendas}
+                        onChange={(e) => saveGoalsToLocal({ ...goals, vendas: Number(e.target.value) })}
+                        className="w-full"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="font-bold text-slate-700">Meta de Peças Concluídas</label>
+                      <input
+                        type="number"
+                        value={goals.producao}
+                        onChange={(e) => saveGoalsToLocal({ ...goals, producao: Number(e.target.value) })}
+                        className="w-full"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex items-center justify-between p-5 border-t border-slate-100 bg-slate-50">
+              <button
+                type="button"
+                onClick={handleResetLayout}
+                className="inline-flex items-center gap-1 text-[10.5px] font-bold text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+              >
+                <RotateCcw size={12} /> Restaurar Padrões
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowCustomizeModal(false)}
+                className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl cursor-pointer shadow-md transition-all active:scale-98"
+              >
+                Confirmar Configuração
+              </button>
+            </div>
           </div>
+        </div>
+      )}
 
-          <div className="flex items-center gap-1.5">
-           <button
-            disabled={idx === 0}
-            onClick={() => moveWidget(idx, 'up')}
-            className="w-7 h-7 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 flex items-center justify-center text-slate-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
-           >
-            <ChevronUp size={14} />
-           </button>
-           <button
-            disabled={idx === widgets.length - 1}
-            onClick={() => moveWidget(idx, 'down')}
-            className="w-7 h-7 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 flex items-center justify-center text-slate-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
-           >
-            <ChevronDown size={14} />
-           </button>
-          </div>
-         </div>
-        ))}
-       </div>
-
-       <div className="pt-4 border-t border-slate-100 flex items-center justify-end">
-        <button
-         onClick={() => setShowCustomizeModal(false)}
-         className="px-5 py-2.5 bg-gradient-to-br from-ink-900 to-slate-800 text-white hover:opacity-95 text-xs font-semibold rounded-xl cursor-pointer transition-all active:scale-98"
-        >
-         Salvar Layout
-        </button>
-       </div>
-      </motion.div>
-     </div>
-    )}
-   </AnimatePresence>
-  </div>
- );
+    </div>
+  );
 };

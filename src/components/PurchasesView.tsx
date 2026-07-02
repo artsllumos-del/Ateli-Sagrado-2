@@ -3,7 +3,7 @@ import { useDb } from '../context/DbContext';
 import { motion } from 'motion/react';
 import { 
   ShoppingBag, Package, AlertCircle, CheckCircle2, TrendingUp, 
-  ArrowRight, DollarSign, Calendar, Search, Filter, Plus, FileText, AlertTriangle 
+  ArrowRight, DollarSign, Calendar, Search, Filter, Plus, FileText, AlertTriangle, X 
 } from 'lucide-react';
 import { toast } from './Toast';
 
@@ -319,19 +319,32 @@ export const PurchasesView: React.FC = () => {
 
       {/* Quick Buy Modal */}
       {showPurchaseModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <div className="bg-white border border-slate-200 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden animate-slide-in-up">
-            <div className="bg-[#FAF7F2] border-b border-slate-100 p-5">
-              <h3 className="font-serif font-bold text-base text-slate-900 flex items-center gap-2">
-                <ShoppingBag className="text-gold-600" size={18} />
-                Registrar Compra de Insumo
-              </h3>
-              <p className="text-[10px] text-ink-600 mt-0.5">
-                Esta ação adicionará saldo físico ao estoque e lançará uma despesa financeira.
-              </p>
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 lg:p-6 overflow-hidden">
+          <div className="bg-white border border-slate-200 w-full max-w-lg max-h-[85vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-slide-in-up">
+            <div className="bg-[#FAF7F2] border-b border-slate-100 px-6 py-4 flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 bg-gold-500/10 rounded-xl text-gold-600">
+                  <ShoppingBag size={20} />
+                </div>
+                <div>
+                  <h3 className="font-serif font-bold text-base text-slate-900">
+                    Registrar Compra de Insumo
+                  </h3>
+                  <p className="text-[10px] text-slate-500">
+                    Esta ação adicionará saldo físico ao estoque e lançará uma despesa financeira.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowPurchaseModal(null)}
+                className="p-1 rounded-full text-slate-400 hover:bg-slate-100 hover:text-ink-900 transition-colors cursor-pointer"
+              >
+                <X size={16} />
+              </button>
             </div>
 
-            <div className="p-5 space-y-4">
+            <div className="p-5 space-y-4 overflow-y-auto flex-1 min-h-0">
               <div>
                 <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block font-mono">
                   Material Selecionado
@@ -391,7 +404,7 @@ export const PurchasesView: React.FC = () => {
               </div>
             </div>
 
-            <div className="bg-slate-50/80 border-t border-slate-150 px-5 py-3.5 flex justify-end gap-3">
+            <div className="bg-slate-50 border-t border-slate-150 px-5 py-3.5 flex justify-end gap-3 shrink-0">
               <button
                 onClick={() => setShowPurchaseModal(null)}
                 className="px-4 py-2 border border-slate-200 hover:bg-slate-100 rounded-xl text-xs font-bold text-slate-500 cursor-pointer transition-all duration-200 active:scale-95"

@@ -1,25 +1,39 @@
 export type ClientType = 'PF' | 'PJ';
 
+export interface ClientAddress {
+  id: string;
+  cep: string;
+  street: string;
+  number: string;
+  complement?: string;
+  neighborhood: string;
+  city: string;
+  state: string;
+  isMain: boolean;
+  label?: string;
+}
+
 export interface Client {
- id: string;
- type: ClientType;
- name: string; // Used for PF Name or PJ Razão Social
- cpf?: string;
- cnpj?: string;
- email: string;
- phone: string;
- whatsapp: string;
- nomeFantasia?: string;
- responsavel?: string;
- cep?: string;
- street?: string;
- number?: string;
- complement?: string;
- neighborhood?: string;
- city?: string;
- state?: string;
- isDeleted?: boolean;
- createdAt: string;
+  id: string;
+  type: ClientType;
+  name: string; // Used for PF Name or PJ Razão Social
+  cpf?: string;
+  cnpj?: string;
+  email: string;
+  phone: string;
+  whatsapp: string;
+  nomeFantasia?: string;
+  responsavel?: string;
+  cep?: string;
+  street?: string;
+  number?: string;
+  complement?: string;
+  neighborhood?: string;
+  city?: string;
+  state?: string;
+  isDeleted?: boolean;
+  createdAt: string;
+  addresses?: ClientAddress[];
 }
 
 export type CalcMethod = 'fixed' | 'weight';
@@ -44,6 +58,7 @@ export interface InventoryItem {
  createdAt: string;
  reserved?: number;
  available?: number;
+ imageUrl?: string;
 }
 
 export interface ProductMaterialComposition {
@@ -80,6 +95,17 @@ export interface QuoteItem {
  total: number;
 }
 
+export interface DocumentSnapshot {
+  companyName: string;
+  logo: string;
+  address: string;
+  phone: string;
+  email: string;
+  primaryColor: string;
+  laborHourlyRate: number;
+  indirectCosts: number;
+}
+
 export interface Quote {
  id: string;
  clientId: string;
@@ -93,9 +119,10 @@ export interface Quote {
  date: string;
  isDeleted?: boolean;
  createdAt: string;
+ snapshot?: DocumentSnapshot;
 }
 
-export type OrderStatus = 'received' | 'approved' | 'production' | 'finishing' | 'completed' | 'shipped' | 'delivered';
+export type OrderStatus = 'received' | 'approved' | 'production' | 'finishing' | 'packing' | 'ready' | 'completed';
 
 export interface OrderItem {
  productId: string;
@@ -126,6 +153,12 @@ export interface Order {
  timeline: OrderTimelineEvent[];
  isDeleted?: boolean;
  createdAt: string;
+ responsible?: string;
+ priority?: 'Baixa' | 'Média' | 'Alta' | 'Urgente';
+  snapshot?: DocumentSnapshot;
+ archivedAt?: string;
+ isArchived?: boolean;
+ isCancelled?: boolean;
 }
 
 export type ProductionStatus = 'todo' | 'producing' | 'finishing' | 'done';
@@ -158,20 +191,99 @@ export interface FinancialTransaction {
  notes?: string;
  isDeleted?: boolean;
  createdAt: string;
+ reconciled?: boolean;
+ reconciledToId?: string;
+ reconciledToType?: 'order' | 'purchase' | 'manual';
+ reconciledToNumber?: string;
 }
 
 export interface SystemSettings {
+ // Dados Institucionais
  companyName: string;
  logo: string;
+ slogan: string;
+ razaoSocial: string;
+ nomeFantasia: string;
  cnpj: string;
- phone: string;
+ inscricaoEstadual: string;
  address: string;
- defaultMarginPercent: number; // e.g. 50%
- indirectCosts: number; // flat rate added or percent
- laborHourlyRate: number; // BRL per hour
+ phone: string;
+ whatsapp: string;
+ email: string;
+ website: string;
+ socialMedia: string;
+ favicon: string;
+ institutionalPhoto?: string;
+ firstSetup?: boolean;
+
+ // Perfil do Usuário
+ userPhoto: string;
+ userName: string;
+ userRole: string;
+ userEmail: string;
+ userPhone: string;
+ userPassword?: string;
+ userLanguage: string;
+ userTimezone: string;
+
+ // Motor Financeiro
+ laborHourlyRate: number;
+ indirectCosts: number;
+ defaultMarginPercent: number;
+ minMarginPercent: number;
+ idealMarginPercent: number;
+ taxPercent: number;
+ commissionPercent: number;
+ defaultDiscountPercent: number;
+
+ // Interface e Preferências
  theme: 'light' | 'dark';
- language: 'pt-BR' | 'en';
+ primaryColor: string;
+ cardStyle: string;
+ borderRadius: string;
+ shadowStyle: string;
+ density: 'compact' | 'normal' | 'relaxed';
+ typography: string;
+ dashboardLayout: string;
+
+ // Documentos Emitidos
+ docLogo: string;
+ docHeader: string;
+ docFooter: string;
+ docFinalMessage: string;
+ docSignature: string;
+ docNotes: string;
+
+ // Outros Sugeridos
+ backupFrequency: 'daily' | 'weekly' | 'monthly' | 'manual';
+ currencyFormat: string;
+ dateFormat: string;
+ autoNumberingPattern: string;
  notificationsEnabled: boolean;
+}
+
+export interface AppUser {
+ id: string;
+ username: string;
+ name: string;
+ email: string;
+ password?: string;
+ role: string;
+ isActive: boolean;
+ photoUrl?: string;
+ permissions: {
+  dashboard: boolean;
+  inventory: boolean;
+  purchases: boolean;
+  products: boolean;
+  pricing: boolean;
+  clients: boolean;
+  quotes: boolean;
+  orders: boolean;
+  production: boolean;
+  financial: boolean;
+  settings: boolean;
+ };
 }
 
 export interface SystemNotification {
@@ -182,5 +294,24 @@ export interface SystemNotification {
  date: string;
  read: boolean;
  isDeleted?: boolean;
+}
+
+export interface AgendaActivity {
+  id: string;
+  time: string; // e.g. "14:00"
+  date: string; // e.g. "YYYY-MM-DD"
+  title: string;
+  type: 'delivery' | 'meeting' | 'purchase' | 'production' | 'system' | 'manual';
+  status: 'Pendente' | 'Concluída';
+  completedAt?: string; // date and time of completion (e.g., "30/06/2026 14:05")
+  createdAt: string;
+}
+
+export interface AuditLog {
+  id: string;
+  timestamp: string; // ISO date-time
+  user: string;
+  action: string;
+  module: string; // e.g. 'agenda', 'clients', 'orders', 'financial', etc.
 }
 

@@ -12,7 +12,11 @@ import {
  OrderStatus,
  ProductionStatus,
  OrderTimelineEvent,
- SystemNotification
+ SystemNotification,
+ AppUser,
+ DocumentSnapshot,
+ AgendaActivity,
+ AuditLog
 } from '../types/erp';
 
  interface DbContextType {
@@ -27,10 +31,16 @@ import {
  notifications: SystemNotification[];
  
  // Auth simulation
- user: { name: string; email: string } | null;
- login: (email: string, password: string) => boolean;
+ user: AppUser | null;
+ users: AppUser[];
+ login: (usernameOrEmail: string, password: string) => boolean;
  logout: () => void;
  recoverPassword: (email: string) => boolean;
+
+ // User CRUD Methods
+ addUser: (user: Omit<AppUser, 'id'>) => void;
+ updateUser: (id: string, user: Partial<AppUser>) => void;
+ deleteUser: (id: string) => void;
 
  // CRUD Methods
  addClient: (client: Omit<Client, 'id' | 'createdAt'>) => void;
@@ -55,6 +65,7 @@ import {
  addOrder: (order: Omit<Order, 'id' | 'createdAt' | 'orderNumber' | 'timeline'>) => { success: boolean; error?: string; missingMaterials?: { name: string; required: number; available: number; unit: string }[] };
  updateOrder: (id: string, order: Partial<Order>) => void;
  deleteOrder: (id: string) => void;
+ cancelOrder: (id: string) => void;
  addOrderTimeline: (id: string, description: string) => void;
 
  updateProductionTask: (id: string, task: Partial<ProductionTask>) => void;
@@ -74,6 +85,16 @@ import {
  clearAllNotifications: () => void;
  scanReceipt: (imageBase64: string) => Promise<{ success: boolean; data?: any; error?: string }>;
  importFinancialFile: (fileType: 'csv' | 'ofx' | 'xlsx', fileContent: string) => Promise<{ success: boolean; count?: number; error?: string }>;
+ resetSystem: () => void;
+
+ // Agenda and Audit Log methods
+ agendaActivities: AgendaActivity[];
+ auditLogs: AuditLog[];
+ addAgendaActivity: (activity: Omit<AgendaActivity, 'id' | 'createdAt'>) => void;
+ updateAgendaActivity: (id: string, activity: Partial<AgendaActivity>) => void;
+ deleteAgendaActivity: (id: string) => void;
+ addAuditLog: (log: Omit<AuditLog, 'id' | 'timestamp'>) => void;
+ syncAllData: () => void;
 }
 
 const DbContext = createContext<DbContextType | undefined>(undefined);
@@ -86,16 +107,55 @@ export const useDb = () => {
 
 // Initial Seed Data
 const defaultSettings: SystemSettings = {
- companyName: "Ateliê Sagrado",
- logo: "📿",
- cnpj: "12.345.678/0001-90",
- phone: "(11) 98765-4321",
- address: "Rua das Rosas, 108, Bairro das Graças - São Paulo/SP",
- defaultMarginPercent: 120, // 120% margin
- indirectCosts: 5.50, // R$ 5,50 per item (packaging, electricity, etc)
- laborHourlyRate: 25.00, // R$ 25,00/hour
+ companyName: "",
+ logo: "",
+ slogan: "",
+ razaoSocial: "",
+ nomeFantasia: "",
+ cnpj: "",
+ inscricaoEstadual: "",
+ address: "",
+ phone: "",
+ whatsapp: "",
+ email: "",
+ website: "",
+ socialMedia: "",
+ favicon: "",
+ institutionalPhoto: "",
+ firstSetup: true,
+ userPhoto: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=150&auto=format&fit=crop",
+ userName: "Admin",
+ userRole: "Administrador",
+ userEmail: "admin@atelie.com",
+ userPhone: "",
+ userLanguage: "pt-BR",
+userTimezone: "GMT-3",
+ laborHourlyRate: 25.00,
+ indirectCosts: 5.50,
+ defaultMarginPercent: 120,
+ minMarginPercent: 50,
+ idealMarginPercent: 120,
+ taxPercent: 6,
+ commissionPercent: 10,
+ defaultDiscountPercent: 5,
  theme: 'light',
- language: 'pt-BR',
+ primaryColor: '#D4AF37',
+ cardStyle: 'modern',
+ borderRadius: '16px',
+ shadowStyle: 'soft',
+ density: 'normal',
+ typography: 'Inter',
+ dashboardLayout: 'grid',
+ docLogo: "📿",
+ docHeader: "Ateliê Sagrado - Joias e Terços Religiosos",
+ docFooter: "Agradecemos pela preferência! Feito sob encomenda com dedicação.",
+ docFinalMessage: "Que esta peça traga paz e bênçãos para o seu lar.",
+ docSignature: "Rosana Santos - Gestora de Vendas",
+ docNotes: "Garantia permanente sobre o folheado a ouro e pérolas naturais.",
+ backupFrequency: 'weekly',
+ currencyFormat: 'BRL',
+ dateFormat: 'DD/MM/YYYY',
+ autoNumberingPattern: 'PED-YYYY-XXXX',
  notificationsEnabled: true
 };
 
@@ -169,7 +229,8 @@ const initialInventory: InventoryItem[] = [
  calcMethod: "fixed",
  notes: "Material de altíssima qualidade para terços de noivas.",
  status: "active",
- createdAt: "2026-05-01T09:00:00Z"
+ createdAt: "2026-05-01T09:00:00Z",
+ imageUrl: "https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?q=80&w=300&auto=format&fit=crop"
  },
  {
  id: "m2",
@@ -186,7 +247,8 @@ const initialInventory: InventoryItem[] = [
  calcMethod: "fixed",
  notes: "Crucifixo para terços grandes e luxuosos.",
  status: "active",
- createdAt: "2026-05-01T09:15:00Z"
+ createdAt: "2026-05-01T09:15:00Z",
+ imageUrl: "https://images.unsplash.com/photo-1544816155-12df9643f363?q=80&w=300&auto=format&fit=crop"
  },
  {
  id: "m3",
@@ -203,7 +265,8 @@ const initialInventory: InventoryItem[] = [
  calcMethod: "fixed",
  notes: "Muito procurado para terços marianos comuns.",
  status: "active",
- createdAt: "2026-05-01T09:20:00Z"
+ createdAt: "2026-05-01T09:20:00Z",
+ imageUrl: "https://images.unsplash.com/photo-1617038260897-41a1f14a8ca0?q=80&w=300&auto=format&fit=crop"
  },
  {
  id: "m4",
@@ -220,7 +283,8 @@ const initialInventory: InventoryItem[] = [
  calcMethod: "weight",
  notes: "Fácil de manusear com alicate de bico redondo.",
  status: "active",
- createdAt: "2026-05-01T09:30:00Z"
+ createdAt: "2026-05-01T09:30:00Z",
+ imageUrl: "https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?q=80&w=300&auto=format&fit=crop"
  },
  {
  id: "m5",
@@ -237,7 +301,8 @@ const initialInventory: InventoryItem[] = [
  calcMethod: "fixed",
  notes: "Embalagem premium para valorizar o produto final.",
  status: "active",
- createdAt: "2026-05-01T10:00:00Z"
+ createdAt: "2026-05-01T10:00:00Z",
+ imageUrl: "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?q=80&w=300&auto=format&fit=crop"
  }
 ];
 
@@ -487,8 +552,11 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
  const [productionTasks, setProductionTasks] = useState<ProductionTask[]>([]);
  const [transactions, setTransactions] = useState<FinancialTransaction[]>([]);
  const [settings, setSettings] = useState<SystemSettings>(defaultSettings);
- const [user, setUser] = useState<{ name: string; email: string } | null>(null);
+ const [user, setUser] = useState<AppUser | null>(null);
+ const [users, setUsers] = useState<AppUser[]>([]);
  const [notifications, setNotifications] = useState<SystemNotification[]>([]);
+ const [agendaActivities, setAgendaActivities] = useState<AgendaActivity[]>([]);
+ const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
 
  // Initialize and load from LocalStorage
  useEffect(() => {
@@ -504,25 +572,64 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
  }
 
  const loadData = <T,>(key: string, initial: T[]): T[] => {
- const stored = localStorage.getItem(`as_${key}`);
- if (stored) {
- try {
- return JSON.parse(stored);
- } catch (e) {
- return initial;
- }
- }
- localStorage.setItem(`as_${key}`, JSON.stringify(initial));
- return initial;
+  const stored = localStorage.getItem(`as_${key}`);
+  if (stored) {
+   try {
+    const parsed = JSON.parse(stored);
+    if (Array.isArray(parsed)) return parsed;
+    return initial;
+   } catch (e) {
+    return initial;
+   }
+  }
+  localStorage.setItem(`as_${key}`, JSON.stringify(initial));
+  return initial;
  };
 
- setClients(loadData('clients', initialClients));
- setInventory(loadData('inventory', initialInventory));
- setProducts(loadData('products', initialProducts));
- setQuotes(loadData('quotes', initialQuotes));
- setOrders(loadData('orders', initialOrders));
- setProductionTasks(loadData('production_tasks', initialProductionTasks));
- setTransactions(loadData('transactions', initialTransactions));
+ setClients(loadData('clients', []));
+ setInventory(loadData('inventory', []));
+ setProducts(loadData('products', []));
+ setQuotes(loadData('quotes', []));
+ setOrders(loadData('orders', []));
+ setProductionTasks(loadData('production_tasks', []));
+ setTransactions(loadData('transactions', []));
+
+ const initialAgendaActivities: AgendaActivity[] = [];
+
+ const initialAuditLogs: AuditLog[] = [];
+
+ setAgendaActivities(loadData('agenda_activities', initialAgendaActivities));
+ setAuditLogs(loadData('audit_logs', initialAuditLogs));
+ 
+ const initialUsers: AppUser[] = [
+  {
+   id: 'user_admin',
+   username: 'Admin',
+   name: 'Administrador',
+   email: 'admin@atelie.com',
+   password: '301310Lr',
+   role: 'Administrador',
+   isActive: true,
+   photoUrl: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=150&auto=format&fit=crop',
+   permissions: {
+    dashboard: true, inventory: true, purchases: true, products: true, pricing: true, clients: true, quotes: true, orders: true, production: true, financial: true, settings: true
+   }
+  },
+  {
+   id: 'user_rosana',
+   username: 'Rosana',
+   name: 'Rosana Santos',
+   email: 'rosana@atelie.com',
+   password: '123456',
+   role: 'Vendedor',
+   isActive: true,
+   photoUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=150&auto=format&fit=crop',
+   permissions: {
+    dashboard: true, inventory: true, purchases: true, products: true, pricing: true, clients: true, quotes: true, orders: true, production: false, financial: false, settings: false
+   }
+  }
+ ];
+ setUsers(loadData('users', initialUsers));
 
  // Seed notifications if empty
  const initialNotifications: SystemNotification[] = [
@@ -531,16 +638,8 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     title: '🎉 Bem-vindo ao Sistema do Ateliê Sagrado',
     message: 'Seu painel integrado está pronto! Acompanhe as suas vendas, estoque e produção em tempo real.',
     type: 'success',
-    date: new Date(Date.now() - 3600000).toISOString(),
+    date: new Date().toISOString(),
     read: false
-  },
-  {
-    id: 'notif_2',
-    title: '⚠️ Alerta de Estoque',
-    message: 'O insumo "Crucifixo 4cm Folheado" está próximo ao limite mínimo configurado.',
-    type: 'low_stock',
-    date: new Date(Date.now() - 7200000).toISOString(),
-    read: true
   }
  ];
  setNotifications(loadData('notifications', initialNotifications));
@@ -575,27 +674,152 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
  };
 
  // Auth actions
- const login = (email: string, password: string): boolean => {
- if (email.toLowerCase() === 'artsllumos@gmail.com' || email.toLowerCase() === 'admin@ateliesagrado.com.br' || email.length > 3) {
- const loggedUser = { 
- name: email.toLowerCase() === 'artsllumos@gmail.com' ? "Ateliê Sagrado" : "Administrador", 
- email: email.toLowerCase() 
- };
- setUser(loggedUser);
- localStorage.setItem('as_user', JSON.stringify(loggedUser));
- return true;
- }
- return false;
+ const login = (usernameOrEmail: string, password: string): boolean => {
+  const storedUsers = localStorage.getItem('as_users');
+  const userList: AppUser[] = storedUsers ? JSON.parse(storedUsers) : [
+   {
+    id: 'user_admin',
+    username: 'Admin',
+    name: 'Administrador',
+    email: 'admin@atelie.com',
+    password: '301310Lr',
+    role: 'Administrador',
+    isActive: true,
+    photoUrl: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=150&auto=format&fit=crop',
+    permissions: {
+     dashboard: true, inventory: true, purchases: true, products: true, pricing: true, clients: true, quotes: true, orders: true, production: true, financial: true, settings: true
+    }
+   }
+  ];
+
+  const foundUser = userList.find(u => 
+   u.isActive && 
+   (u.username.toLowerCase() === usernameOrEmail.toLowerCase() || u.email.toLowerCase() === usernameOrEmail.toLowerCase()) && 
+   u.password === password
+  );
+
+  if (foundUser) {
+   setUser(foundUser);
+   localStorage.setItem('as_user', JSON.stringify(foundUser));
+   return true;
+  }
+  return false;
  };
 
  const logout = () => {
- setUser(null);
- localStorage.removeItem('as_user');
+  setUser(null);
+  localStorage.removeItem('as_user');
  };
 
  const recoverPassword = (email: string): boolean => {
- // Simply return true for any valid email
- return email.includes('@');
+  return email.includes('@');
+ };
+
+ // User CRUD Methods
+ const addUser = (userData: Omit<AppUser, 'id'>) => {
+  const newUser: AppUser = {
+   ...userData,
+   id: 'user_' + Date.now()
+  };
+  const updated = [...users, newUser];
+  setUsers(updated);
+  saveToLocal('users', updated);
+ };
+
+ const updateUser = (id: string, updatedFields: Partial<AppUser>) => {
+  const updated = users.map(u => u.id === id ? { ...u, ...updatedFields } : u);
+  setUsers(updated);
+  saveToLocal('users', updated);
+  if (user && user.id === id) {
+   const updatedCurrentUser = { ...user, ...updatedFields } as AppUser;
+   setUser(updatedCurrentUser);
+   localStorage.setItem('as_user', JSON.stringify(updatedCurrentUser));
+  }
+ };
+
+ const deleteUser = (id: string) => {
+  const updated = users.filter(u => u.id !== id);
+  setUsers(updated);
+  saveToLocal('users', updated);
+ };
+
+ // Agenda and Audit Log methods
+ const addAuditLog = (logData: Omit<AuditLog, 'id' | 'timestamp'>) => {
+  const newLog: AuditLog = {
+   ...logData,
+   id: 'log_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
+   timestamp: new Date().toISOString()
+  };
+  setAuditLogs(prev => {
+    if (prev.length > 0) {
+     const lastLog = prev[0];
+     const isDuplicate = lastLog.action === newLog.action && 
+                         lastLog.user === newLog.user && 
+                         Math.abs(new Date(lastLog.timestamp).getTime() - new Date(newLog.timestamp).getTime()) < 1000;
+     if (isDuplicate) return prev;
+    }
+    const updated = [newLog, ...prev];
+   saveToLocal('audit_logs', updated);
+   return updated;
+  });
+ };
+
+ const addAgendaActivity = (activityData: Omit<AgendaActivity, 'id' | 'createdAt'>) => {
+  const newActivity: AgendaActivity = {
+   ...activityData,
+   id: 'activity_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
+   createdAt: new Date().toISOString()
+  };
+  setAgendaActivities(prev => {
+   const updated = [newActivity, ...prev];
+   saveToLocal('agenda_activities', updated);
+   return updated;
+  });
+ };
+
+ const updateAgendaActivity = (id: string, updatedFields: Partial<AgendaActivity>) => {
+  setAgendaActivities(prev => {
+   const updated = prev.map(a => {
+    if (a.id === id) {
+     const updatedActivity = { ...a, ...updatedFields };
+     if (updatedFields.status === 'Concluída' && a.status !== 'Concluída') {
+      updatedActivity.completedAt = new Date().toLocaleString('pt-BR');
+      addAuditLog({
+       user: user?.name || 'Administrador',
+       action: `Concluiu a atividade: "${a.title}"`,
+       module: 'agenda'
+      });
+     } else if (updatedFields.status === 'Pendente' && a.status !== 'Pendente') {
+      updatedActivity.completedAt = undefined;
+      addAuditLog({
+       user: user?.name || 'Administrador',
+       action: `Reabriu a atividade (marcou como Pendente): "${a.title}"`,
+       module: 'agenda'
+      });
+     }
+     return updatedActivity;
+    }
+    return a;
+   });
+   saveToLocal('agenda_activities', updated);
+   return updated;
+  });
+ };
+
+ const deleteAgendaActivity = (id: string) => {
+  setAgendaActivities(prev => {
+   const target = prev.find(a => a.id === id);
+   if (target) {
+    addAuditLog({
+     user: user?.name || 'Administrador',
+     action: `Excluiu a atividade: "${target.title}"`,
+     module: 'agenda'
+    });
+   }
+   const updated = prev.filter(a => a.id !== id);
+   saveToLocal('agenda_activities', updated);
+   return updated;
+  });
  };
 
  // CLIENTS CRUD
@@ -608,12 +832,36 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
  const updated = [newClient, ...clients];
  setClients(updated);
  saveToLocal('clients', updated);
+
+ // Generate automated audit log & agenda activity
+ addAuditLog({
+  user: user?.name || 'Administrador',
+  action: `Cadastrou o cliente: "${newClient.name}"`,
+  module: 'clients'
+ });
+
+ addAgendaActivity({
+  time: '10:00',
+  date: new Date().toISOString().split('T')[0],
+  title: `Contato de Boas-Vindas: Cliente ${newClient.name}`,
+  type: 'meeting',
+  status: 'Pendente'
+ });
  };
 
  const updateClient = (id: string, updatedFields: Partial<Client>) => {
  const updated = clients.map(c => c.id === id ? { ...c, ...updatedFields } : c);
  setClients(updated);
  saveToLocal('clients', updated);
+
+ const target = clients.find(c => c.id === id);
+ if (target) {
+  addAuditLog({
+   user: user?.name || 'Administrador',
+   action: `Atualizou dados do cliente: "${target.name}"`,
+   module: 'clients'
+  });
+ }
  };
 
  const deleteClient = (id: string) => {
@@ -621,6 +869,15 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
  const updated = clients.map(c => c.id === id ? { ...c, isDeleted: true } : c);
  setClients(updated);
  saveToLocal('clients', updated);
+
+ const target = clients.find(c => c.id === id);
+ if (target) {
+  addAuditLog({
+   user: user?.name || 'Administrador',
+   action: `Excluiu o cliente (Inativado/Soft Delete): "${target.name}"`,
+   module: 'clients'
+  });
+ }
  };
 
  // INVENTORY CRUD
@@ -651,12 +908,26 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
      `O insumo "${itemAfter.name}" está totalmente esgotado (0 ${itemAfter.unit}). Providencie a reposição imediata!`,
      "critical_stock"
     );
+    addAgendaActivity({
+     time: '11:00',
+     date: new Date().toISOString().split('T')[0],
+     title: `COMPRA URGENTE: Reposição do insumo ESGOTADO "${itemAfter.name}"`,
+     type: 'purchase',
+     status: 'Pendente'
+    });
    } else if (newQty <= minQty && itemBefore.quantity > minQty) {
     addNotification(
      "⚠️ Estoque Baixo",
      `O insumo "${itemAfter.name}" atingiu o nível mínimo. Quantidade atual: ${newQty} ${itemAfter.unit} (Mínimo: ${minQty} ${itemAfter.unit}).`,
      "low_stock"
     );
+    addAgendaActivity({
+     time: '11:00',
+     date: new Date().toISOString().split('T')[0],
+     title: `Compra: Reposição do insumo com estoque baixo "${itemAfter.name}"`,
+     type: 'purchase',
+     status: 'Pendente'
+    });
    }
   }
  };
@@ -679,6 +950,13 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
 	}
  updateInventoryItem(id, updatedFields);
 
+ // Generate audit log
+ addAuditLog({
+  user: user?.name || 'Administrador',
+  action: `Ajustou estoque de "${target.name}": de ${target.quantity} para ${newQty} ${target.unit} (Ajuste: ${amount > 0 ? '+' : ''}${amount}). Obs: ${notes || 'Sem observações'}`,
+  module: 'inventory'
+ });
+
  // Record financial transaction if buying stock (negative amount means purchasing/expense)
  if (amount > 0) {
  const value = customExpenseValue !== undefined && customExpenseValue > 0
@@ -694,6 +972,16 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
  notes: `Estoque+: ${amount} ${target.unit} de ${target.name}. Obs: ${notes}`
  });
  } else if (amount < 0) {
+    addTransaction({
+      type: 'expense',
+      category: 'Perda/Ajuste de Estoque',
+      contactName: contactName || 'Ateliê Sagrado',
+      value: 0,
+      date: new Date().toISOString().split('T')[0],
+      paymentMethod: 'Outros',
+      notes: `Estoque-: ${Math.abs(amount)} ${target.unit} de ${target.name}. Obs: ${notes}`
+    });
+  } else if (false) {
  // Just stock correction/reduction log
  }
  };
@@ -724,12 +1012,23 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
 
  // QUOTES CRUD
  const addQuote = (quoteData: Omit<Quote, 'id' | 'createdAt'>) => {
+  const snapshot = {
+    companyName: settings.companyName || 'Ateliê Sagrado',
+    logo: settings.logo || '',
+    address: settings.address || '',
+    phone: settings.phone || '',
+    email: settings.email || '',
+    primaryColor: settings.primaryColor || '#D4AF37',
+    laborHourlyRate: settings.laborHourlyRate || 0,
+    indirectCosts: settings.indirectCosts || 0
+  };
  const newQuote: Quote = {
  ...quoteData,
  id: 'quote_' + Date.now(),
  createdAt: new Date().toISOString()
  };
- const updated = [newQuote, ...quotes];
+ newQuote.snapshot = snapshot;
+  const updated = [newQuote, ...quotes];
  setQuotes(updated);
  saveToLocal('quotes', updated);
 
@@ -844,6 +1143,16 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
  updateQuote(quoteId, { status: 'converted' });
 
  // 4. Generate new Order
+  const snapshot: DocumentSnapshot = quote.snapshot || {
+    companyName: settings.companyName || 'Ateliê Sagrado',
+    logo: settings.logo || '',
+    address: settings.address || '',
+    phone: settings.phone || '',
+    email: settings.email || '',
+    primaryColor: settings.primaryColor || '#D4AF37',
+    laborHourlyRate: settings.laborHourlyRate || 0,
+    indirectCosts: settings.indirectCosts || 0
+  };
  const year = new Date().getFullYear();
  const orderNum = `PED-${year}-${Math.floor(1000 + Math.random() * 9000)}`;
  const newOrder: Order = {
@@ -874,7 +1183,8 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
  createdAt: new Date().toISOString()
  };
 
- const updatedOrders = [newOrder, ...orders];
+ newOrder.snapshot = snapshot;
+  const updatedOrders = [newOrder, ...orders];
  setOrders(updatedOrders);
  saveToLocal('orders', updatedOrders);
 
@@ -917,6 +1227,21 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
   `O orçamento do cliente "${quote.clientName}" foi convertido com sucesso no Pedido ${orderNum}. Insumos deduzidos do estoque.`,
   "success"
  );
+
+ // Generate automated audit log & agenda activity
+ addAuditLog({
+  user: user?.name || 'Administrador',
+  action: `Converteu o Orçamento Q-${quoteId.substring(6, 10)} no Pedido de Venda ${orderNum} para o cliente "${quote.clientName}"`,
+  module: 'quotes'
+ });
+
+ addAgendaActivity({
+  time: '09:00',
+  date: new Date().toISOString().split('T')[0],
+  title: `Produção: Iniciar separação de materiais para o Pedido ${orderNum} (${quote.clientName})`,
+  type: 'production',
+  status: 'Pendente'
+ });
 
  return { success: true };
  };
@@ -985,7 +1310,17 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
  ],
  createdAt: new Date().toISOString()
  };
- const updated = [newOrder, ...orders];
+ newOrder.snapshot = {
+    companyName: settings.companyName || 'Ateliê Sagrado',
+    logo: settings.logo || '',
+    address: settings.address || '',
+    phone: settings.phone || '',
+    email: settings.email || '',
+    primaryColor: settings.primaryColor || '#D4AF37',
+    laborHourlyRate: settings.laborHourlyRate || 0,
+    indirectCosts: settings.indirectCosts || 0
+  };
+  const updated = [newOrder, ...orders];
  setOrders(updated);
  saveToLocal('orders', updated);
 
@@ -1072,6 +1407,21 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
   "success"
  );
 
+ // Generate automated audit log & agenda activity
+ addAuditLog({
+  user: user?.name || 'Administrador',
+  action: `Criou o Pedido de Venda ${orderNum} para o cliente "${orderData.clientName}" no valor de R$ ${orderData.totalValue.toFixed(2)}`,
+  module: 'orders'
+ });
+
+ addAgendaActivity({
+  time: '09:00',
+  date: new Date().toISOString().split('T')[0],
+  title: `Produção: Iniciar separação de materiais para o Pedido ${orderNum} (${orderData.clientName})`,
+  type: 'production',
+  status: 'Pendente'
+ });
+
  return { success: true };
  };
 
@@ -1080,21 +1430,31 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
 
   // Auto-calculate progress based on status if not provided
   if (updatedFields.status && orderProgress === undefined) {
-   if (updatedFields.status === 'completed' || updatedFields.status === 'shipped' || updatedFields.status === 'delivered') {
+   if (updatedFields.status === 'completed') {
     orderProgress = 100;
+   } else if (updatedFields.status === 'ready') {
+    orderProgress = 90;
+   } else if (updatedFields.status === 'packing') {
+    orderProgress = 80;
    } else if (updatedFields.status === 'finishing') {
-    orderProgress = 85;
+    orderProgress = 65;
    } else if (updatedFields.status === 'production') {
-    orderProgress = 50;
-   } else if (updatedFields.status === 'received' || updatedFields.status === 'approved') {
+    orderProgress = 40;
+   } else if (updatedFields.status === 'approved') {
+    orderProgress = 15;
+   } else if (updatedFields.status === 'received') {
     orderProgress = 0;
    }
   }
 
-  const fieldsToUpdate = {
+  const fieldsToUpdate: Partial<Order> = {
    ...updatedFields,
    ...(orderProgress !== undefined ? { productionProgress: orderProgress } : {})
   };
+
+  if (updatedFields.status === 'completed') {
+   fieldsToUpdate.archivedAt = new Date().toISOString();
+  }
 
   const updated = orders.map(o => {
    if (o.id === id) {
@@ -1119,17 +1479,93 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
   saveToLocal('orders', updated);
 
   const originalOrder = orders.find(o => o.id === id);
+  if (originalOrder && fieldsToUpdate.isArchived !== undefined && fieldsToUpdate.isArchived !== originalOrder.isArchived) {
+    if (fieldsToUpdate.isArchived) {
+      addAuditLog({
+        user: user?.name || 'Administrador',
+        action: `Arquivou o pedido ${originalOrder.orderNumber} do cliente "${originalOrder.clientName}"`,
+        module: 'production'
+      });
+    } else {
+      addAuditLog({
+        user: user?.name || 'Administrador',
+        action: `Restaurou o pedido ${originalOrder.orderNumber} do cliente "${originalOrder.clientName}" do histórico de arquivados`,
+        module: 'production'
+      });
+    }
+  }
   if (originalOrder && fieldsToUpdate.status && fieldsToUpdate.status !== originalOrder.status) {
    const status = fieldsToUpdate.status;
-   if (status === 'completed' || status === 'shipped' || status === 'delivered') {
-    const statusLabels: Record<string, string> = {
-     completed: 'Finalizado',
-     shipped: 'Enviado',
-     delivered: 'Entregue'
-    };
+
+   // Financial Hub Integration: Auto-register Production Costs
+   if (status === 'production') {
+    let rawMaterialCost = 0;
+    let laborCost = 0;
+    let indirectCost = 0;
+
+    originalOrder.items.forEach(item => {
+     const prod = products.find(p => p.id === item.productId);
+     if (prod) {
+      if (prod.composition) {
+       prod.composition.forEach(comp => {
+        const mat = inventory.find(m => m.id === comp.materialId);
+        if (mat) {
+         rawMaterialCost += (mat.unitPrice || 0) * comp.quantity * item.quantity;
+        }
+       });
+      }
+      laborCost += (prod.productionTimeMin || 0) * (settings.laborHourlyRate / 60) * item.quantity;
+     }
+     indirectCost += (settings.indirectCosts || 0) * item.quantity;
+    });
+
+    if (rawMaterialCost > 0) {
+     addTransaction({
+      type: 'expense',
+      category: 'Custo de Matéria-Prima (Produção)',
+      contactName: originalOrder.clientName,
+      value: Number(rawMaterialCost.toFixed(2)),
+      date: new Date().toISOString().split('T')[0],
+      paymentMethod: 'Pix',
+      notes: `Dedução de insumos para fabricação do Pedido ${originalOrder.orderNumber}`
+     });
+    }
+
+    if (laborCost > 0) {
+     addTransaction({
+      type: 'expense',
+      category: 'Custo de Mão de Obra (Produção)',
+      contactName: originalOrder.clientName,
+      value: Number(laborCost.toFixed(2)),
+      date: new Date().toISOString().split('T')[0],
+      paymentMethod: 'Pix',
+      notes: `Mão de obra direta alocada para o Pedido ${originalOrder.orderNumber}`
+     });
+    }
+
+    if (indirectCost > 0) {
+     addTransaction({
+      type: 'expense',
+      category: 'Custos Indiretos (Produção)',
+      contactName: originalOrder.clientName,
+      value: Number(indirectCost.toFixed(2)),
+      date: new Date().toISOString().split('T')[0],
+      paymentMethod: 'Pix',
+      notes: `Rateio de custos indiretos atribuídos ao Pedido ${originalOrder.orderNumber}`
+     });
+    }
+
     addNotification(
-     "📦 Saída de Produto",
-     `O Pedido ${originalOrder.orderNumber} do cliente "${originalOrder.clientName}" foi marcado como "${statusLabels[status]}". Saída de produto do ateliê concluída.`,
+     "⚡ Custos de Produção Lançados",
+     `O Pedido ${originalOrder.orderNumber} entrou em produção. Custos calculados e lançados no financeiro: Matérias-primas R$ ${rawMaterialCost.toFixed(2)}, Mão de Obra R$ ${laborCost.toFixed(2)}, Custos Indiretos R$ ${indirectCost.toFixed(2)}.`,
+     "success"
+    );
+   }
+
+   if (status === 'completed') {
+    addNotification(
+     "📦 Pedido Concluído",
+     `O Pedido ${originalOrder.orderNumber} do cliente "${originalOrder.clientName}" foi concluído e está disponível para entrega.`,
      "success"
     );
    } else {
@@ -1144,9 +1580,9 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
   // Sync to production tasks
   if (fieldsToUpdate.status) {
    let targetTaskStatus: ProductionStatus | null = null;
-   if (fieldsToUpdate.status === 'completed' || fieldsToUpdate.status === 'shipped' || fieldsToUpdate.status === 'delivered') {
+   if (fieldsToUpdate.status === 'completed') {
     targetTaskStatus = 'done';
-   } else if (fieldsToUpdate.status === 'finishing') {
+   } else if (fieldsToUpdate.status === 'finishing' || fieldsToUpdate.status === 'packing' || fieldsToUpdate.status === 'ready') {
     targetTaskStatus = 'finishing';
    } else if (fieldsToUpdate.status === 'production') {
     targetTaskStatus = 'producing';
@@ -1176,9 +1612,132 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
  };
 
  const deleteOrder = (id: string) => {
- const updated = orders.map(o => o.id === id ? { ...o, isDeleted: true } : o);
- setOrders(updated);
- saveToLocal('orders', updated);
+   const order = orders.find(o => o.id === id);
+   if (!order) return;
+
+   // Refund stock if deleting an active, non-cancelled order
+   if (!order.isCancelled && !order.isDeleted) {
+     let updatedInventory = [...inventory];
+     order.items.forEach(item => {
+       const prod = products.find(p => p.id === item.productId);
+       if (prod && prod.composition) {
+         prod.composition.forEach(comp => {
+           updatedInventory = updatedInventory.map(m => {
+             if (m.id === comp.materialId) {
+               const refundQty = comp.quantity * item.quantity;
+               return {
+                 ...m,
+                 quantity: Number((m.quantity + refundQty).toFixed(2))
+               };
+             }
+             return m;
+           });
+         });
+       }
+     });
+     setInventory(updatedInventory);
+     saveToLocal('inventory', updatedInventory);
+
+     // Soft-delete transactions associated with this order number
+     const updatedTransactions = transactions.map(t => {
+       if (t.notes && t.notes.includes(order.orderNumber)) {
+         return { ...t, isDeleted: true };
+       }
+       return t;
+     });
+     setTransactions(updatedTransactions);
+     saveToLocal('transactions', updatedTransactions);
+
+     // Remove associated production tasks
+     const updatedTasks = productionTasks.filter(t => t.orderId !== id);
+     setProductionTasks(updatedTasks);
+     saveToLocal('production_tasks', updatedTasks);
+   }
+
+   const updated = orders.map(o => o.id === id ? { ...o, isDeleted: true } : o);
+   setOrders(updated);
+   saveToLocal('orders', updated);
+ };
+
+ const cancelOrder = (orderId: string) => {
+   const order = orders.find(o => o.id === orderId);
+   if (!order || order.isCancelled) return;
+
+   // 1. Register complete cancellation action in timeline
+   const cancelledTimeline = [
+     ...order.timeline,
+     {
+       id: 't_' + Date.now() + '_cancel',
+       date: new Date().toISOString().replace('T', ' ').substring(0, 16),
+       description: `Pedido cancelado pelo usuário. Insumos estornados e receitas estornadas.`,
+       user: user?.name || "Ateliê Sagrado"
+     }
+   ];
+
+   // 2. Automatically refund/restore consumed or reserved materials back to inventory
+   let updatedInventory = [...inventory];
+   order.items.forEach(item => {
+     const prod = products.find(p => p.id === item.productId);
+     if (prod && prod.composition) {
+       prod.composition.forEach(comp => {
+         updatedInventory = updatedInventory.map(m => {
+           if (m.id === comp.materialId) {
+             const refundQty = comp.quantity * item.quantity;
+             return {
+               ...m,
+               quantity: Number((m.quantity + refundQty).toFixed(2))
+             };
+           }
+           return m;
+         });
+       });
+     }
+   });
+   setInventory(updatedInventory);
+   saveToLocal('inventory', updatedInventory);
+
+   // 3. Financial Flow update: Soft-delete/remove any transactions (income/expense) linked to this order number
+   const updatedTransactions = transactions.map(t => {
+     if (t.notes && t.notes.includes(order.orderNumber)) {
+       return { ...t, isDeleted: true };
+     }
+     return t;
+   });
+   setTransactions(updatedTransactions);
+   saveToLocal('transactions', updatedTransactions);
+
+   // 4. Update the order object to reflect cancelled state and soft delete for active charts/views
+   const updatedOrders = orders.map(o => {
+     if (o.id === orderId) {
+       return {
+         ...o,
+         isDeleted: true,
+         isCancelled: true,
+         timeline: cancelledTimeline
+       };
+     }
+     return o;
+   });
+   setOrders(updatedOrders);
+   saveToLocal('orders', updatedOrders);
+
+   // 5. Remove associated production tasks
+     addAuditLog({
+      user: user?.name || 'Administrador',
+      action: `Cancelou o Pedido de Venda ${order.orderNumber} de "${order.clientName}". Insumos devolvidos ao estoque e receitas estornadas.`,
+      module: 'orders'
+    });
+
+  const updatedTasks = productionTasks.filter(t => t.orderId !== orderId);
+   setProductionTasks(updatedTasks);
+   saveToLocal('production_tasks', updatedTasks);
+
+   // 6. Send system notifications
+   addNotification(
+     "❌ Pedido Cancelado",
+     `O Pedido ${order.orderNumber} do cliente "${order.clientName}" foi cancelado. Insumos devolvidos ao estoque e receitas correspondentes estornadas.`,
+     "info"
+   );
  };
 
  const addOrderTimeline = (orderId: string, description: string) => {
@@ -1273,6 +1832,21 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
        `Chão de Fábrica: O item "${affectedTask!.productName}" do Pedido ${affectedTask!.orderNumber} foi concluído!`,
        "success"
       );
+
+      // Generate automated audit log & agenda activity for quality inspection
+      addAuditLog({
+       user: user?.name || 'Administrador',
+       action: `Concluiu a fabricação do item "${affectedTask!.productName}" do Pedido ${affectedTask!.orderNumber}`,
+       module: 'production'
+      });
+
+      addAgendaActivity({
+       time: '15:00',
+       date: new Date().toISOString().split('T')[0],
+       title: `Controle de Qualidade: Item "${affectedTask!.productName}" do Pedido ${affectedTask!.orderNumber}`,
+       type: 'production',
+       status: 'Pendente'
+      });
      } else {
       addNotification(
        "🛠️ Produção Avançou",
@@ -1345,13 +1919,13 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
 
  const getStatusLabel = (status: OrderStatus): string => {
  const labels: Record<OrderStatus, string> = {
- received: 'Recebido',
- approved: 'Aprovado',
- production: 'Em Produção',
- finishing: 'Em Acabamento',
- completed: 'Finalizado',
- shipped: 'Enviado',
- delivered: 'Entregue'
+ received: 'Pedido Recebido',
+ approved: 'Separação de Materiais',
+ production: 'Produção',
+ finishing: 'Acabamento',
+ packing: 'Embalagem',
+ ready: 'Pronto para Entrega',
+ completed: 'Concluído'
  };
  return labels[status] || status;
  };
@@ -1501,6 +2075,47 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
   }
  };
 
+  const syncAllData = () => {
+    const loadLatest = <T,>(key: string): T[] => {
+      const stored = localStorage.getItem(`as_${key}`);
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed)) return parsed;
+        } catch (e) {}
+      }
+      return [];
+    };
+
+    setClients(loadLatest('clients'));
+    setInventory(loadLatest('inventory'));
+    setProducts(loadLatest('products'));
+    setQuotes(loadLatest('quotes'));
+    setOrders(loadLatest('orders'));
+    setProductionTasks(loadLatest('production_tasks'));
+    setTransactions(loadLatest('transactions'));
+    setAgendaActivities(loadLatest('agenda_activities'));
+    setAuditLogs(loadLatest('audit_logs'));
+
+    const storedSettings = localStorage.getItem('as_settings');
+    if (storedSettings) {
+      try {
+        const loadedSettings = JSON.parse(storedSettings);
+        loadedSettings.theme = 'light';
+        setSettings(loadedSettings);
+      } catch (e) {}
+    }
+  };
+
+ const resetSystem = () => {
+  Object.keys(localStorage).forEach(key => {
+   if (key.startsWith('as_')) {
+    localStorage.removeItem(key);
+   }
+  });
+  window.location.reload();
+ };
+
  return (
  <DbContext.Provider value={{
  clients,
@@ -1514,7 +2129,13 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
  user,
  login,
  logout,
+ resetSystem,
+ syncAllData,
  recoverPassword,
+  users,
+  addUser,
+  updateUser,
+  deleteUser,
  
  addClient,
  updateClient,
@@ -1538,6 +2159,7 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
  addOrder,
  updateOrder,
  deleteOrder,
+ cancelOrder,
  addOrderTimeline,
 
  updateProductionTask,
@@ -1555,7 +2177,13 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
  clearNotification,
  clearAllNotifications,
  scanReceipt,
- importFinancialFile
+ importFinancialFile,
+ agendaActivities,
+ auditLogs,
+ addAgendaActivity,
+ updateAgendaActivity,
+ deleteAgendaActivity,
+ addAuditLog
  }}>
  {children}
  </DbContext.Provider>

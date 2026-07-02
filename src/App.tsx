@@ -18,9 +18,12 @@ import { motion, AnimatePresence } from 'motion/react';
 import { ToastContainer, toast } from './components/Toast';
 
 const AppContent: React.FC = () => {
- const { user } = useDb();
+ const { user, settings } = useDb();
  const [currentView, setCurrentView] = useState('dashboard');
  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+ const isFirstSetup = settings?.firstSetup;
+ const activeView = isFirstSetup ? 'settings' : currentView;
 
  // If user is not authenticated, render the beautiful AuthView login gate
  if (!user) {
@@ -56,7 +59,7 @@ const AppContent: React.FC = () => {
 
  // Render correct view based on navigation menu item selection
  const renderMainContent = () => {
- switch (currentView) {
+ switch (activeView) {
  case 'dashboard':
  return <DashboardView onViewChange={setCurrentView} onQuickAction={handleQuickAction} />;
  case 'inventory':
@@ -89,32 +92,32 @@ const AppContent: React.FC = () => {
  
  {/* Fixed Sidebar component */}
  <Sidebar 
- currentView={currentView} 
+ currentView={activeView} 
  onViewChange={setCurrentView} 
  isOpen={sidebarOpen} 
  onClose={() => setSidebarOpen(false)} 
  />
 
  {/* Main viewport area */}
- <div className="flex-1 flex flex-col lg:pl-68 min-h-screen">
+ <div className="flex-1 flex flex-col lg:pl-20 min-h-screen print:pl-0">
  
  {/* Persistent top Header bar */}
  <Header 
  onMenuToggle={() => setSidebarOpen(!sidebarOpen)} 
- currentView={currentView} 
+ currentView={activeView} 
  onViewChange={setCurrentView}
  onQuickAction={handleQuickAction}
  />
 
  {/* Dynamic Inner views container */}
- <main className="p-6 max-w-[1600px] w-full mx-auto flex-1 pb-16">
+ <main className="p-6 max-w-[1600px] w-full mx-auto flex-1 pb-16 print:p-0 print:max-w-none">
  <AnimatePresence mode="wait">
   <motion.div
-   key={currentView}
-   initial={{ opacity: 0, y: 10 }}
-   animate={{ opacity: 1, y: 0 }}
-   exit={{ opacity: 0, y: -10 }}
-   transition={{ duration: 0.22, ease: "easeInOut" }}
+   key={activeView}
+   initial={{ opacity: 0 }}
+   animate={{ opacity: 1 }}
+   exit={{ opacity: 0 }}
+   transition={{ duration: 0.15, ease: "easeInOut" }}
   >
    {renderMainContent()}
   </motion.div>

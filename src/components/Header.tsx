@@ -26,6 +26,7 @@ interface HeaderProps {
    clearNotification,
    clearAllNotifications
   } = useDb();
+  const { settings } = useDb();
   const [searchQuery, setSearchQuery] = useState('');
   const [showQuickMenu, setShowQuickMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -74,7 +75,7 @@ interface HeaderProps {
  };
 
  return (
-  <header className="h-16 border-b border-[rgba(42,36,32,0.06)] bg-[#FFFDF9] px-6 flex items-center justify-between sticky top-0 z-30">
+  <header className="h-16 border-b border-[rgba(42,36,32,0.06)] bg-[#FFFDF9] px-6 flex items-center justify-between sticky top-0 z-30 print:hidden">
   
    {/* Left Area: Hamburger and Breadcrumb */}
    <div className="flex items-center gap-4">
@@ -87,7 +88,7 @@ interface HeaderProps {
 
     <div className="flex items-center gap-1.5 sm:gap-2 text-xs font-medium text-ink-500">
      <span className="hidden sm:inline hover:text-gold-600 transition-colors cursor-pointer font-sans" onClick={() => onViewChange('dashboard')}>
-      Ateliê Sagrado
+      {settings.companyName || 'Ateliê Sagrado'}
      </span>
      <ChevronRight size={14} className="hidden sm:inline text-slate-300" />
      <span className="text-ink-900 font-serif italic font-semibold truncate max-w-[130px] sm:max-w-none">
@@ -97,7 +98,8 @@ interface HeaderProps {
    </div>
 
    {/* Right Area: Search, Actions, Notifications */}
-   <div className="flex items-center gap-2 sm:gap-4">
+   {!settings?.firstSetup && (
+    <div className="flex items-center gap-2 sm:gap-4">
    
     {/* Global Search Bar */}
     <form onSubmit={handleGlobalSearch} className="relative hidden md:block w-64">
@@ -283,7 +285,8 @@ interface HeaderProps {
      )}
     </div>
 
-   </div>
+    </div>
+   )}
   </header>
  );
 };

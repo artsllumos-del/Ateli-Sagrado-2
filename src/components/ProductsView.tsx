@@ -324,14 +324,14 @@ export const ProductsView: React.FC = () => {
 
  {/* 1. Detail and composition viewer overlay */}
  {showDetailModal && selectedProduct && (
- <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
- <div className="bg-white border border-slate-200 w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden animate-slide-in-up max-h-[90vh] flex flex-col">
- <div className="h-14 border-b border-slate-150 px-6 flex items-center justify-between">
- <h3 className="font-bold text-sm text-slate-900 ">Ficha Técnica & Composição</h3>
- <button onClick={() => setShowDetailModal(false)} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
+ <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 lg:p-6 overflow-hidden">
+ <div className="bg-white border border-slate-200 w-full max-w-3xl max-h-[85vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-slide-in-up">
+ <div className="px-6 py-4 border-b border-slate-150 flex items-center justify-between shrink-0 bg-slate-50/50">
+ <h3 className="font-serif font-bold text-base text-slate-900">Ficha Técnica & Composição</h3>
+ <button onClick={() => setShowDetailModal(false)} className="text-slate-400 hover:text-slate-600 cursor-pointer"><X size={18} /></button>
  </div>
 
- <div className="p-6 space-y-4 overflow-y-auto flex-1">
+ <div className="p-6 space-y-4 overflow-y-auto flex-1 min-h-0">
  <div>
  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">{selectedProduct.category} | {selectedProduct.sku}</p>
  <h4 className="font-bold text-lg text-slate-900 mt-1">{selectedProduct.name}</h4>
@@ -341,7 +341,7 @@ export const ProductsView: React.FC = () => {
  <div className="border-t border-slate-100 pt-4">
  <h5 className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2">Composição de Matéria-Prima</h5>
  
- <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+ <div className="space-y-2 pr-1">
  {selectedProduct.composition?.map((comp, index) => {
  const mat = inventory.find(i => i.id === comp.materialId);
  return (
@@ -371,10 +371,10 @@ export const ProductsView: React.FC = () => {
  </div>
  </div>
 
- <div className="pt-4 border-t border-slate-150 flex justify-end">
+ <div className="px-6 py-4 border-t border-slate-150 flex items-center justify-end bg-slate-50 shrink-0">
  <button
  onClick={() => setShowDetailModal(false)}
- className="px-4 py-2 bg-slate-950 text-white rounded-xl text-xs font-bold cursor-pointer"
+ className="px-5 py-2.5 bg-gradient-to-br from-ink-900 to-slate-800 text-white hover:opacity-95 rounded-xl text-xs font-bold cursor-pointer transition-all active:scale-95 shadow-md"
  >
  Fechar Ficha
  </button>
@@ -386,16 +386,17 @@ export const ProductsView: React.FC = () => {
 
  {/* 2. Create / Edit Product Modal */}
  {(showAddModal || showEditModal) && (
- <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
- <div className="bg-white border border-slate-200 w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden animate-slide-in-up max-h-[92vh] flex flex-col">
- <div className="h-14 border-b border-slate-150 px-6 flex items-center justify-between">
- <h3 className="font-bold text-sm text-slate-900 ">
+ <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 lg:p-6 overflow-hidden">
+ <div className="bg-white border border-slate-200 w-full max-w-3xl max-h-[85vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-slide-in-up">
+ <div className="px-6 py-4 border-b border-slate-150 flex items-center justify-between shrink-0 bg-slate-50/50">
+ <h3 className="font-serif font-bold text-base text-slate-900">
  {showAddModal ? 'Criar Novo Produto Artesanal' : 'Editar Produto'}
  </h3>
- <button onClick={() => { setShowAddModal(false); setShowEditModal(false); }} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
+ <button onClick={() => { setShowAddModal(false); setShowEditModal(false); }} className="text-slate-400 hover:text-slate-600 cursor-pointer"><X size={18} /></button>
  </div>
 
- <form onSubmit={showAddModal ? handleSaveAdd : handleSaveEdit} className="p-6 space-y-4 overflow-y-auto flex-1">
+ <form onSubmit={showAddModal ? handleSaveAdd : handleSaveEdit} className="flex-1 flex flex-col min-h-0">
+  <div className="p-6 space-y-4 overflow-y-auto flex-1 min-h-0">
  
  <div className="grid grid-cols-2 gap-4">
  <div className="col-span-2">
@@ -577,17 +578,19 @@ export const ProductsView: React.FC = () => {
  </div>
  </div>
 
- <div className="pt-4 border-t border-slate-150 flex justify-end gap-3">
+  </div>
+
+ <div className="p-4 border-t border-slate-150 flex justify-end gap-3 bg-slate-50 shrink-0">
  <button
  type="button"
  onClick={() => { setShowAddModal(false); setShowEditModal(false); }}
- className="px-4 py-2 border border-slate-200 hover:bg-slate-50 rounded-xl text-xs font-bold text-slate-500 cursor-pointer"
+ className="px-4 py-2 border border-slate-200 hover:bg-slate-50 rounded-xl text-xs font-bold text-slate-500 cursor-pointer transition-all active:scale-95"
  >
  Cancelar
  </button>
  <button
  type="submit"
- className="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold cursor-pointer"
+ className="px-5 py-2.5 bg-gradient-to-br from-ink-900 to-slate-800 text-white hover:opacity-95 rounded-xl text-xs font-bold cursor-pointer transition-all active:scale-95 shadow-md"
  >
  {showAddModal ? 'Adicionar Produto' : 'Salvar Alterações'}
  </button>
