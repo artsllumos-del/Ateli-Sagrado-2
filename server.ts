@@ -587,39 +587,7 @@ app.post('/api/auth/refresh', (req, res) => {
   res.json({ accessToken, refreshToken: newRefreshToken });
 });
 
-app.post('/api/auth/google', (req, res) => {
-  const { credential } = req.body; // Mock Google credential / token
-  
-  // Create or retrieve mock user from Google OAuth details
-  const mockEmail = 'artsllumos@gmail.com'; // Using user's real email
-  let user = db.users.find(u => u.email.toLowerCase() === mockEmail.toLowerCase());
 
-  if (!user) {
-    user = {
-      id: 'u_g_' + Date.now(),
-      name: 'Arthur Santos (Google)',
-      email: mockEmail,
-      role: 'ADMIN', // Upgrade Google Sign-in to ADMIN for convenience of preview
-      photo: 'https://lh3.googleusercontent.com/a/default-user',
-      preferences: { theme: 'light', language: 'pt-BR' },
-      createdAt: new Date().toISOString()
-    };
-    db.users.push(user);
-    saveDatabase();
-  }
-
-  const payload = { id: user.id, name: user.name, email: user.email, role: user.role };
-  const accessToken = signJwt(payload, 3600);
-  const refreshToken = signJwt(payload, 86400 * 7);
-
-  writeAuditLog(user.email, 'Login via Google', 'Login efetuado com OAuth Google');
-
-  res.json({
-    user: { id: user.id, name: user.name, email: user.email, role: user.role, photo: user.photo, preferences: user.preferences },
-    accessToken,
-    refreshToken
-  });
-});
 
 app.get('/api/auth/profile', authenticateToken, (req, res) => {
   const user = db.users.find(u => u.id === req.user!.id);
@@ -635,18 +603,73 @@ app.get('/api/auth/profile', authenticateToken, (req, res) => {
 });
 
 app.put('/api/auth/profile', authenticateToken, (req, res) => {
-  const { name, photo, preferences } = req.body;
+  const { name, photo, photoUrl, preferences } = req.body;
   const userIdx = db.users.findIndex(u => u.id === req.user!.id);
   if (userIdx === -1) return res.status(404).json({ error: 'Não encontrado', message: 'Perfil não encontrado.' });
 
   if (name) db.users[userIdx].name = name;
   if (photo !== undefined) db.users[userIdx].photo = photo;
+  if (photoUrl !== undefined) db.users[userIdx].photoUrl = photoUrl;
   if (preferences) db.users[userIdx].preferences = { ...db.users[userIdx].preferences, ...preferences };
 
   saveDatabase();
   writeAuditLog(req.user!.email, 'Perfil atualizado', 'Atualização dos dados cadastrais e preferências');
 
   res.json({ success: true, user: db.users[userIdx] });
+});
+
+// Users/Operators Endpoints
+app.get('/api/users', (req, res) => {
+  res.json(db.users || []);
+});
+
+app.post('/api/users', (req, res) => {
+  const { username, name, email, password, role, isActive, photoUrl, permissions } = req.body;
+  const newUser = {
+    id: req.body.id || ('user_' + Date.now()),
+    username: username || name || 'operador',
+    name: name || 'Novo Operador',
+    email: email || '',
+    password: password || '123456',
+    role: role || 'Vendedor',
+    isActive: isActive !== false,
+    photoUrl: photoUrl || '',
+    permissions: permissions || { dashboard: true, inventory: true, purchases: true, products: true, pricing: true, clients: true, quotes: true, orders: true, production: true, financial: true, settings: true },
+    createdAt: new Date().toISOString()
+  };
+
+  const existingIdx = db.users.findIndex(u => u.id === newUser.id || u.email === newUser.email);
+  if (existingIdx !== -1) {
+    db.users[existingIdx] = { ...db.users[existingIdx], ...newUser };
+  } else {
+    db.users.push(newUser);
+  }
+
+  saveDatabase();
+  res.status(201).json(newUser);
+});
+
+app.put('/api/users/:id', (req, res) => {
+  const userIdx = db.users.findIndex(u => u.id === req.params.id);
+  if (userIdx === -1) {
+    const newUser = { id: req.params.id, ...req.body };
+    db.users.push(newUser);
+    saveDatabase();
+    return res.json(newUser);
+  }
+
+  db.users[userIdx] = { ...db.users[userIdx], ...req.body };
+  saveDatabase();
+  res.json(db.users[userIdx]);
+});
+
+app.delete('/api/users/:id', (req, res) => {
+  const userIdx = db.users.findIndex(u => u.id === req.params.id);
+  if (userIdx !== -1) {
+    db.users.splice(userIdx, 1);
+    saveDatabase();
+  }
+  res.json({ success: true });
 });
 
 // Clients Endpoints with search, filters, sorting, and decryption (LGPD protection)

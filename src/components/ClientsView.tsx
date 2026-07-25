@@ -7,6 +7,7 @@ import {
   AlertTriangle, ArrowLeft, Building, Star, Check, Loader2, Landmark
 } from 'lucide-react';
 import { toast } from './Toast';
+import { Pagination } from './Pagination';
 
 // Brazilian Zip Code (CEP) API fetch helper
 const fetchCepData = async (cep: string) => {
@@ -100,6 +101,10 @@ export const ClientsView: React.FC = () => {
   const [isSearchingCep, setIsSearchingCep] = useState(false);
   const [isSearchingCnpj, setIsSearchingCnpj] = useState(false);
 
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(6);
+
   const activeClients = clients.filter(c => !c.isDeleted);
 
   // Filters logic
@@ -112,6 +117,11 @@ export const ClientsView: React.FC = () => {
     const matchesType = selectedType === 'all' || c.type === selectedType;
     return matchesSearch && matchesType;
   });
+
+  const paginatedClients = filteredClients.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
 
   // Client History calculations
   const getClientStats = (clientId: string) => {
@@ -454,7 +464,7 @@ export const ClientsView: React.FC = () => {
                   type="text"
                   placeholder="Buscar por nome, e-mail, telefone, CPF, CNPJ..."
                   value={search}
-                  onChange={(e) => setSearch(e.target.value)}
+                  onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
                   className="w-full pl-9 pr-4 py-2 text-xs rounded-xl border border-slate-200 bg-slate-50 text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
                 />
                 <Search size={14} className="absolute left-3.5 top-3 text-slate-400" />
@@ -462,7 +472,7 @@ export const ClientsView: React.FC = () => {
 
               <select
                 value={selectedType}
-                onChange={(e) => setSelectedType(e.target.value as any)}
+                onChange={(e) => { setSelectedType(e.target.value as any); setCurrentPage(1); }}
                 className="px-3.5 py-2 text-xs rounded-xl border border-slate-200 bg-slate-50 text-slate-700 focus:outline-none cursor-pointer"
               >
                 <option value="all">Pessoa Física & Jurídica</option>
@@ -481,7 +491,7 @@ export const ClientsView: React.FC = () => {
 
           {/* Grid list of Clients */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredClients.map(client => {
+            {paginatedClients.map(client => {
               const stats = getClientStats(client.id);
               const mainAddr = client.addresses?.find(a => a.isMain) || client;
 
@@ -591,6 +601,18 @@ export const ClientsView: React.FC = () => {
               </div>
             )}
           </div>
+
+          {/* Standardized Pagination */}
+          <Pagination
+            currentPage={currentPage}
+            totalPages={Math.ceil(filteredClients.length / itemsPerPage)}
+            totalItems={filteredClients.length}
+            itemsPerPage={itemsPerPage}
+            onPageChange={setCurrentPage}
+            onItemsPerPageChange={(val) => { setItemsPerPage(val); setCurrentPage(1); }}
+            labelSingular="cliente"
+            labelPlural="clientes"
+          />
         </div>
       )}
 

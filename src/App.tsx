@@ -14,6 +14,7 @@ import { ProductionView } from './components/ProductionView';
 import { FinancialView } from './components/FinancialView';
 import { SettingsView } from './components/SettingsView';
 import { PurchasesView } from './components/PurchasesView';
+import { UsersPermissionsView } from './components/UsersPermissionsView';
 import { motion, AnimatePresence } from 'motion/react';
 import { ToastContainer, toast } from './components/Toast';
 
@@ -80,6 +81,8 @@ const AppContent: React.FC = () => {
  return <ProductionView />;
  case 'financial':
  return <FinancialView />;
+ case 'users':
+ return <UsersPermissionsView />;
  case 'settings':
  return <SettingsView />;
  default:

@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { useDb } from "../context/DbContext";
 import { InventoryItem, CalcMethod, InventoryStatus } from "../types/erp";
+import { jsPDF } from "jspdf";
 import {
   Search,
   Grid,
@@ -38,6 +39,11 @@ import {
   Image as ImageIcon,
   Upload,
   BookOpen,
+  Download,
+  FileDown,
+  Printer,
+  Loader2,
+  Layers,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -67,6 +73,7 @@ export const InventoryView: React.FC = () => {
     orders,
     quotes,
     productionTasks,
+    settings,
   } = useDb();
 
   // Component States
@@ -76,6 +83,14 @@ export const InventoryView: React.FC = () => {
   const [viewMode, setViewMode] = useState<"table" | "cards" | "catalog">("table");
   const [commercialMode, setCommercialMode] = useState(false);
   const [showStockInCatalog, setShowStockInCatalog] = useState(false);
+
+  // PDF Export States
+  const [showExportPdfModal, setShowExportPdfModal] = useState(false);
+  const [pdfOnlyAvailable, setPdfOnlyAvailable] = useState(true);
+  const [pdfCategoryFilter, setPdfCategoryFilter] = useState("all");
+  const [pdfSubcategoryFilter, setPdfSubcategoryFilter] = useState("");
+  const [pdfIncludeUnitPrice, setPdfIncludeUnitPrice] = useState(true);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showAdjustModal, setShowAdjustModal] = useState(false);
@@ -860,25 +875,341 @@ export const InventoryView: React.FC = () => {
     setShowAdjustModal(false);
   };
 
-  const __ignoreThis = () => {};
-  function __ignoreThis_body(e: any) {
-    e.preventDefault();
-    if (!selectedItem) return;
-    const finalAmount =
-      adjustData.type === "add" ? adjustData.amount : -adjustData.amount;
-    adjustStock(
-      selectedItem.id,
-      finalAmount,
-      adjustData.notes,
-      selectedItem.category,
-      adjustData.supplierName,
-    );
-    toast.success(
-      "Estoque Ajustado",
-      `${selectedItem.name}: saldo atualizado em ${finalAmount > 0 ? "+" : ""}${finalAmount} ${selectedItem.unit}.`,
-    );
-    setShowAdjustModal(false);
-  }
+  // Helper for loading images for PDF
+  const loadImageAsBase64 = (url: string): Promise<string | null> => {
+    return new Promise((resolve) => {
+      if (!url || !url.trim() || url === '📿') {
+        resolve(null);
+        return;
+      }
+      if (url.startsWith('data:image')) {
+        resolve(url);
+        return;
+      }
+      const img = new Image();
+      img.crossOrigin = 'Anonymous';
+      img.onload = () => {
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.naturalWidth || img.width || 100;
+          canvas.height = img.naturalHeight || img.height || 100;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0);
+            resolve(canvas.toDataURL('image/png'));
+            return;
+          }
+        } catch (e) {
+          console.warn('Canvas conversion failed', e);
+        }
+        resolve(null);
+      };
+      img.onerror = () => {
+        resolve(null);
+      };
+      img.src = url;
+    });
+  };
+
+  // PDF Export Handler for Commercial & General Inventory Catalog
+  const handleExportPdf = async () => {
+    setIsGeneratingPdf(true);
+    toast.info("Processando PDF", "Gerando catálogo de insumos em cards A4...");
+
+    try {
+      const doc = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
+
+      const compName = settings.companyName || settings.nomeFantasia || "Ateliê Sagrado";
+      const compCnpj = settings.cnpj || "";
+      const compAddress = settings.address || "";
+      const compPhone = settings.whatsapp || settings.phone || "";
+      const compEmail = settings.email || "";
+
+      // Filter items according to user export modal options
+      let itemsToExport = inventory.filter(i => !i.isDeleted);
+
+      if (pdfOnlyAvailable) {
+        itemsToExport = itemsToExport.filter(i => i.quantity > 0 && i.status === 'active');
+      }
+
+      if (pdfCategoryFilter !== 'all') {
+        itemsToExport = itemsToExport.filter(i => i.category === pdfCategoryFilter);
+      }
+
+      if (pdfSubcategoryFilter && pdfSubcategoryFilter.trim() !== '') {
+        const query = pdfSubcategoryFilter.toLowerCase().trim();
+        itemsToExport = itemsToExport.filter(i => 
+          (i.name && i.name.toLowerCase().includes(query)) ||
+          (i.code && i.code.toLowerCase().includes(query)) ||
+          (i.category && i.category.toLowerCase().includes(query)) ||
+          (i.description && i.description.toLowerCase().includes(query)) ||
+          (i.notes && i.notes.toLowerCase().includes(query))
+        );
+      }
+
+      if (itemsToExport.length === 0) {
+        toast.warning("Nenhum item", "Nenhum insumo atende aos critérios selecionados.");
+        setIsGeneratingPdf(false);
+        return;
+      }
+
+      // Pre-load images for items
+      const imageMap = new Map<string, string | null>();
+      await Promise.all(itemsToExport.slice(0, 100).map(async (item) => {
+        if (item.imageUrl) {
+          const base64 = await loadImageAsBase64(item.imageUrl);
+          imageMap.set(item.id, base64);
+        }
+      }));
+
+      // Group items strictly by Category
+      const categoryMap = new Map<string, InventoryItem[]>();
+      itemsToExport.forEach(item => {
+        const cat = item.category || "Geral";
+        if (!categoryMap.has(cat)) {
+          categoryMap.set(cat, []);
+        }
+        categoryMap.get(cat)!.push(item);
+      });
+
+      // Sort categories alphabetically
+      const sortedCategories = Array.from(categoryMap.keys()).sort((a, b) => a.localeCompare(b));
+
+      // Page parameters
+      const marginX = 15;
+      let currentY = 15;
+      let pageNum = 1;
+
+      // Helper for Page Footer
+      const drawFooter = (pNum: number) => {
+        doc.setFontSize(7.5);
+        doc.setFont('Helvetica', 'normal');
+        doc.setTextColor(148, 163, 184);
+        doc.text(`Página ${pNum}`, 195, 287, { align: 'right' });
+        doc.text(settings.docFooter || `${compName} - Catálogo Comercial de Insumos`, marginX, 287);
+      };
+
+      // Load Logo if available
+      let logoDataUrl: string | null = null;
+      if (settings.docLogo && settings.docLogo !== '📿') {
+        logoDataUrl = await loadImageAsBase64(settings.docLogo);
+      } else if (settings.logo && (settings.logo.startsWith('http') || settings.logo.startsWith('data:image'))) {
+        logoDataUrl = await loadImageAsBase64(settings.logo);
+      }
+
+      // 1. Institutional Header
+      if (logoDataUrl) {
+        try {
+          doc.addImage(logoDataUrl, 'PNG', marginX, currentY, 18, 18);
+          doc.setTextColor(15, 23, 42);
+          doc.setFont('Helvetica', 'bold');
+          doc.setFontSize(15);
+          doc.text(compName, marginX + 22, currentY + 6);
+
+          doc.setFont('Helvetica', 'normal');
+          doc.setFontSize(8);
+          doc.setTextColor(100, 116, 139);
+          doc.text(`CNPJ: ${compCnpj || "Não informado"} | Tel: ${compPhone} | ${compEmail}`, marginX + 22, currentY + 11);
+          doc.text(compAddress, marginX + 22, currentY + 15);
+
+          currentY += 22;
+        } catch (e) {
+          currentY += 5;
+        }
+      } else {
+        doc.setFillColor(212, 175, 55); // Gold accent
+        doc.rect(marginX, currentY, 180, 2, 'F');
+        currentY += 6;
+
+        doc.setTextColor(15, 23, 42);
+        doc.setFont('Helvetica', 'bold');
+        doc.setFontSize(16);
+        doc.text(compName, marginX, currentY);
+
+        doc.setFont('Helvetica', 'normal');
+        doc.setFontSize(8);
+        doc.setTextColor(100, 116, 139);
+        doc.text(`CNPJ: ${compCnpj || "Não informado"} | Tel/WhatsApp: ${compPhone} | ${compEmail}`, marginX, currentY + 5);
+        doc.text(compAddress, marginX, currentY + 9);
+
+        currentY += 15;
+      }
+
+      // 2. Document Title Banner
+      doc.setFillColor(250, 243, 231); // Soft warm gold background
+      doc.roundedRect(marginX, currentY, 180, 16, 2, 2, 'F');
+
+      doc.setTextColor(180, 130, 20); // Gold accent font
+      doc.setFont('Helvetica', 'bold');
+      doc.setFontSize(11);
+      doc.text("CATÁLOGO DE INSUMOS - CARDS ILUSTRADOS", marginX + 5, currentY + 7);
+
+      const nowStr = `${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+      doc.setFontSize(7.5);
+      doc.setFont('Helvetica', 'normal');
+      doc.setTextColor(100, 116, 139);
+      doc.text(`Emitido em: ${nowStr}`, 190, currentY + 7, { align: 'right' });
+
+      const categoryLabel = pdfCategoryFilter === 'all' ? 'Todas as Categorias' : pdfCategoryFilter;
+      const subcatLabel = pdfSubcategoryFilter ? ` | Filtro: "${pdfSubcategoryFilter}"` : '';
+      doc.text(`Filtro: ${categoryLabel}${subcatLabel} | Total: ${itemsToExport.length} insumos apresentados em cards`, marginX + 5, currentY + 12);
+
+      currentY += 22;
+
+      // Card Grid Parameters (2 columns, large photos)
+      const cols = 2;
+      const cardWidth = 86; // mm
+      const cardHeight = 48; // mm
+      const colGap = 8; // mm
+      const rowGap = 6; // mm
+
+      // Iterate Categories
+      for (const catName of sortedCategories) {
+        const catItems = categoryMap.get(catName) || [];
+        if (catItems.length === 0) continue;
+
+        // Check page break for Category Header
+        if (currentY + 20 > 270) {
+          drawFooter(pageNum);
+          doc.addPage();
+          pageNum++;
+          currentY = 15;
+        }
+
+        // Category Section Header Banner
+        doc.setFillColor(30, 41, 59); // Slate 800
+        doc.roundedRect(marginX, currentY, 180, 7, 1, 1, 'F');
+
+        doc.setTextColor(255, 255, 255);
+        doc.setFont('Helvetica', 'bold');
+        doc.setFontSize(8.5);
+        doc.text(`CATEGORIA: ${catName.toUpperCase()} (${catItems.length} ${catItems.length === 1 ? 'item' : 'itens'})`, marginX + 4, currentY + 4.8);
+
+        currentY += 10;
+
+        // Render Cards in Grid for this category
+        for (let i = 0; i < catItems.length; i += cols) {
+          // Check if row fits on current page
+          if (currentY + cardHeight > 270) {
+            drawFooter(pageNum);
+            doc.addPage();
+            pageNum++;
+            currentY = 15;
+
+            // Sub-page continuation category banner
+            doc.setFillColor(241, 245, 249);
+            doc.roundedRect(marginX, currentY, 180, 6, 1, 1, 'F');
+            doc.setTextColor(71, 85, 105);
+            doc.setFont('Helvetica', 'bold');
+            doc.setFontSize(7.5);
+            doc.text(`${catName.toUpperCase()} (Continuação)`, marginX + 4, currentY + 4);
+            currentY += 8;
+          }
+
+          // Process row items
+          for (let col = 0; col < cols; col++) {
+            const itemIdx = i + col;
+            if (itemIdx >= catItems.length) break;
+
+            const item = catItems[itemIdx];
+            const x = marginX + col * (cardWidth + colGap);
+            const y = currentY;
+
+            // Card Container
+            doc.setFillColor(252, 253, 255);
+            doc.setDrawColor(226, 232, 240);
+            doc.roundedRect(x, y, cardWidth, cardHeight, 2, 2, 'FD');
+
+            // Accent Left Bar
+            doc.setFillColor(212, 175, 55); // Gold bar
+            doc.rect(x, y, 1.5, cardHeight, 'F');
+
+            // 1. Large Image Frame (40mm x 40mm)
+            const imgSize = 40;
+            const imgX = x + 3.5;
+            const imgY = y + 4;
+
+            doc.setFillColor(248, 250, 252);
+            doc.setDrawColor(226, 232, 240);
+            doc.roundedRect(imgX, imgY, imgSize, imgSize, 1.5, 1.5, 'FD');
+
+            const imgBase64 = imageMap.get(item.id);
+            if (imgBase64) {
+              try {
+                doc.addImage(imgBase64, 'PNG', imgX + 1, imgY + 1, imgSize - 2, imgSize - 2);
+              } catch (e) {
+                doc.setFontSize(6);
+                doc.setTextColor(148, 163, 184);
+                doc.text("IMAGEM", imgX + 13, imgY + 21);
+              }
+            } else {
+              doc.setFontSize(6);
+              doc.setTextColor(148, 163, 184);
+              doc.setFont('Helvetica', 'bold');
+              doc.text("SEM FOTO", imgX + 11, imgY + 21);
+            }
+
+            // 2. Item Details beside image (starts at x + 46mm)
+            const textX = x + 46;
+            const textWidth = 37;
+
+            // SKU / Code Badge
+            doc.setFont('Helvetica', 'bold');
+            doc.setFontSize(7);
+            doc.setTextColor(180, 130, 20); // Gold accent code
+            doc.text(`CÓD: ${item.code || "INS-000"}`, textX, y + 8);
+
+            // Item Name (Title)
+            doc.setFont('Helvetica', 'bold');
+            doc.setFontSize(8.5);
+            doc.setTextColor(15, 23, 42);
+            const titleLines = doc.splitTextToSize(item.name, textWidth);
+            doc.text(titleLines.slice(0, 2), textX, y + 13);
+
+            // Description (Wrapped text, NO quantity, NO unit)
+            let descStartY = y + 13 + (Math.min(titleLines.length, 2) * 4);
+            if (item.description) {
+              doc.setFont('Helvetica', 'normal');
+              doc.setFontSize(6.5);
+              doc.setTextColor(100, 116, 139);
+              const descLines = doc.splitTextToSize(item.description, textWidth);
+              doc.text(descLines.slice(0, 3), textX, descStartY);
+            }
+
+            // Optional Unit Price (if enabled)
+            if (pdfIncludeUnitPrice) {
+              doc.setFont('Helvetica', 'bold');
+              doc.setFontSize(8);
+              doc.setTextColor(16, 185, 129); // Emerald
+              doc.text(`R$ ${item.unitValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, textX, y + 42);
+            }
+          }
+
+          currentY += cardHeight + rowGap;
+        }
+
+        currentY += 4; // Spacing after category
+      }
+
+      // Final Footer
+      drawFooter(pageNum);
+
+      const dateStr = new Date().toISOString().split('T')[0];
+      doc.save(`Catalogo_Cards_Insumos_${compName.replace(/\s+/g, '_')}_${dateStr}.pdf`);
+
+      toast.success("PDF Exportado com Sucesso!", `Catálogo com ${itemsToExport.length} insumos baixado.`);
+      setShowExportPdfModal(false);
+    } catch (err) {
+      console.error("Erro na geração do PDF:", err);
+      toast.error("Erro no PDF", "Não foi possível gerar o PDF de estoque.");
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
 
   return (
     <div className="space-y-8 animate-slide-in-up">
@@ -1102,6 +1433,22 @@ export const InventoryView: React.FC = () => {
               <span>{commercialMode ? "Modo Comercial: ATIVO" : "Modo Comercial"}</span>
             </button>
 
+            {/* Download PDF Button */}
+            <button
+              type="button"
+              onClick={() => {
+                setPdfCategoryFilter(selectedCategory);
+                setPdfOnlyAvailable(true);
+                setPdfIncludeUnitPrice(!commercialMode);
+                setShowExportPdfModal(true);
+              }}
+              className="px-3.5 py-1.5 rounded-lg border border-amber-300 bg-gradient-to-r from-amber-50 to-amber-100/60 hover:from-amber-100 hover:to-amber-200/80 text-amber-900 font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
+              title="Exportar relatório ou catálogo de insumos em formato PDF"
+            >
+              <Download size={13} className="text-amber-700" />
+              <span>Download PDF</span>
+            </button>
+
             {/* Option to show stock in Catalog, visible only when viewMode is catalog */}
             {viewMode === "catalog" && (
               <label className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 cursor-pointer select-none">
@@ -1139,6 +1486,39 @@ export const InventoryView: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {commercialMode && (
+        <div className="bg-emerald-50/90 border border-emerald-200/90 p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 animate-slide-in-up shadow-xs">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+              <EyeOff size={18} />
+            </div>
+            <div>
+              <h4 className="text-xs font-bold text-emerald-950 flex items-center gap-2">
+                <span>Modo Comercial Ativo</span>
+                <span className="text-[10px] font-mono bg-emerald-200/60 text-emerald-800 px-2 py-0.5 rounded-full uppercase font-bold">Visualização para Clientes</span>
+              </h4>
+              <p className="text-[11px] text-emerald-800 mt-0.5">
+                Valores unitários e custos internos estão ocultos da tela. Você pode exportar o catálogo em PDF a qualquer momento.
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              setPdfCategoryFilter(selectedCategory);
+              setPdfOnlyAvailable(true);
+              setPdfIncludeUnitPrice(false);
+              setShowExportPdfModal(true);
+            }}
+            className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl font-bold text-xs flex items-center gap-2 transition-all shadow-sm cursor-pointer shrink-0"
+          >
+            <Download size={14} />
+            <span>Exportar PDF Comercial</span>
+          </button>
+        </div>
+      )}
 
       {isSelectionMode && (
         <div className="bg-amber-50/15 border border-amber-200/50 p-4 rounded-[20px] flex flex-col sm:flex-row items-center justify-between gap-4 animate-slide-in-up">
@@ -4704,6 +5084,168 @@ export const InventoryView: React.FC = () => {
               </button>
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {/* Export PDF Modal */}
+      {showExportPdfModal && (
+        <div className="fixed inset-0 bg-ink-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full border border-slate-100 overflow-hidden animate-scale-in">
+            {/* Modal Header */}
+            <div className="p-6 bg-gradient-to-r from-amber-50 to-amber-100/40 border-b border-amber-200/60 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center shadow-sm">
+                  <FileDown size={20} />
+                </div>
+                <div>
+                  <h3 className="font-serif font-bold text-base text-slate-900">
+                    {commercialMode ? "Exportar Catálogo Comercial (PDF)" : "Exportar Relatório de Estoque (PDF)"}
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Gere um documento A4 padronizado com cabeçalho institucional do Ateliê.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowExportPdfModal(false)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-white/60 transition-colors cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 space-y-4 text-xs">
+              {/* Layout format badge */}
+              <div className="p-3 bg-gradient-to-r from-amber-50 to-orange-50/50 border border-amber-200/80 rounded-xl flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-amber-500 text-white flex items-center justify-center font-bold shrink-0 shadow-xs">
+                  <Grid size={16} />
+                </div>
+                <div>
+                  <span className="font-bold text-amber-950 block text-xs">Formato: Catálogo em Cards A4</span>
+                  <span className="text-[10px] text-amber-800 block mt-0.5">
+                    Layout com fotos grandes (40x40mm), foco em código/SKU e descrição. Sem exibição de quantidades ou unidades de medida.
+                  </span>
+                </div>
+              </div>
+
+              {/* Institutional info preview */}
+              <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-7 h-7 rounded-lg bg-amber-100 text-amber-800 font-serif font-bold flex items-center justify-center text-xs">
+                    {settings.companyName ? settings.companyName.substring(0, 2).toUpperCase() : "AS"}
+                  </div>
+                  <div>
+                    <span className="font-bold text-slate-800 block">{settings.companyName || "Ateliê Sagrado"}</span>
+                    <span className="text-[10px] text-slate-500 block">CNPJ: {settings.cnpj || "Cadastrado em Configurações"}</span>
+                  </div>
+                </div>
+                <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full">
+                  Dados Institucionais OK
+                </span>
+              </div>
+
+              {/* Filter 1: Only Available Items */}
+              <div className="p-3.5 bg-amber-50/40 border border-amber-200/60 rounded-xl">
+                <label className="flex items-start gap-3 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={pdfOnlyAvailable}
+                    onChange={(e) => setPdfOnlyAvailable(e.target.checked)}
+                    className="mt-0.5 rounded border-slate-300 text-amber-600 focus:ring-amber-500 cursor-pointer w-4 h-4"
+                  />
+                  <div>
+                    <span className="font-bold text-slate-800 block">Apenas itens disponíveis em estoque (Saldo &gt; 0)</span>
+                    <span className="text-[11px] text-slate-500 block mt-0.5">
+                      Filtra automaticamente insumos zerados ou indisponíveis para apresentação comercial limpa.
+                    </span>
+                  </div>
+                </label>
+              </div>
+
+              {/* Filter 2: Category Filter */}
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">
+                  Filtrar por Categoria de Insumo
+                </label>
+                <select
+                  value={pdfCategoryFilter}
+                  onChange={(e) => setPdfCategoryFilter(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 font-medium cursor-pointer"
+                >
+                  <option value="all">Todas as Categorias (Completo)</option>
+                  {Array.from(new Set(inventory.filter(i => !i.isDeleted).map(i => i.category))).map(cat => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Filter 3: Subcategory / Keyword Search */}
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">
+                  Filtro por Subcategoria ou Palavra-Chave
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Ex: Pérola, Metal, Crucifixo, Cordão..."
+                    value={pdfSubcategoryFilter}
+                    onChange={(e) => setPdfSubcategoryFilter(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-xl text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
+                  />
+                  <Search size={14} className="absolute left-3 top-2.5 text-slate-400" />
+                </div>
+              </div>
+
+              {/* Option 4: Include Unit Price */}
+              <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl">
+                <label className="flex items-center justify-between cursor-pointer select-none">
+                  <div>
+                    <span className="font-bold text-slate-800 block">Exibir Valor Unitário no Relatório</span>
+                    <span className="text-[10px] text-slate-500 block">
+                      {commercialMode ? "Desativado por padrão no Modo Comercial" : "Mostra o custo unitário cadastrado de cada insumo"}
+                    </span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={pdfIncludeUnitPrice}
+                    onChange={(e) => setPdfIncludeUnitPrice(e.target.checked)}
+                    className="rounded border-slate-300 text-amber-600 focus:ring-amber-500 cursor-pointer w-4 h-4"
+                  />
+                </label>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+              <button
+                type="button"
+                onClick={() => setShowExportPdfModal(false)}
+                className="px-4 py-2 border border-slate-200 text-slate-600 hover:bg-slate-100 rounded-xl font-medium cursor-pointer"
+              >
+                Cancelar
+              </button>
+
+              <button
+                type="button"
+                disabled={isGeneratingPdf}
+                onClick={handleExportPdf}
+                className="px-5 py-2.5 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white rounded-xl font-bold flex items-center gap-2 shadow-md transition-all cursor-pointer disabled:opacity-50"
+              >
+                {isGeneratingPdf ? (
+                  <>
+                    <Loader2 size={15} className="animate-spin" />
+                    <span>Gerando PDF...</span>
+                  </>
+                ) : (
+                  <>
+                    <Download size={15} />
+                    <span>Gerar e Baixar PDF</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}

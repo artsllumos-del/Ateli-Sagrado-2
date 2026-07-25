@@ -676,7 +676,10 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
  // Auth actions
  const login = (usernameOrEmail: string, password: string): boolean => {
   const storedUsers = localStorage.getItem('as_users');
-  const userList: AppUser[] = storedUsers ? JSON.parse(storedUsers) : [
+  const parsedUsers: AppUser[] = storedUsers ? JSON.parse(storedUsers) : [];
+  
+  const userMap = new Map<string, AppUser>();
+  [
    {
     id: 'user_admin',
     username: 'Admin',
@@ -689,12 +692,17 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     permissions: {
      dashboard: true, inventory: true, purchases: true, products: true, pricing: true, clients: true, quotes: true, orders: true, production: true, financial: true, settings: true
     }
-   }
-  ];
+   },
+   ...parsedUsers,
+   ...users
+  ].forEach(u => userMap.set(u.id, u));
+
+  const userList = Array.from(userMap.values());
 
   const foundUser = userList.find(u => 
    u.isActive && 
-   (u.username.toLowerCase() === usernameOrEmail.toLowerCase() || u.email.toLowerCase() === usernameOrEmail.toLowerCase()) && 
+   ((u.username && u.username.toLowerCase() === usernameOrEmail.toLowerCase()) || 
+    (u.email && u.email.toLowerCase() === usernameOrEmail.toLowerCase())) && 
    u.password === password
   );
 
@@ -704,6 +712,42 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
    return true;
   }
   return false;
+ };
+
+ const loginWithGoogle = (googleData: { email: string; name?: string; photoUrl?: string; role?: string; token?: string }): AppUser => {
+  const email = googleData.email || 'artsllumos@gmail.com';
+  let found = users.find(u => u.email.toLowerCase() === email.toLowerCase());
+
+  if (!found) {
+   found = {
+    id: 'user_g_' + Date.now(),
+    username: email.split('@')[0],
+    name: googleData.name || 'Arthur Santos',
+    email: email,
+    role: googleData.role || 'Administrador',
+    isActive: true,
+    photoUrl: googleData.photoUrl || 'https://lh3.googleusercontent.com/a/default-user',
+    permissions: {
+     dashboard: true, inventory: true, purchases: true, products: true, pricing: true, clients: true, quotes: true, orders: true, production: true, financial: true, settings: true
+    }
+   };
+   const updated = [...users, found];
+   setUsers(updated);
+   saveToLocal('users', updated);
+  }
+
+  if (!found.permissions) {
+   found.permissions = {
+    dashboard: true, inventory: true, purchases: true, products: true, pricing: true, clients: true, quotes: true, orders: true, production: true, financial: true, settings: true
+   };
+  }
+
+  setUser(found);
+  localStorage.setItem('as_user', JSON.stringify(found));
+  if (googleData.token) {
+   localStorage.setItem('as_jwt', googleData.token);
+  }
+  return found;
  };
 
  const logout = () => {
@@ -724,23 +768,57 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
   const updated = [...users, newUser];
   setUsers(updated);
   saveToLocal('users', updated);
+
+  fetch('/api/users', {
+   method: 'POST',
+   headers: { 'Content-Type': 'application/json' },
+   body: JSON.stringify(newUser)
+  }).catch(() => {});
  };
 
  const updateUser = (id: string, updatedFields: Partial<AppUser>) => {
-  const updated = users.map(u => u.id === id ? { ...u, ...updatedFields } : u);
-  setUsers(updated);
-  saveToLocal('users', updated);
-  if (user && user.id === id) {
+  const exists = users.some(u => u.id === id);
+  let updatedUsers: AppUser[];
+
+  if (exists) {
+   updatedUsers = users.map(u => u.id === id ? { ...u, ...updatedFields } : u);
+  } else {
+   const base = (user && (user.id === id || user.email === updatedFields.email)) ? user : {
+    id,
+    username: updatedFields.username || 'user',
+    name: updatedFields.name || 'Operador',
+    email: updatedFields.email || '',
+    role: updatedFields.role || 'Administrador',
+    isActive: true,
+    permissions: { dashboard: true, inventory: true, purchases: true, products: true, pricing: true, clients: true, quotes: true, orders: true, production: true, financial: true, settings: true }
+   };
+   updatedUsers = [...users, { ...base, ...updatedFields } as AppUser];
+  }
+
+  setUsers(updatedUsers);
+  saveToLocal('users', updatedUsers);
+
+  if (user && (user.id === id || (user.email && user.email.toLowerCase() === updatedFields.email?.toLowerCase()))) {
    const updatedCurrentUser = { ...user, ...updatedFields } as AppUser;
    setUser(updatedCurrentUser);
    localStorage.setItem('as_user', JSON.stringify(updatedCurrentUser));
   }
+
+  fetch(`/api/users/${id}`, {
+   method: 'PUT',
+   headers: { 'Content-Type': 'application/json' },
+   body: JSON.stringify(updatedFields)
+  }).catch(() => {});
  };
 
  const deleteUser = (id: string) => {
   const updated = users.filter(u => u.id !== id);
   setUsers(updated);
   saveToLocal('users', updated);
+
+  fetch(`/api/users/${id}`, {
+   method: 'DELETE'
+  }).catch(() => {});
  };
 
  // Agenda and Audit Log methods

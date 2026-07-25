@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useDb } from '../context/DbContext';
 import { AppUser, SystemSettings } from '../types/erp';
 import { 
@@ -6,9 +6,16 @@ import {
   Plus, Edit3, Trash2, Key, Check, AlertCircle, Eye, EyeOff
 } from 'lucide-react';
 import { toast } from './Toast';
+import { UsersPermissionsView } from './UsersPermissionsView';
 
 export const SettingsView: React.FC = () => {
   const { settings, updateSettings, user, users, addUser, updateUser, deleteUser, resetSystem } = useDb();
+
+  const isAdminRole = (role?: string) => {
+    if (!role) return false;
+    const r = role.toLowerCase();
+    return r.includes('admin') || r.includes('gerente') || r === 'administrador';
+  };
 
   // Active tab state: 'atelier' | 'financial' | 'documents' | 'system' | 'profile' | 'users'
   const [activeTab, setActiveTab] = useState<'atelier' | 'financial' | 'documents' | 'system' | 'profile' | 'users'>('atelier');
@@ -65,6 +72,16 @@ export const SettingsView: React.FC = () => {
   const [profilePhoto, setProfilePhoto] = useState(user?.photoUrl || '');
   const [profilePassword, setProfilePassword] = useState(user?.password || '');
   const [showPass, setShowPass] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      setProfileName(user.name || '');
+      setProfileEmail(user.email || '');
+      setProfilePhone(user.phone || '');
+      setProfilePhoto(user.photoUrl || '');
+      setProfilePassword(user.password || '');
+    }
+  }, [user]);
 
   // --- 6. ADMIN USER MANAGEMENT FORM STATE ---
   const [editingUser, setEditingUser] = useState<AppUser | null>(null);
@@ -328,7 +345,7 @@ export const SettingsView: React.FC = () => {
           <User size={16} /> Meu Perfil
         </button>
 
-        {user?.role === 'Administrador' && (
+        {isAdminRole(user?.role) && (
           <button
             onClick={() => { setActiveTab('users'); setShowUserForm(false); }}
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all text-left ${
@@ -936,225 +953,9 @@ export const SettingsView: React.FC = () => {
           </div>
         )}
 
-        {/* TAB 6: USUÁRIOS E PERMISSÕES (ADMINISTRADOR MASTER APENAS) */}
-        {activeTab === 'users' && user?.role === 'Administrador' && (
-          <div className="space-y-6">
-            {!showUserForm ? (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                  <div>
-                    <h3 className="font-serif font-bold text-base text-slate-900">Usuários & Controle de Permissões</h3>
-                    <p className="text-[11px] text-slate-500">Crie novos operadores e personalize permissões e perfis de acesso detalhadamente.</p>
-                  </div>
-                  <button
-                    onClick={handleOpenNewUser}
-                    className="px-3.5 py-2 bg-slate-900 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 cursor-pointer shadow-md active:scale-95 hover:opacity-90"
-                  >
-                    <Plus size={13} /> Criar Operador
-                  </button>
-                </div>
-
-                {/* Users List Grid */}
-                <div className="grid grid-cols-1 gap-4">
-                  {(users || []).map(u => (
-                    <div 
-                      key={u.id} 
-                      className="bg-slate-50/60 hover:bg-slate-50 p-4 border border-slate-150 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 transition-all"
-                    >
-                      <div className="flex items-center gap-3">
-                        <img
-                          src={u.photoUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=150&auto=format&fit=crop'}
-                          alt={u.name}
-                          className="w-11 h-11 rounded-xl object-cover border border-slate-200"
-                        />
-                        <div>
-                          <p className="text-xs font-extrabold text-slate-900">{u.name}</p>
-                          <p className="text-[10px] text-slate-500 font-mono mt-0.5">{u.email} | Login: <span className="font-bold">{u.username}</span></p>
-                          <div className="flex items-center gap-2 mt-1.5">
-                            <span className="px-2 py-0.5 bg-indigo-500/10 text-[9px] font-black text-indigo-700 rounded uppercase tracking-wide">
-                              {u.role}
-                            </span>
-                            <span className={`px-2 py-0.5 text-[9px] font-black rounded tracking-wide ${
-                              u.isActive ? 'bg-emerald-500/10 text-emerald-700' : 'bg-rose-500/10 text-rose-700'
-                            }`}>
-                              {u.isActive ? 'ATIVO' : 'DESATIVADO'}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          onClick={() => handleOpenEditUser(u)}
-                          className="p-2 border border-slate-200 hover:bg-white text-slate-650 rounded-xl cursor-pointer"
-                          title="Editar Credenciais & Permissões"
-                        >
-                          <Edit3 size={12} />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteUser(u.id, u.name)}
-                          className="p-2 border border-slate-200 hover:bg-rose-50 hover:text-rose-600 text-slate-600 rounded-xl cursor-pointer"
-                          title="Descadastrar Usuário"
-                        >
-                          <Trash2 size={12} />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-5">
-                <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                  <h4 className="font-serif font-bold text-sm text-slate-900">
-                    {editingUser ? `Editar Operador: ${uName}` : 'Cadastrar Novo Operador no Banco'}
-                  </h4>
-                  <button
-                    onClick={() => setShowUserForm(false)}
-                    className="text-xs font-bold text-slate-400 hover:text-slate-600 cursor-pointer"
-                  >
-                    Voltar para a Lista
-                  </button>
-                </div>
-
-                <form onSubmit={handleSaveUser} className="space-y-4 text-xs font-semibold">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-[10px] uppercase font-bold text-slate-500 mb-1.5">Username de Login *</label>
-                      <input
-                        type="text"
-                        required
-                        value={uUsername}
-                        onChange={(e) => setUUsername(e.target.value)}
-                        className="w-full px-3.5 py-2 rounded-xl border border-slate-200 bg-slate-50 focus:outline-none"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] uppercase font-bold text-slate-500 mb-1.5">Nome Completo do Operador *</label>
-                      <input
-                        type="text"
-                        required
-                        value={uName}
-                        onChange={(e) => setUName(e.target.value)}
-                        className="w-full px-3.5 py-2 rounded-xl border border-slate-200 bg-slate-50 focus:outline-none"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] uppercase font-bold text-slate-500 mb-1.5">E-mail *</label>
-                      <input
-                        type="email"
-                        required
-                        value={uEmail}
-                        onChange={(e) => setUEmail(e.target.value)}
-                        className="w-full px-3.5 py-2 rounded-xl border border-slate-200 bg-slate-50 focus:outline-none"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] uppercase font-bold text-slate-500 mb-1.5">Senha Provisória *</label>
-                      <input
-                        type="text"
-                        required
-                        value={uPassword}
-                        onChange={(e) => setUPassword(e.target.value)}
-                        className="w-full px-3.5 py-2 rounded-xl border border-slate-200 bg-slate-50 focus:outline-none font-mono"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] uppercase font-bold text-slate-500 mb-1.5">Perfil de Cargo</label>
-                      <select
-                        value={uRole}
-                        onChange={(e) => setURole(e.target.value as any)}
-                        className="w-full px-3.5 py-2 rounded-xl border border-slate-200 bg-slate-50"
-                      >
-                        <option value="Administrador">Administrador Master</option>
-                        <option value="Gerente">Gerente Operacional</option>
-                        <option value="Vendedor">Vendedor / Comercial</option>
-                        <option value="Artesão">Artesão / Chão de Fábrica</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] uppercase font-bold text-slate-500 mb-1.5">Status da Conta</label>
-                      <select
-                        value={uIsActive ? 'yes' : 'no'}
-                        onChange={(e) => setUIsActive(e.target.value === 'yes')}
-                        className="w-full px-3.5 py-2 rounded-xl border border-slate-200 bg-slate-50"
-                      >
-                        <option value="yes">Conta Ativa</option>
-                        <option value="no">Conta Inativa / Desativada</option>
-                      </select>
-                    </div>
-
-                    <div className="sm:col-span-2">
-                      <label className="block text-[10px] uppercase font-bold text-slate-500 mb-1.5">URL da Foto de Perfil</label>
-                      <input
-                        type="text"
-                        value={uPhoto}
-                        onChange={(e) => setUPhoto(e.target.value)}
-                        className="w-full px-3.5 py-2 rounded-xl border border-slate-200 bg-slate-50 focus:outline-none"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Permissions matrix */}
-                  <div className="pt-4 border-t border-slate-100">
-                    <h5 className="font-bold text-xs uppercase tracking-wider text-slate-700 mb-3 flex items-center gap-1.5">
-                      <Shield size={14} className="text-amber-500 animate-pulse" /> Controle Fino de Permissões de Módulo
-                    </h5>
-
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 bg-slate-50 p-4 border border-slate-150 rounded-2xl">
-                      {Object.keys(perms).map((key) => (
-                        <label 
-                          key={key} 
-                          className="flex items-center gap-2 p-2 bg-white rounded-xl border border-slate-150 cursor-pointer select-none"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={(perms as any)[key]}
-                            onChange={(e) => setPerms({ ...perms, [key]: e.target.checked })}
-                            className="rounded border-slate-300 text-amber-500 focus:ring-amber-500/20"
-                          />
-                          <span className="text-[11px] capitalize text-slate-700">
-                            {key === 'dashboard' ? 'Painel Geral' :
-                             key === 'inventory' ? 'Insumos / Estoque' :
-                             key === 'purchases' ? 'Entradas de Estoque' :
-                             key === 'products' ? 'Joias / Catálogo' :
-                             key === 'pricing' ? 'Fichas Técnicas' :
-                             key === 'clients' ? 'Clientes CRM' :
-                             key === 'quotes' ? 'Orçamentos' :
-                             key === 'orders' ? 'Vendas / Pedidos' :
-                             key === 'production' ? 'Chão de Fábrica' :
-                             key === 'financial' ? 'Fluxo Financeiro' :
-                             key === 'settings' ? 'Configurações' : key}
-                          </span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="pt-4 border-t border-slate-100 flex justify-end gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setShowUserForm(false)}
-                      className="px-4 py-2 border border-slate-200 hover:bg-slate-100 rounded-xl font-bold text-slate-500"
-                    >
-                      Cancelar
-                    </button>
-                    <button
-                      type="submit"
-                      className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl shadow-md cursor-pointer transition-all active:scale-95"
-                    >
-                      Salvar Permissões
-                    </button>
-                  </div>
-                </form>
-              </div>
-            )}
-          </div>
+        {/* TAB 6: USUÁRIOS E PERMISSÕES */}
+        {activeTab === 'users' && (
+          <UsersPermissionsView />
         )}
 
       </div>

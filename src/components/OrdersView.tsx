@@ -6,6 +6,7 @@ import {
   ArrowLeft, Printer, Share2, Check, Copy, MessageSquare, AlertTriangle, Shield, X, Ban
 } from 'lucide-react';
 import { toast } from './Toast';
+import { Pagination } from './Pagination';
 import { jsPDF } from 'jspdf';
 
 const loadLogoBase64 = (logoUrl: string): Promise<string> => {
@@ -289,6 +290,10 @@ export const OrdersView: React.FC = () => {
     }
   };
 
+  // Pagination State
+  const [ordersPage, setOrdersPage] = useState(1);
+  const [ordersPerPage, setOrdersPerPage] = useState(6);
+
   // Filter orders
   const filteredOrders = activeOrders.filter(o => {
     const matchesSearch = 
@@ -297,6 +302,11 @@ export const OrdersView: React.FC = () => {
     const matchesStatus = selectedStatus === 'all' || o.status === selectedStatus;
     return matchesSearch && matchesStatus;
   });
+
+  const paginatedOrders = filteredOrders.slice(
+    (ordersPage - 1) * ordersPerPage,
+    ordersPage * ordersPerPage
+  );
 
   const subtotalValue = items.reduce((sum, item) => sum + item.total, 0);
 
@@ -482,7 +492,7 @@ export const OrdersView: React.FC = () => {
                   type="text"
                   placeholder="Buscar por cliente ou código PED-..."
                   value={search}
-                  onChange={(e) => setSearch(e.target.value)}
+                  onChange={(e) => { setSearch(e.target.value); setOrdersPage(1); }}
                   className="w-full pl-9 pr-4 py-2.5 text-xs rounded-xl border border-slate-200 bg-slate-50 text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:bg-white"
                 />
                 <Search size={14} className="absolute left-3.5 top-3.5 text-slate-400" />
@@ -490,7 +500,7 @@ export const OrdersView: React.FC = () => {
 
               <select
                 value={selectedStatus}
-                onChange={(e) => setSelectedStatus(e.target.value)}
+                onChange={(e) => { setSelectedStatus(e.target.value); setOrdersPage(1); }}
                 className="px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 bg-slate-50 text-slate-700 focus:outline-none cursor-pointer"
               >
                 <option value="all">Todos os Status</option>
@@ -514,7 +524,7 @@ export const OrdersView: React.FC = () => {
 
           {/* Grid list of Orders */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {filteredOrders.map(order => {
+            {paginatedOrders.map(order => {
               const isDelayed = order.status !== 'completed' && new Date(order.dueDate) < new Date();
 
               return (
@@ -709,6 +719,18 @@ export const OrdersView: React.FC = () => {
               </div>
             )}
           </div>
+
+          {/* Standardized Pagination */}
+          <Pagination
+            currentPage={ordersPage}
+            totalPages={Math.ceil(filteredOrders.length / ordersPerPage)}
+            totalItems={filteredOrders.length}
+            itemsPerPage={ordersPerPage}
+            onPageChange={setOrdersPage}
+            onItemsPerPageChange={(val) => { setOrdersPerPage(val); setOrdersPage(1); }}
+            labelSingular="pedido"
+            labelPlural="pedidos"
+          />
         </div>
       )}
 
