@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useDb } from '../context/DbContext';
+import { applyThemeColors } from '../utils/theme';
 import { AppUser, SystemSettings } from '../types/erp';
 import { 
   Building, DollarSign, FileText, Sliders, User, Shield, 
-  Plus, Edit3, Trash2, Key, Check, AlertCircle, Eye, EyeOff
+  Plus, Edit3, Trash2, Key, Check, AlertCircle, Eye, EyeOff, Sparkles
 } from 'lucide-react';
 import { toast } from './Toast';
 import { UsersPermissionsView } from './UsersPermissionsView';
@@ -504,24 +505,140 @@ export const SettingsView: React.FC = () => {
                     placeholder="https://images.unsplash.com/photo-..."
                   />
                 </div>
-                <div>
-                  <label className="block text-[10px] uppercase font-bold text-slate-500 mb-1.5">Cor Principal (Identidade Visual) *</label>
-                  <div className="flex gap-2 items-center">
-                    <input
-                      type="color"
-                      required
-                      value={primaryColor}
-                      onChange={(e) => setPrimaryColor(e.target.value)}
-                      className="w-10 h-9 p-0.5 rounded-lg border border-slate-200 cursor-pointer"
-                    />
-                    <input
-                      type="text"
-                      required
-                      value={primaryColor}
-                      onChange={(e) => setPrimaryColor(e.target.value)}
-                      className="flex-1 px-3.5 py-2 rounded-xl border border-slate-200 bg-slate-50 focus:outline-none font-mono text-center"
-                      placeholder="#D4AF37"
-                    />
+                <div className="sm:col-span-2 p-5 bg-slate-50/80 rounded-2xl border border-slate-200/80 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-800">
+                        Cor Principal, Identidade Visual & Tema dos PDFs *
+                      </label>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        Ao alterar a cor abaixo, todos os botões, badges, relatórios e arquivos PDF exportados (Orçamentos, Recibos e Catálogo) assumem a nova paleta instantaneamente.
+                      </p>
+                    </div>
+                    <span className="text-[10px] font-mono bg-amber-100 text-amber-900 font-bold px-2.5 py-1 rounded-full shrink-0">
+                      Sincronização Total
+                    </span>
+                  </div>
+
+                  <div className="flex flex-wrap sm:flex-nowrap gap-4 items-center">
+                    <div className="flex gap-2.5 items-center shrink-0">
+                      <input
+                        type="color"
+                        required
+                        value={primaryColor}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setPrimaryColor(val);
+                          applyThemeColors(val);
+                        }}
+                        className="w-12 h-11 p-0.5 rounded-xl border border-slate-200 cursor-pointer shadow-xs"
+                      />
+                      <input
+                        type="text"
+                        required
+                        value={primaryColor}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setPrimaryColor(val);
+                          if (/^#([0-9A-F]{3}){1,2}$/i.test(val)) {
+                            applyThemeColors(val);
+                          }
+                        }}
+                        className="w-28 px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white focus:outline-none font-mono text-center text-xs font-bold"
+                        placeholder="#D4AF37"
+                      />
+                    </div>
+
+                    {/* Palette Presets */}
+                    <div className="flex flex-wrap items-center gap-1.5 pt-2 sm:pt-0 border-t sm:border-t-0 sm:border-l border-slate-200 sm:pl-4 w-full">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase w-full mb-1">Paletas Prontas Recomendadas:</span>
+                      {[
+                        { name: "Ouro Imperial", color: "#D4AF37" },
+                        { name: "Âmbar Sacro", color: "#D4A039" },
+                        { name: "Bronze Nobre", color: "#8C6239" },
+                        { name: "Cobre Elegante", color: "#C86D51" },
+                        { name: "Terracota", color: "#B5563D" },
+                        { name: "Rubi Sacro", color: "#B91C1C" },
+                        { name: "Vinho Nobre", color: "#881337" },
+                        { name: "Rosa Delicado", color: "#EC4899" },
+                        { name: "Roxo Místico", color: "#8B5CF6" },
+                        { name: "Azul Real", color: "#2563EB" },
+                        { name: "Turquesa", color: "#0D9488" },
+                        { name: "Verde Esmeralda", color: "#10B981" },
+                        { name: "Grafite", color: "#334155" }
+                      ].map((preset) => (
+                        <button
+                          key={preset.color}
+                          type="button"
+                          onClick={() => {
+                            setPrimaryColor(preset.color);
+                            applyThemeColors(preset.color);
+                          }}
+                          className={`h-7 px-2.5 rounded-lg text-[10px] font-bold text-white transition-all transform hover:scale-105 flex items-center gap-1 cursor-pointer relative shadow-xs ${
+                            primaryColor.toUpperCase() === preset.color.toUpperCase() ? 'ring-2 ring-slate-900 ring-offset-1 scale-105 font-black' : 'opacity-90'
+                          }`}
+                          style={{ backgroundColor: preset.color }}
+                          title={`${preset.name} (${preset.color})`}
+                        >
+                          {primaryColor.toUpperCase() === preset.color.toUpperCase() && (
+                            <Check size={11} className="text-white drop-shadow-sm" />
+                          )}
+                          <span>{preset.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Live Visual & PDF Theme Preview Box */}
+                  <div className="p-3.5 bg-white border border-slate-200/80 rounded-xl space-y-2.5">
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="font-bold text-slate-700 flex items-center gap-1.5">
+                        <Sparkles size={13} className="text-amber-500" /> Pré-visualização em Tempo Real (Sistema & PDFs)
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-mono">{primaryColor}</span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
+                      {/* Button Sample */}
+                      <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-150 flex flex-col justify-center gap-1.5">
+                        <span className="text-[9px] font-bold text-slate-400 uppercase">Botões & Ações</span>
+                        <button 
+                          type="button"
+                          className="px-3 py-1.5 rounded-lg text-xs font-bold text-white shadow-xs"
+                          style={{ backgroundColor: primaryColor }}
+                        >
+                          Confirmar Pedido
+                        </button>
+                      </div>
+
+                      {/* Badge / Tag Sample */}
+                      <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-150 flex flex-col justify-center gap-1.5">
+                        <span className="text-[9px] font-bold text-slate-400 uppercase">Badges & Destaques</span>
+                        <div>
+                          <span 
+                            className="inline-block px-2.5 py-1 rounded-full text-[10px] font-bold"
+                            style={{ 
+                              backgroundColor: `${primaryColor}20`, 
+                              color: primaryColor,
+                              border: `1px solid ${primaryColor}40`
+                            }}
+                          >
+                            Status: Aprovado
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* PDF Sample */}
+                      <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-150 flex flex-col justify-center gap-1.5">
+                        <span className="text-[9px] font-bold text-slate-400 uppercase">Cabeçalho PDF</span>
+                        <div 
+                          className="p-1.5 rounded text-[10px] font-bold text-white text-center shadow-2xs"
+                          style={{ backgroundColor: primaryColor }}
+                        >
+                          ORÇAMENTO / PEDIDO
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
 

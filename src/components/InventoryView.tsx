@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from "react";
 import { useDb } from "../context/DbContext";
 import { InventoryItem, CalcMethod, InventoryStatus } from "../types/erp";
 import { jsPDF } from "jspdf";
+import { getPdfThemeColors } from "../utils/theme";
 import {
   Search,
   Grid,
@@ -923,6 +924,8 @@ export const InventoryView: React.FC = () => {
         format: 'a4'
       });
 
+      const pdfTheme = getPdfThemeColors(settings.primaryColor);
+
       const compName = settings.companyName || settings.nomeFantasia || "Ateliê Sagrado";
       const compCnpj = settings.cnpj || "";
       const compAddress = settings.address || "";
@@ -1021,7 +1024,7 @@ export const InventoryView: React.FC = () => {
           currentY += 5;
         }
       } else {
-        doc.setFillColor(212, 175, 55); // Gold accent
+        doc.setFillColor(pdfTheme.primaryRgb[0], pdfTheme.primaryRgb[1], pdfTheme.primaryRgb[2]);
         doc.rect(marginX, currentY, 180, 2, 'F');
         currentY += 6;
 
@@ -1040,10 +1043,10 @@ export const InventoryView: React.FC = () => {
       }
 
       // 2. Document Title Banner
-      doc.setFillColor(250, 243, 231); // Soft warm gold background
+      doc.setFillColor(pdfTheme.lightRgb[0], pdfTheme.lightRgb[1], pdfTheme.lightRgb[2]);
       doc.roundedRect(marginX, currentY, 180, 16, 2, 2, 'F');
 
-      doc.setTextColor(180, 130, 20); // Gold accent font
+      doc.setTextColor(pdfTheme.titleRgb[0], pdfTheme.titleRgb[1], pdfTheme.titleRgb[2]);
       doc.setFont('Helvetica', 'bold');
       doc.setFontSize(11);
       doc.text("CATÁLOGO DE INSUMOS - CARDS ILUSTRADOS", marginX + 5, currentY + 7);
@@ -1081,7 +1084,7 @@ export const InventoryView: React.FC = () => {
         }
 
         // Category Section Header Banner
-        doc.setFillColor(30, 41, 59); // Slate 800
+        doc.setFillColor(pdfTheme.darkRgb[0], pdfTheme.darkRgb[1], pdfTheme.darkRgb[2]);
         doc.roundedRect(marginX, currentY, 180, 7, 1, 1, 'F');
 
         doc.setTextColor(255, 255, 255);
@@ -1125,7 +1128,7 @@ export const InventoryView: React.FC = () => {
             doc.roundedRect(x, y, cardWidth, cardHeight, 2, 2, 'FD');
 
             // Accent Left Bar
-            doc.setFillColor(212, 175, 55); // Gold bar
+            doc.setFillColor(pdfTheme.primaryRgb[0], pdfTheme.primaryRgb[1], pdfTheme.primaryRgb[2]);
             doc.rect(x, y, 1.5, cardHeight, 'F');
 
             // 1. Large Image Frame (40mm x 40mm)

@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { toast } from './Toast';
 import { jsPDF } from 'jspdf';
+import { getPdfThemeColors } from '../utils/theme';
 
 const loadLogoBase64 = (logoUrl: string): Promise<string> => {
   return new Promise((resolve) => {
@@ -327,6 +328,8 @@ export const QuotesView: React.FC = () => {
   const handleDownloadPdf = async (q: Quote) => {
     toast.info("Processando", "Gerando arquivo PDF da proposta de orçamento...");
     try {
+      const pdfTheme = getPdfThemeColors(settings.primaryColor);
+
       const doc = new jsPDF({
         orientation: 'portrait',
         unit: 'mm',
@@ -355,8 +358,8 @@ export const QuotesView: React.FC = () => {
           currentY += 5;
         }
       } else {
-        // Fine brand top bar (deep slate-900)
-        doc.setFillColor(15, 23, 42);
+        // Fine brand top bar
+        doc.setFillColor(pdfTheme.primaryRgb[0], pdfTheme.primaryRgb[1], pdfTheme.primaryRgb[2]);
         doc.rect(marginX, currentY, 180, 2, 'F');
         currentY += 8;
       }
@@ -368,7 +371,7 @@ export const QuotesView: React.FC = () => {
       doc.text(compName, marginX, currentY);
 
       // Label on the right
-      doc.setTextColor(217, 119, 6); // amber-600
+      doc.setTextColor(pdfTheme.titleRgb[0], pdfTheme.titleRgb[1], pdfTheme.titleRgb[2]);
       doc.setFontSize(11);
       doc.text("PROPOSTA DE ORÇAMENTO", 195, currentY, { align: 'right' });
 
@@ -494,10 +497,10 @@ export const QuotesView: React.FC = () => {
       }
 
       currentY += 2;
-      doc.setFillColor(254, 243, 199); // soft gold amber-100
+      doc.setFillColor(pdfTheme.lightRgb[0], pdfTheme.lightRgb[1], pdfTheme.lightRgb[2]);
       doc.rect(calcX - 5, currentY - 4, 65, 9, 'F');
 
-      doc.setTextColor(146, 64, 14); // amber-800
+      doc.setTextColor(pdfTheme.titleRgb[0], pdfTheme.titleRgb[1], pdfTheme.titleRgb[2]);
       doc.setFont('Helvetica', 'bold');
       doc.setFontSize(10);
       doc.text("TOTAL GERAL", calcX, currentY + 2);

@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { applyThemeColors } from '../utils/theme';
 import { 
  Client, 
  InventoryItem, 
@@ -667,6 +668,13 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
  const root = window.document.documentElement;
  root.classList.remove('dark');
  }, [settings.theme]);
+
+ // Synchronize primary color with CSS variables & DOM dynamically
+ useEffect(() => {
+ if (settings?.primaryColor) {
+ applyThemeColors(settings.primaryColor);
+ }
+ }, [settings?.primaryColor]);
 
  // Save states to local storage
  const saveToLocal = (key: string, data: any) => {
