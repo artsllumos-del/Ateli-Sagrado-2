@@ -1596,7 +1596,7 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
        prod.composition.forEach(comp => {
         const mat = inventory.find(m => m.id === comp.materialId);
         if (mat) {
-         rawMaterialCost += (mat.unitPrice || 0) * comp.quantity * item.quantity;
+         rawMaterialCost += (mat.unitValue || 0) * comp.quantity * item.quantity;
         }
        });
       }

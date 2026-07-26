@@ -4943,8 +4943,8 @@ export const InventoryView: React.FC = () => {
                             <YAxis stroke="#94a3b8" fontSize={10} />
                             <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8, borderColor: '#e2e8f0' }} />
                             <Legend wrapperStyle={{ fontSize: 11 }} />
-                            <Bar dataKey="entrada" name="Entrada (+)" fill="#10b981" radius={[4, 4, 0, 0]} />
-                            <Bar dataKey="saida" name="Saída (-)" fill="#f43f5e" radius={[4, 4, 0, 0]} />
+                            <Bar dataKey="entrada" name="Entrada (+)" fill="#10b981" radius={[8, 8, 8, 8]} barSize={18} />
+                            <Bar dataKey="saida" name="Saída (-)" fill="#f43f5e" radius={[8, 8, 8, 8]} barSize={18} />
                           </RechartsBarChart>
                         </ResponsiveContainer>
                       </div>
@@ -4966,7 +4966,7 @@ export const InventoryView: React.FC = () => {
                             <XAxis dataKey="mes" stroke="#94a3b8" fontSize={10} />
                             <YAxis stroke="#94a3b8" fontSize={10} />
                             <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8, borderColor: '#e2e8f0' }} />
-                            <Bar dataKey="consumo" name="Quantidade Consumida" fill="#e11d48" radius={[6, 6, 0, 0]} />
+                            <Bar dataKey="consumo" name="Quantidade Consumida" fill="#e11d48" radius={[8, 8, 8, 8]} barSize={28} />
                           </RechartsBarChart>
                         </ResponsiveContainer>
                       </div>

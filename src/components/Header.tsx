@@ -48,6 +48,10 @@ interface HeaderProps {
   orders: 'Pedidos de Venda',
   production: 'Chão de Fábrica (Produção)',
   financial: 'Fluxo Financeiro',
+  subscription: 'Planos & Assinatura',
+  users: 'Operadores & Permissões',
+  profile: 'Meu Perfil',
+  account_security: 'Segurança & Sessões',
   settings: 'Configurações',
  };
 

@@ -221,8 +221,8 @@ export const DashboardFinanceSales: React.FC<DashboardFinanceSalesProps> = ({
               <YAxis stroke="#94a3b8" fontSize={10} tickLine={false} />
               <Tooltip contentStyle={{ fontSize: '11px', borderRadius: '10px' }} />
               <Legend verticalAlign="top" height={24} iconSize={8} fontSize={9} />
-              <Bar name="Receitas" dataKey="receitas" fill="#D4A039" radius={[4, 4, 0, 0]} />
-              <Bar name="Despesas" dataKey="despesas" fill="#B5563D" radius={[4, 4, 0, 0]} />
+              <Bar name="Receitas" dataKey="receitas" fill="#D4A039" radius={[8, 8, 8, 8]} barSize={16} />
+              <Bar name="Despesas" dataKey="despesas" fill="#B5563D" radius={[8, 8, 8, 8]} barSize={16} />
             </BarChart>
           </ResponsiveContainer>
         </div>

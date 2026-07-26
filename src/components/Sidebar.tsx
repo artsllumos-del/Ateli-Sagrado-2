@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useDb } from '../context/DbContext';
+import { useAuth } from '../hooks/useAuth';
 import { 
   LayoutDashboard, 
   Package, 
@@ -14,7 +15,10 @@ import {
   Settings, 
   LogOut,
   X,
-  ShoppingBag
+  ShoppingBag,
+  CreditCard,
+  UserCheck,
+  ShieldCheck
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -25,8 +29,19 @@ interface SidebarProps {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, isOpen, onClose }) => {
-  const { settings, logout, user } = useDb();
+  const { settings, logout: dbLogout, user: dbUser } = useDb();
+  const { logout: authLogout, user: authUser } = useAuth();
+  const user = authUser || dbUser;
   const [isHovered, setIsHovered] = useState(false);
+
+  const handleLogout = async () => {
+    try {
+      if (authLogout) await authLogout();
+    } catch (e) {
+      console.error(e);
+    }
+    if (dbLogout) dbLogout();
+  };
 
   const menuItems = settings?.firstSetup ? [
     { id: 'settings', label: 'Configuração Inicial', icon: Settings },
@@ -41,7 +56,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, isO
     { id: 'orders', label: 'Pedidos de Venda', icon: ShoppingCart },
     { id: 'production', label: 'Chão de Fábrica', icon: Hammer },
     { id: 'financial', label: 'Fluxo Financeiro', icon: TrendingUp },
+    { id: 'subscription', label: 'Planos & Assinatura', icon: CreditCard },
     { id: 'users', label: 'Operadores & Permissões', icon: Shield },
+    { id: 'profile', label: 'Meu Perfil', icon: UserCheck },
+    { id: 'account_security', label: 'Segurança & Sessões', icon: ShieldCheck },
     { id: 'settings', label: 'Configurações', icon: Settings },
   ];
 
@@ -158,7 +176,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, isO
           {/* Footer Profile & Logout */}
           <div className="p-3 overflow-hidden">
             <button
-              onClick={() => handleNav('settings')}
+              onClick={() => handleNav('profile')}
               className={`w-full flex items-center gap-2.5 mb-2.5 p-1.5 rounded-xl hover:bg-slate-100/80 transition-all cursor-pointer text-left ${isExpanded ? 'justify-start' : 'lg:justify-center'}`}
               title="Acessar Meu Perfil"
             >
@@ -193,7 +211,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, isO
             </button>
 
             <button
-              onClick={logout}
+              onClick={handleLogout}
               className={`w-full flex items-center justify-center border border-[rgba(42,36,32,0.1)] hover:bg-rose-50/50 hover:border-rose-200 hover:text-rose-600 rounded-xl text-xs font-medium text-ink-600 transition-colors cursor-pointer ${isExpanded ? 'px-3 py-2 gap-2' : 'lg:p-2'}`}
               title="Sair do Sistema"
             >

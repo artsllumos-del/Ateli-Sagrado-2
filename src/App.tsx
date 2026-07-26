@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { DbProvider, useDb } from './context/DbContext';
+import { AuthProvider } from './context/AuthContext';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
-import { AuthView } from './components/AuthView';
+import { ModernAuthView } from './components/auth/ModernAuthView';
 import { DashboardView } from './components/DashboardView';
 import { InventoryView } from './components/InventoryView';
 import { ProductsView } from './components/ProductsView';
@@ -15,26 +16,45 @@ import { FinancialView } from './components/FinancialView';
 import { SettingsView } from './components/SettingsView';
 import { PurchasesView } from './components/PurchasesView';
 import { UsersPermissionsView } from './components/UsersPermissionsView';
+import { SubscriptionBillingView } from './components/subscription/SubscriptionBillingView';
+import { AccountSecurityView } from './components/account/AccountSecurityView';
+import { UserProfileView } from './components/account/UserProfileView';
 import { motion, AnimatePresence } from 'motion/react';
 import { ToastContainer, toast } from './components/Toast';
 
+import { useAuth } from './hooks/useAuth';
+
 const AppContent: React.FC = () => {
- const { user, settings } = useDb();
- const [currentView, setCurrentView] = useState('dashboard');
- const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { user: dbUser, settings } = useDb();
+  const { user: authUser, loading: authLoading } = useAuth();
+  const [currentView, setCurrentView] = useState('dashboard');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
- const isFirstSetup = settings?.firstSetup;
- const activeView = isFirstSetup ? 'settings' : currentView;
+  const user = authUser || dbUser;
 
- // If user is not authenticated, render the beautiful AuthView login gate
- if (!user) {
- return (
- <>
- <AuthView />
- <ToastContainer />
- </>
- );
- }
+  const isFirstSetup = settings?.firstSetup;
+  const activeView = isFirstSetup ? 'settings' : currentView;
+
+  // Show loading indicator while verifying session
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-stone-50 font-sans p-4">
+        <div className="w-12 h-12 border-3 border-amber-600 border-t-transparent rounded-full animate-spin mb-4 shadow-sm" />
+        <h2 className="text-base font-bold text-stone-800">Ateliê Sagrado ERP</h2>
+        <p className="text-xs text-stone-500 mt-1">Carregando permissões e dados da sessão...</p>
+      </div>
+    );
+  }
+
+  // If user is not authenticated, render the beautiful ModernAuthView
+  if (!user) {
+    return (
+      <>
+        <ModernAuthView onSuccess={() => setCurrentView('dashboard')} />
+        <ToastContainer />
+      </>
+    );
+  }
 
  // Handle Quick Action Trigger
  const handleQuickAction = (actionType: 'order' | 'client' | 'product' | 'quote') => {
@@ -81,8 +101,14 @@ const AppContent: React.FC = () => {
  return <ProductionView />;
  case 'financial':
  return <FinancialView />;
+ case 'subscription':
+ return <SubscriptionBillingView />;
  case 'users':
  return <UsersPermissionsView />;
+ case 'profile':
+ return <UserProfileView />;
+ case 'account_security':
+ return <AccountSecurityView />;
  case 'settings':
  return <SettingsView />;
  default:
@@ -135,8 +161,10 @@ const AppContent: React.FC = () => {
 
 export default function App() {
  return (
- <DbProvider>
- <AppContent />
- </DbProvider>
+ <AuthProvider>
+  <DbProvider>
+   <AppContent />
+  </DbProvider>
+ </AuthProvider>
  );
 }
