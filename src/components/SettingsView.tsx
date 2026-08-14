@@ -4,10 +4,11 @@ import { applyThemeColors } from '../utils/theme';
 import { AppUser, SystemSettings } from '../types/erp';
 import { 
   Building, DollarSign, FileText, Sliders, User, Shield, 
-  Plus, Edit3, Trash2, Key, Check, AlertCircle, Eye, EyeOff, Sparkles
+  Plus, Edit3, Trash2, Key, Check, AlertCircle, Eye, EyeOff, Sparkles, CreditCard
 } from 'lucide-react';
 import { toast } from './Toast';
 import { UsersPermissionsView } from './UsersPermissionsView';
+import { SubscriptionBillingView } from './subscription/SubscriptionBillingView';
 
 export const SettingsView: React.FC = () => {
   const { settings, updateSettings, user, users, addUser, updateUser, deleteUser, resetSystem } = useDb();
@@ -18,8 +19,8 @@ export const SettingsView: React.FC = () => {
     return r.includes('admin') || r.includes('gerente') || r === 'administrador';
   };
 
-  // Active tab state: 'atelier' | 'financial' | 'documents' | 'system' | 'profile' | 'users'
-  const [activeTab, setActiveTab] = useState<'atelier' | 'financial' | 'documents' | 'system' | 'profile' | 'users'>('atelier');
+  // Active tab state: 'atelier' | 'financial' | 'documents' | 'system' | 'profile' | 'users' | 'subscription'
+  const [activeTab, setActiveTab] = useState<'atelier' | 'financial' | 'documents' | 'system' | 'profile' | 'users' | 'subscription'>('atelier');
 
   // --- 1. ATELIER STATE ---
   const [companyName, setCompanyName] = useState(settings.companyName || '');
@@ -358,6 +359,17 @@ export const SettingsView: React.FC = () => {
             <Shield size={16} /> Usuários & Permissões
           </button>
         )}
+
+        <button
+          onClick={() => { setActiveTab('subscription'); setShowUserForm(false); }}
+          className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all text-left ${
+            activeTab === 'subscription'
+              ? 'bg-amber-500/10 text-amber-700'
+              : 'text-slate-500 hover:bg-slate-50'
+          }`}
+        >
+          <CreditCard size={16} /> Planos & Assinatura
+        </button>
       </div>
 
       {/* Settings Tab Work Area Content */}
@@ -1073,6 +1085,11 @@ export const SettingsView: React.FC = () => {
         {/* TAB 6: USUÁRIOS E PERMISSÕES */}
         {activeTab === 'users' && (
           <UsersPermissionsView />
+        )}
+
+        {/* TAB 7: PLANOS & ASSINATURA */}
+        {activeTab === 'subscription' && (
+          <SubscriptionBillingView />
         )}
 
       </div>

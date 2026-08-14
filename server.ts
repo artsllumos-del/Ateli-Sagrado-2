@@ -56,28 +56,31 @@ const IV_LENGTH = 16;
 
 function encryptField(text: string): string {
   try {
+    if (!text || typeof text !== 'string') return text || '';
     const iv = crypto.randomBytes(IV_LENGTH);
-    const cipher = crypto.createCipheriv('aes-256-cbc', Buffer.from(ENCRYPTION_KEY.padEnd(32).substring(0, 32)), iv);
+    const keyBuffer = crypto.createHash('sha256').update(ENCRYPTION_KEY).digest();
+    const cipher = crypto.createCipheriv('aes-256-cbc', keyBuffer, iv);
     let encrypted = cipher.update(text);
     encrypted = Buffer.concat([encrypted, cipher.final()]);
     return iv.toString('hex') + ':' + encrypted.toString('hex');
   } catch (e) {
-    return text; // Fallback
+    return text || ''; // Fallback
   }
 }
 
 function decryptField(text: string): string {
   try {
-    if (!text.includes(':')) return text;
+    if (!text || typeof text !== 'string' || !text.includes(':')) return text || '';
     const textParts = text.split(':');
     const iv = Buffer.from(textParts.shift()!, 'hex');
     const encryptedText = Buffer.from(textParts.join(':'), 'hex');
-    const decipher = crypto.createDecipheriv('aes-256-cbc', Buffer.from(ENCRYPTION_KEY.padEnd(32).substring(0, 32)), iv);
+    const keyBuffer = crypto.createHash('sha256').update(ENCRYPTION_KEY).digest();
+    const decipher = crypto.createDecipheriv('aes-256-cbc', keyBuffer, iv);
     let decrypted = decipher.update(encryptedText);
     decrypted = Buffer.concat([decrypted, decipher.final()]);
     return decrypted.toString();
   } catch (e) {
-    return text; // Fallback
+    return text || ''; // Fallback
   }
 }
 
@@ -620,7 +623,11 @@ app.put('/api/auth/profile', authenticateToken, (req, res) => {
 
 // Users/Operators Endpoints
 app.get('/api/users', (req, res) => {
-  res.json(db.users || []);
+  const safeUsers = (db.users || []).map(u => {
+    const { password, ...rest } = u;
+    return rest;
+  });
+  res.json(safeUsers);
 });
 
 app.post('/api/users', (req, res) => {
@@ -630,7 +637,7 @@ app.post('/api/users', (req, res) => {
     username: username || name || 'operador',
     name: name || 'Novo Operador',
     email: email || '',
-    password: password || '123456',
+    password: password ? hashPassword(password) : hashPassword('123456'),
     role: role || 'Vendedor',
     isActive: isActive !== false,
     photoUrl: photoUrl || '',

@@ -67,6 +67,17 @@ export interface ProductMaterialComposition {
  cost: number; // Calculated cost based on quantity and material unitValue/weight
 }
 
+export interface ProductPaymentVariation {
+  methodId: string;
+  methodLabel: string;
+  feePercent: number;
+  price: number;
+  taxCost: number;
+  totalCostWithTax: number;
+  profit: number;
+  marginPercent: number;
+}
+
 export type ProductStatus = 'active' | 'inactive';
 
 export interface Product {
@@ -80,6 +91,19 @@ export interface Product {
  finalWeightG: number;
  sellingPrice: number;
  composition: ProductMaterialComposition[];
+ 
+ // Detailed Cost breakdown parameters
+ lossPercent?: number; // % perda (ex: 5%)
+ laborHourlyRate?: number; // R$/hora (ex: R$ 30,00/h)
+ costEmbalagem?: number; // R$ Embalagem
+ costEnergia?: number; // R$ Energia
+ costFerramentas?: number; // R$ Ferramentas
+ costOperacional?: number; // R$ Operacional
+ targetMarginPercent?: number; // % Margem desejada (ex: 50%)
+ 
+ // Payment method variations (Pix, Cartão 1x, Cartão 12x, Marketplace)
+ paymentVariations?: ProductPaymentVariation[];
+
  status: ProductStatus;
  isDeleted?: boolean;
  createdAt: string;

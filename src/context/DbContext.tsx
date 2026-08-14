@@ -587,13 +587,13 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
   return initial;
  };
 
- setClients(loadData('clients', []));
- setInventory(loadData('inventory', []));
- setProducts(loadData('products', []));
- setQuotes(loadData('quotes', []));
- setOrders(loadData('orders', []));
- setProductionTasks(loadData('production_tasks', []));
- setTransactions(loadData('transactions', []));
+ setClients(loadData('clients', initialClients));
+ setInventory(loadData('inventory', initialInventory));
+ setProducts(loadData('products', initialProducts));
+ setQuotes(loadData('quotes', initialQuotes));
+ setOrders(loadData('orders', initialOrders));
+ setProductionTasks(loadData('production_tasks', initialProductionTasks));
+ setTransactions(loadData('transactions', initialTransactions));
 
  const initialAgendaActivities: AgendaActivity[] = [];
 
@@ -661,6 +661,19 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
  }
  loadedSettings.theme = 'light';
  setSettings(loadedSettings);
+ }, []);
+
+ // Real-time inter-tab storage synchronization
+ useEffect(() => {
+  const handleStorageChange = (e: StorageEvent) => {
+   if (e.key && e.key.startsWith('as_')) {
+    syncAllData();
+   }
+  };
+  window.addEventListener('storage', handleStorageChange);
+  return () => {
+   window.removeEventListener('storage', handleStorageChange);
+  };
  }, []);
 
  // Sync theme class reactively with document root (always light as requested)
@@ -2182,6 +2195,8 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     setTransactions(loadLatest('transactions'));
     setAgendaActivities(loadLatest('agenda_activities'));
     setAuditLogs(loadLatest('audit_logs'));
+    setUsers(loadLatest('users'));
+    setNotifications(loadLatest('notifications'));
 
     const storedSettings = localStorage.getItem('as_settings');
     if (storedSettings) {

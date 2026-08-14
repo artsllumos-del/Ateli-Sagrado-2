@@ -106,9 +106,8 @@ const AppContent: React.FC = () => {
  case 'users':
  return <UsersPermissionsView />;
  case 'profile':
- return <UserProfileView />;
  case 'account_security':
- return <AccountSecurityView />;
+ return <UserProfileView />;
  case 'settings':
  return <SettingsView />;
  default:

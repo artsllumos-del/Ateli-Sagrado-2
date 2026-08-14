@@ -14,7 +14,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 
 type PaymentMethod = 'pix' | 'credit_card' | 'debit_card' | 'cash' | 'bank_slip';
-type ActiveTab = 'dashboard' | 'simulator' | 'reconciliation';
+type ActiveTab = 'dashboard' | 'dre' | 'simulator' | 'reconciliation';
 
 export const FinancialView: React.FC = () => {
   const { 
@@ -464,7 +464,7 @@ export const FinancialView: React.FC = () => {
         </div>
         
         {/* Navigation Tabs */}
-        <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 shrink-0">
+        <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 shrink-0 flex-wrap gap-1">
           <button 
             onClick={() => setActiveTab('dashboard')}
             className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
@@ -473,6 +473,15 @@ export const FinancialView: React.FC = () => {
           >
             <BarChart3 size={13} />
             <span>Painel Integrado</span>
+          </button>
+          <button 
+            onClick={() => setActiveTab('dre')}
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+              activeTab === 'dre' ? 'bg-white text-slate-950 shadow-xs' : 'text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            <FileText size={13} />
+            <span>DRE Gerencial</span>
           </button>
           <button 
             onClick={() => setActiveTab('simulator')}
@@ -1006,7 +1015,268 @@ export const FinancialView: React.FC = () => {
       )}
 
       {/* ----------------------------------------------------
-          TAB 2: SIMULADOR & PROJEÇÕES
+          TAB 2: DRE GERENCIAL (DEMONSTRATIVO DO RESULTADO)
+          ---------------------------------------------------- */}
+      {activeTab === 'dre' && (() => {
+        const grossRevenueTotal = totalOperationalRevenue + totalRevenuesBookkeeping;
+        const estimatedTaxes = grossRevenueTotal * 0.035;
+        const netRevenue = grossRevenueTotal - estimatedTaxes;
+
+        const lossCostTotal = (completedDirectMaterialCost + pendingDirectMaterialCost) * 0.05;
+        const totalCMV = completedDirectMaterialCost + pendingDirectMaterialCost + lossCostTotal;
+        const totalLaborCostDRE = realLaborCost;
+
+        const grossProfitDRE = netRevenue - totalCMV - totalLaborCostDRE;
+        const totalIndirectCostsDRE = completedIndirectCost + pendingIndirectCost;
+        const totalOperatingExpensesDRE = generalExpenses;
+
+        const netOperatingProfitDRE = grossProfitDRE - totalIndirectCostsDRE - totalOperatingExpensesDRE;
+        const netMarginDRE = grossRevenueTotal > 0 ? (netOperatingProfitDRE / grossRevenueTotal) * 100 : 0;
+
+        return (
+          <div className="space-y-6">
+            
+            {/* Header / Explanation Card */}
+            <div className="bg-gradient-to-br from-[#FFFDF9] via-white to-[#FFFDF9] border border-gold-500/20 p-5 rounded-2xl shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-gold-500/10 border border-gold-500/20 text-gold-700 text-[9px] font-bold uppercase rounded-full">
+                  <Sparkles size={10} /> Harmonização Contábil & Financeira
+                </span>
+                <h3 className="text-base font-serif font-bold text-slate-900 mt-1">
+                  Demonstrativo do Resultado do Exercício (DRE Gerencial)
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5 max-w-2xl">
+                  Integração automatizada entre vendas efetuadas, consumo real de matérias-primas do estoque (CMV), custos de mão de obra de fabricação, despesas operacionais e fluxo de caixa.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="text-[10px] font-bold text-slate-400 uppercase font-mono">Status Financeiro:</span>
+                <span className={`px-3 py-1 rounded-full text-xs font-bold font-mono ${
+                  netOperatingProfitDRE >= 0 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'
+                }`}>
+                  {netOperatingProfitDRE >= 0 ? 'LUCRO OPERACIONAL' : 'PREJUÍZO OPERACIONAL'}
+                </span>
+              </div>
+            </div>
+
+            {/* 5 Pillars Summary Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+              
+              <div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-3xs">
+                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block font-mono">1. Receita Bruta</span>
+                <p className="text-lg font-black font-mono text-slate-900 mt-1">R$ {grossRevenueTotal.toFixed(2)}</p>
+                <span className="text-[10px] text-slate-500 block mt-0.5">Vendas + Entradas Caixa</span>
+              </div>
+
+              <div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-3xs">
+                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block font-mono">2. Insumos / CMV</span>
+                <p className="text-lg font-black font-mono text-rose-600 mt-1">R$ {totalCMV.toFixed(2)}</p>
+                <span className="text-[10px] text-slate-500 block mt-0.5">Matérias-Primas Estoque</span>
+              </div>
+
+              <div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-3xs">
+                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block font-mono">3. Mão de Obra</span>
+                <p className="text-lg font-black font-mono text-indigo-600 mt-1">R$ {totalLaborCostDRE.toFixed(2)}</p>
+                <span className="text-[10px] text-slate-500 block mt-0.5">Horas Chão de Fábrica</span>
+              </div>
+
+              <div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-3xs">
+                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block font-mono">4. Indiretos & Fixos</span>
+                <p className="text-lg font-black font-mono text-amber-600 mt-1">R$ {(totalIndirectCostsDRE + totalOperatingExpensesDRE).toFixed(2)}</p>
+                <span className="text-[10px] text-slate-500 block mt-0.5">Embalagem, Energia e Operação</span>
+              </div>
+
+              <div className="bg-[#FAF8F3] border border-amber-300 p-4 rounded-2xl shadow-3xs">
+                <span className="text-[9px] font-bold text-amber-800 uppercase tracking-wider block font-mono">5. Lucro Líquido</span>
+                <p className={`text-lg font-black font-mono mt-1 ${netOperatingProfitDRE >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                  R$ {netOperatingProfitDRE.toFixed(2)}
+                </p>
+                <span className="text-[10px] text-emerald-700 font-bold block mt-0.5">{netMarginDRE.toFixed(1)}% Margem Líquida</span>
+              </div>
+
+            </div>
+
+            {/* Structured DRE Accounting Table */}
+            <div className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
+              <div className="p-4 bg-slate-50 border-b border-slate-150 flex items-center justify-between">
+                <div>
+                  <h4 className="font-serif font-bold text-xs uppercase text-slate-800">Estrutura Detalhada do DRE (Análise Vertical)</h4>
+                  <p className="text-[10px] text-slate-500 mt-0.5">Metodologia gerencial de custeio por absorção e margem de contribuição.</p>
+                </div>
+                <span className="text-[10px] text-slate-400 font-mono">Base: Faturamento Bruto (100%)</span>
+              </div>
+
+              <div className="divide-y divide-slate-100 text-xs">
+                
+                {/* 1. Receita Bruta */}
+                <div className="p-4 bg-slate-50/60 flex justify-between items-center font-bold text-slate-900">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                    <span>(+) RECEITA OPERACIONAL BRUTA</span>
+                  </div>
+                  <div className="flex items-center gap-8 font-mono">
+                    <span>R$ {grossRevenueTotal.toFixed(2)}</span>
+                    <span className="text-[10px] text-slate-500 w-12 text-right">100.0%</span>
+                  </div>
+                </div>
+
+                <div className="pl-8 pr-4 py-2 flex justify-between text-slate-600">
+                  <span>• Vendas Concluídas (Pedidos de Venda)</span>
+                  <span className="font-mono">R$ {realizedRevenue.toFixed(2)}</span>
+                </div>
+                <div className="pl-8 pr-4 py-2 flex justify-between text-slate-600">
+                  <span>• Pedidos Aprovados em Produção (Faturamento Pendente)</span>
+                  <span className="font-mono">R$ {pendingRevenue.toFixed(2)}</span>
+                </div>
+                <div className="pl-8 pr-4 py-2 flex justify-between text-slate-600">
+                  <span>• Outros Recebimentos Avulsos (Livro Caixa)</span>
+                  <span className="font-mono">R$ {totalRevenuesBookkeeping.toFixed(2)}</span>
+                </div>
+
+                {/* 2. Deduções da Receita */}
+                <div className="p-4 flex justify-between items-center font-bold text-rose-700 bg-rose-50/20">
+                  <span>(-) DEDUÇÕES DA RECEITA & TAXAS DE PAGAMENTO (Taxas Médias de Cartão/Pix/Marketplace)</span>
+                  <div className="flex items-center gap-8 font-mono">
+                    <span>- R$ {estimatedTaxes.toFixed(2)}</span>
+                    <span className="text-[10px] text-rose-500 w-12 text-right">
+                      {grossRevenueTotal > 0 ? ((estimatedTaxes / grossRevenueTotal) * 100).toFixed(1) : 0}%
+                    </span>
+                  </div>
+                </div>
+
+                {/* 3. Receita Líquida */}
+                <div className="p-4 bg-slate-100/80 flex justify-between items-center font-bold text-slate-900">
+                  <span>(=) RECEITA OPERACIONAL LÍQUIDA</span>
+                  <div className="flex items-center gap-8 font-mono">
+                    <span>R$ {netRevenue.toFixed(2)}</span>
+                    <span className="text-[10px] text-slate-500 w-12 text-right">
+                      {grossRevenueTotal > 0 ? ((netRevenue / grossRevenueTotal) * 100).toFixed(1) : 0}%
+                    </span>
+                  </div>
+                </div>
+
+                {/* 4. CMV - Estoque */}
+                <div className="p-4 flex justify-between items-center font-bold text-rose-700 bg-rose-50/20">
+                  <span>(-) CUSTO DAS MERCADORIAS VENDIDAS (CMV - CONSUMO DE INSUMOS DO ESTOQUE)</span>
+                  <div className="flex items-center gap-8 font-mono">
+                    <span>- R$ {totalCMV.toFixed(2)}</span>
+                    <span className="text-[10px] text-rose-500 w-12 text-right">
+                      {grossRevenueTotal > 0 ? ((totalCMV / grossRevenueTotal) * 100).toFixed(1) : 0}%
+                    </span>
+                  </div>
+                </div>
+
+                <div className="pl-8 pr-4 py-2 flex justify-between text-slate-600">
+                  <span>• Custo Direto de Matérias-Primas Consumidas nos Produtos</span>
+                  <span className="font-mono">R$ {(completedDirectMaterialCost + pendingDirectMaterialCost).toFixed(2)}</span>
+                </div>
+                <div className="pl-8 pr-4 py-2 flex justify-between text-slate-600">
+                  <span>• Provisão para Margem de Perda de Insumos (5%)</span>
+                  <span className="font-mono">R$ {lossCostTotal.toFixed(2)}</span>
+                </div>
+
+                {/* 5. Mão de Obra */}
+                <div className="p-4 flex justify-between items-center font-bold text-indigo-700 bg-indigo-50/20">
+                  <span>(-) CUSTO DA MÃO DE OBRA DIRETA (PRODUÇÃO E CHÃO DE FÁBRICA)</span>
+                  <div className="flex items-center gap-8 font-mono">
+                    <span>- R$ {totalLaborCostDRE.toFixed(2)}</span>
+                    <span className="text-[10px] text-indigo-500 w-12 text-right">
+                      {grossRevenueTotal > 0 ? ((totalLaborCostDRE / grossRevenueTotal) * 100).toFixed(1) : 0}%
+                    </span>
+                  </div>
+                </div>
+
+                <div className="pl-8 pr-4 py-2 flex justify-between text-slate-600">
+                  <span>• Mão de Obra Direta ({totalMinutesSpent} minutos x R$ {hourlyRate.toFixed(2)}/h)</span>
+                  <span className="font-mono">R$ {realLaborCost.toFixed(2)}</span>
+                </div>
+
+                {/* 6. Lucro Bruto */}
+                <div className="p-4 bg-emerald-50/40 flex justify-between items-center font-extrabold text-emerald-900 border-t border-emerald-200">
+                  <span>(=) LUCRO BRUTO OPERACIONAL</span>
+                  <div className="flex items-center gap-8 font-mono text-sm">
+                    <span>R$ {grossProfitDRE.toFixed(2)}</span>
+                    <span className="text-[10px] text-emerald-700 w-12 text-right">
+                      {grossRevenueTotal > 0 ? ((grossProfitDRE / grossRevenueTotal) * 100).toFixed(1) : 0}%
+                    </span>
+                  </div>
+                </div>
+
+                {/* 7. Custos Indiretos e Despesas Operacionais */}
+                <div className="p-4 flex justify-between items-center font-bold text-amber-800 bg-amber-50/20">
+                  <span>(-) CUSTOS INDIRETOS E DESPESAS OPERACIONAIS FIXAS</span>
+                  <div className="flex items-center gap-8 font-mono">
+                    <span>- R$ {(totalIndirectCostsDRE + totalOperatingExpensesDRE).toFixed(2)}</span>
+                    <span className="text-[10px] text-amber-600 w-12 text-right">
+                      {grossRevenueTotal > 0 ? (((totalIndirectCostsDRE + totalOperatingExpensesDRE) / grossRevenueTotal) * 100).toFixed(1) : 0}%
+                    </span>
+                  </div>
+                </div>
+
+                <div className="pl-8 pr-4 py-2 flex justify-between text-slate-600">
+                  <span>• Indiretos de Fabricação (Embalagem, Energia, Ferramentas, Operacional)</span>
+                  <span className="font-mono">R$ {totalIndirectCostsDRE.toFixed(2)}</span>
+                </div>
+                <div className="pl-8 pr-4 py-2 flex justify-between text-slate-600">
+                  <span>• Despesas Gerais e Administrativas (Livro Caixa)</span>
+                  <span className="font-mono">R$ {totalOperatingExpensesDRE.toFixed(2)}</span>
+                </div>
+
+                {/* 8. Lucro Líquido Operacional Final */}
+                <div className={`p-5 flex justify-between items-center font-black text-base ${
+                  netOperatingProfitDRE >= 0 ? 'bg-slate-900 text-amber-400' : 'bg-rose-900 text-white'
+                }`}>
+                  <span>(=) RESULTADO LÍQUIDO OPERACIONAL (LUCRO LÍQUIDO FINAL)</span>
+                  <div className="flex items-center gap-8 font-mono">
+                    <span>R$ {netOperatingProfitDRE.toFixed(2)}</span>
+                    <span className="text-xs bg-white/10 px-2 py-0.5 rounded font-mono">
+                      {netMarginDRE.toFixed(1)}% Margem
+                    </span>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+            {/* Methodology Compatibility Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+              
+              <div className="bg-white border border-slate-200/85 p-5 rounded-2xl space-y-2">
+                <div className="flex items-center gap-2 text-slate-800 font-bold text-xs uppercase tracking-wider">
+                  <Layers className="text-rose-500" size={15} /> Estoque ↔ DRE
+                </div>
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  Matérias-primas estocadas representam <strong>Patrimônio Ativo (R$ {totalStockAssetValuation.toFixed(2)})</strong>. Somente se tornam custo (CMV) quando transformadas em produtos e vendidas aos clientes.
+                </p>
+              </div>
+
+              <div className="bg-white border border-slate-200/85 p-5 rounded-2xl space-y-2">
+                <div className="flex items-center gap-2 text-slate-800 font-bold text-xs uppercase tracking-wider">
+                  <Hammer className="text-indigo-500" size={15} /> Mão de Obra ↔ Chão de Fábrica
+                </div>
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  O custo de fabricação é mensurado via minutagem real no Chão de Fábrica multiplicada pela taxa horária cadastrada no ateliê (R$ {hourlyRate.toFixed(2)}/h).
+                </p>
+              </div>
+
+              <div className="bg-white border border-slate-200/85 p-5 rounded-2xl space-y-2">
+                <div className="flex items-center gap-2 text-slate-800 font-bold text-xs uppercase tracking-wider">
+                  <CreditCard className="text-amber-500" size={15} /> Formas de Pagamento ↔ Receita
+                </div>
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  Tabelas de preços ajustam dinamicamente as taxas de cartões e marketplaces, preservando a margem líquida almejada em cada canal de cobrança.
+                </p>
+              </div>
+
+            </div>
+
+          </div>
+        );
+      })()}
+
+      {/* ----------------------------------------------------
+          TAB 3: SIMULADOR & PROJEÇÕES
           ---------------------------------------------------- */}
       {activeTab === 'simulator' && (
         <div className="space-y-6">

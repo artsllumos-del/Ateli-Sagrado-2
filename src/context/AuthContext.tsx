@@ -58,6 +58,9 @@ interface AuthContextType {
   reactivateSubscription: () => Promise<UserSubscription>;
   checkLimit: (resourceKey: keyof SubscriptionUsage, amountToAdd?: number) => Promise<{ allowed: boolean; current: number; max: number; message?: string }>;
   recordUsageDelta: (delta: Partial<SubscriptionUsage>) => Promise<void>;
+  addPaymentMethod: (method: Omit<PaymentMethod, 'id'>) => Promise<PaymentMethod>;
+  removePaymentMethod: (methodId: string) => Promise<void>;
+  setDefaultPaymentMethod: (methodId: string) => Promise<void>;
 
   // Session Management
   revokeSession: (sessionId: string) => Promise<void>;
@@ -286,6 +289,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setSubscription(prev => prev ? { ...prev, usage: newUsage } : null);
   };
 
+  const addPaymentMethod = async (method: Omit<PaymentMethod, 'id'>) => {
+    if (!user) throw new Error('Usuário não autenticado');
+    const newPm = await billingRepo.addPaymentMethod(user.id, method);
+    const updated = await billingRepo.getPaymentMethods(user.id);
+    setPaymentMethods(updated);
+    return newPm;
+  };
+
+  const removePaymentMethod = async (methodId: string) => {
+    if (!user) return;
+    await billingRepo.removePaymentMethod(user.id, methodId);
+    const updated = await billingRepo.getPaymentMethods(user.id);
+    setPaymentMethods(updated);
+  };
+
+  const setDefaultPaymentMethod = async (methodId: string) => {
+    if (!user) return;
+    await billingRepo.setDefaultPaymentMethod(user.id, methodId);
+    const updated = await billingRepo.getPaymentMethods(user.id);
+    setPaymentMethods(updated);
+  };
+
   const revokeSession = async (sessionId: string) => {
     await sessionRepo.revokeSession(sessionId);
     if (user) {
@@ -384,6 +409,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       reactivateSubscription,
       checkLimit,
       recordUsageDelta,
+      addPaymentMethod,
+      removePaymentMethod,
+      setDefaultPaymentMethod,
       revokeSession,
       revokeAllOtherSessions,
       hasPermission,
