@@ -1,9 +1,7 @@
 import React, { useState } from 'react';
 import { useDb } from '../context/DbContext';
-import { Menu, Search, Bell, Sparkles, UserPlus, ShoppingCart, FileText, ChevronRight, Trash2, Eye, EyeOff, CheckCircle2, AlertTriangle, AlertCircle, Info, Plus, Database } from 'lucide-react';
+import { Menu, Search, Bell, Sparkles, UserPlus, ShoppingCart, FileText, ChevronRight, Trash2, Eye, EyeOff, CheckCircle2, AlertTriangle, AlertCircle, Info, Plus } from 'lucide-react';
 import { toast } from './Toast';
-import { SupabaseConfigModal } from './supabase/SupabaseConfigModal';
-import { isSupabaseConfigured } from '../lib/supabase';
 
 interface HeaderProps {
  onMenuToggle: () => void;
@@ -33,10 +31,7 @@ interface HeaderProps {
   const [searchQuery, setSearchQuery] = useState('');
   const [showQuickMenu, setShowQuickMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
-  const [showSupabaseModal, setShowSupabaseModal] = useState(false);
   const [notifFilter, setNotifFilter] = useState<'all' | 'unread' | 'read'>('all');
-
-  const isSupabaseReady = isSupabaseConfigured();
 
  // Determine low/critical stock warnings
  const lowStockItems = inventory.filter(i => !i.isDeleted && i.quantity <= i.minQuantity && i.quantity > 0);
@@ -54,7 +49,6 @@ interface HeaderProps {
   orders: 'Pedidos de Venda',
   production: 'Chão de Fábrica (Produção)',
   financial: 'Fluxo Financeiro',
-  tenants: 'Multi-Ateliês & Unidades',
   subscription: 'Planos & Assinatura',
   users: 'Operadores & Permissões',
   profile: 'Meu Perfil',
@@ -176,23 +170,6 @@ interface HeaderProps {
       </>
      )}
     </div>
-
-    {/* Supabase Cloud DB Status Button */}
-    <button
-      onClick={() => setShowSupabaseModal(true)}
-      className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
-        isSupabaseReady
-          ? 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100/80 shadow-2xs'
-          : 'bg-stone-50 text-stone-700 border-stone-200 hover:bg-stone-100 hover:text-stone-900'
-      }`}
-      title={isSupabaseReady ? "Supabase Conectado - Clique para gerenciar" : "Conectar com Banco Supabase"}
-    >
-      <Database size={14} className={isSupabaseReady ? "text-emerald-600" : "text-stone-400"} />
-      <span className="hidden sm:inline text-[11px]">
-        {isSupabaseReady ? 'Supabase Ativo' : 'Supabase'}
-      </span>
-      <span className={`w-1.5 h-1.5 rounded-full ${isSupabaseReady ? 'bg-emerald-500 ring-2 ring-emerald-200 animate-pulse' : 'bg-amber-400'}`} />
-    </button>
 
     {/* Notifications Button */}
     <div className="relative">
@@ -321,12 +298,6 @@ interface HeaderProps {
 
     </div>
    )}
-
-   {/* Supabase Connection & Configuration Modal */}
-   <SupabaseConfigModal 
-     isOpen={showSupabaseModal} 
-     onClose={() => setShowSupabaseModal(false)} 
-   />
   </header>
  );
 };

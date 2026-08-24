@@ -18,8 +18,7 @@ import {
   ShoppingBag, 
   CreditCard, 
   UserCheck, 
-  ShieldCheck,
-  Building2
+  ShieldCheck 
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -57,7 +56,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, isO
     { id: 'orders', label: 'Pedidos de Venda', icon: ShoppingCart },
     { id: 'production', label: 'Chão de Fábrica', icon: Hammer },
     { id: 'financial', label: 'Fluxo Financeiro', icon: TrendingUp },
-    { id: 'tenants', label: 'Multi-Ateliês & Unidades', icon: Building2 },
     { id: 'subscription', label: 'Planos & Assinatura', icon: CreditCard },
     { id: 'users', label: 'Operadores & Permissões', icon: Shield },
     { id: 'profile', label: 'Meu Perfil & Segurança', icon: UserCheck },
