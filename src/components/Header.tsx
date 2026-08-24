@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { useDb } from '../context/DbContext';
-import { Menu, Search, Bell, Sparkles, UserPlus, ShoppingCart, FileText, ChevronRight, Trash2, Eye, EyeOff, CheckCircle2, AlertTriangle, AlertCircle, Info } from 'lucide-react';
+import { Menu, Search, Bell, Sparkles, UserPlus, ShoppingCart, FileText, ChevronRight, Trash2, Eye, EyeOff, CheckCircle2, AlertTriangle, AlertCircle, Info, Plus, Database } from 'lucide-react';
 import { toast } from './Toast';
+import { SupabaseConfigModal } from './supabase/SupabaseConfigModal';
+import { isSupabaseConfigured } from '../lib/supabase';
 
 interface HeaderProps {
  onMenuToggle: () => void;
@@ -17,6 +19,7 @@ interface HeaderProps {
   onQuickAction
  }) => {
   const { 
+   currentTenant,
    inventory, 
    orders,
    notifications,
@@ -24,13 +27,16 @@ interface HeaderProps {
    markNotificationAsRead,
    markAllNotificationsAsRead,
    clearNotification,
-   clearAllNotifications
+   clearAllNotifications,
+   settings
   } = useDb();
-  const { settings } = useDb();
   const [searchQuery, setSearchQuery] = useState('');
   const [showQuickMenu, setShowQuickMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showSupabaseModal, setShowSupabaseModal] = useState(false);
   const [notifFilter, setNotifFilter] = useState<'all' | 'unread' | 'read'>('all');
+
+  const isSupabaseReady = isSupabaseConfigured();
 
  // Determine low/critical stock warnings
  const lowStockItems = inventory.filter(i => !i.isDeleted && i.quantity <= i.minQuantity && i.quantity > 0);
@@ -48,6 +54,7 @@ interface HeaderProps {
   orders: 'Pedidos de Venda',
   production: 'Chão de Fábrica (Produção)',
   financial: 'Fluxo Financeiro',
+  tenants: 'Multi-Ateliês & Unidades',
   subscription: 'Planos & Assinatura',
   users: 'Operadores & Permissões',
   profile: 'Meu Perfil',
@@ -81,8 +88,8 @@ interface HeaderProps {
  return (
   <header className="h-16 border-b border-[rgba(42,36,32,0.06)] bg-[#FFFDF9] px-6 flex items-center justify-between sticky top-0 z-30 print:hidden">
   
-   {/* Left Area: Hamburger and Breadcrumb */}
-   <div className="flex items-center gap-4">
+   {/* Left Area: Hamburger and Ateliê Brand Badge */}
+   <div className="flex items-center gap-3">
     <button 
      onClick={onMenuToggle}
      className="p-2 -ml-2 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-700 lg:hidden cursor-pointer"
@@ -90,15 +97,21 @@ interface HeaderProps {
      <Menu size={20} />
     </button>
 
-    <div className="flex items-center gap-1.5 sm:gap-2 text-xs font-medium text-ink-500">
-     <span className="hidden sm:inline hover:text-gold-600 transition-colors cursor-pointer font-sans" onClick={() => onViewChange('dashboard')}>
-      {settings.companyName || 'Ateliê Sagrado'}
-     </span>
-     <ChevronRight size={14} className="hidden sm:inline text-slate-300" />
-     <span className="text-ink-900 font-serif italic font-semibold truncate max-w-[130px] sm:max-w-none">
-      {viewLabels[currentView] || currentView}
+    {/* Dedicated Ateliê Brand Badge */}
+    <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs font-bold text-amber-950 shadow-2xs">
+     <div 
+      className="w-2.5 h-2.5 rounded-full ring-2 ring-white shrink-0" 
+      style={{ backgroundColor: currentTenant?.primaryColor || '#D4AF37' }}
+     />
+     <span className="truncate max-w-[140px] sm:max-w-[200px]">
+      {currentTenant?.name || settings.companyName || 'Ateliê Sagrado'}
      </span>
     </div>
+
+    <ChevronRight size={14} className="hidden sm:inline text-slate-300" />
+    <span className="text-ink-900 font-serif italic font-semibold truncate max-w-[110px] sm:max-w-none text-xs">
+     {viewLabels[currentView] || currentView}
+    </span>
    </div>
 
    {/* Right Area: Search, Actions, Notifications */}
@@ -163,6 +176,23 @@ interface HeaderProps {
       </>
      )}
     </div>
+
+    {/* Supabase Cloud DB Status Button */}
+    <button
+      onClick={() => setShowSupabaseModal(true)}
+      className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+        isSupabaseReady
+          ? 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100/80 shadow-2xs'
+          : 'bg-stone-50 text-stone-700 border-stone-200 hover:bg-stone-100 hover:text-stone-900'
+      }`}
+      title={isSupabaseReady ? "Supabase Conectado - Clique para gerenciar" : "Conectar com Banco Supabase"}
+    >
+      <Database size={14} className={isSupabaseReady ? "text-emerald-600" : "text-stone-400"} />
+      <span className="hidden sm:inline text-[11px]">
+        {isSupabaseReady ? 'Supabase Ativo' : 'Supabase'}
+      </span>
+      <span className={`w-1.5 h-1.5 rounded-full ${isSupabaseReady ? 'bg-emerald-500 ring-2 ring-emerald-200 animate-pulse' : 'bg-amber-400'}`} />
+    </button>
 
     {/* Notifications Button */}
     <div className="relative">
@@ -291,6 +321,12 @@ interface HeaderProps {
 
     </div>
    )}
+
+   {/* Supabase Connection & Configuration Modal */}
+   <SupabaseConfigModal 
+     isOpen={showSupabaseModal} 
+     onClose={() => setShowSupabaseModal(false)} 
+   />
   </header>
  );
 };

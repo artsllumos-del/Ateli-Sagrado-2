@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { applyThemeColors } from '../utils/theme';
 import { 
+ Tenant,
  Client, 
  InventoryItem, 
  Product, 
@@ -21,6 +22,14 @@ import {
 } from '../types/erp';
 
  interface DbContextType {
+ // Multi-Tenant Core
+ tenants: Tenant[];
+ currentTenant: Tenant;
+ switchTenant: (tenantId: string) => void;
+ createTenant: (tenant: Omit<Tenant, 'id' | 'createdAt'>) => Promise<Tenant>;
+ updateTenant: (id: string, tenant: Partial<Tenant>) => Promise<Tenant>;
+ deleteTenant: (id: string) => Promise<boolean>;
+
  clients: Client[];
  inventory: InventoryItem[];
  products: Product[];
@@ -160,391 +169,787 @@ userTimezone: "GMT-3",
  notificationsEnabled: true
 };
 
+const initialTenants: Tenant[] = [
+  {
+    id: "tenant_atelie_sagrado",
+    name: "Ateliê Sagrado",
+    slug: "atelie-sagrado",
+    document: "12.345.678/0001-90",
+    razaoSocial: "Ateliê Sagrado Arte Sacra LTDA",
+    nomeFantasia: "Ateliê Sagrado",
+    email: "contato@ateliesagrado.com.br",
+    phone: "(11) 98765-4321",
+    address: "Rua das Flores, 120 - Centro, São Paulo/SP",
+    primaryColor: "#D4AF37",
+    planId: "professional",
+    status: "active",
+    ownerId: "user_admin",
+    createdAt: "2026-01-01T00:00:00.000Z"
+  },
+  {
+    id: "tenant_luz_divina",
+    name: "Studio Luz Divina",
+    slug: "luz-divina",
+    document: "98.765.432/0001-10",
+    razaoSocial: "Luz Divina Artesanatos ME",
+    nomeFantasia: "Studio Luz Divina",
+    email: "contato@luzdivina.com",
+    phone: "(21) 98888-7777",
+    address: "Rua do Rosário, 88 - Centro, Rio de Janeiro/RJ",
+    primaryColor: "#10B981",
+    planId: "basic",
+    status: "active",
+    ownerId: "user_admin_luz",
+    createdAt: "2026-03-01T00:00:00.000Z"
+  }
+];
+
 const initialClients: Client[] = [
- {
- id: "c1",
- type: "PF",
- name: "Ana Maria de Sousa",
- cpf: "123.456.789-00",
- email: "anamaria@gmail.com",
- phone: "(11) 99111-2222",
- whatsapp: "(11) 99111-2222",
- cep: "04012-010",
- street: "Rua Domingos de Morais",
- number: "500",
- complement: "Apto 42",
- neighborhood: "Vila Mariana",
- city: "São Paulo",
- state: "SP",
- createdAt: "2026-05-10T10:00:00Z"
- },
- {
- id: "c2",
- type: "PJ",
- name: "Paróquia Nossa Senhora da Paz",
- nomeFantasia: "Paróquia NS Paz",
- cnpj: "98.765.432/0001-11",
- responsavel: "Padre Julio Lancellotti",
- email: "contato@nspaz.org.br",
- phone: "(11) 3211-4400",
- whatsapp: "(11) 98222-3333",
- cep: "01519-000",
- street: "Rua do Glicério",
- number: "225",
- neighborhood: "Liberdade",
- city: "São Paulo",
- state: "SP",
- createdAt: "2026-05-15T14:30:00Z"
- },
- {
- id: "c3",
- type: "PF",
- name: "Carlos Eduardo Santos",
- cpf: "987.654.321-11",
- email: "carlosedu@hotmail.com",
- phone: "(21) 97100-5050",
- whatsapp: "(21) 97100-5050",
- cep: "22020-001",
- street: "Avenida Atlântica",
- number: "1702",
- neighborhood: "Copacabana",
- city: "Rio de Janeiro",
- state: "RJ",
- createdAt: "2026-05-20T11:15:00Z"
- }
+  // --- ATELIÊ 1: ATELIÊ SAGRADO ---
+  {
+    id: "c1",
+    tenantId: "tenant_atelie_sagrado",
+    type: "PF",
+    name: "Ana Maria de Sousa",
+    cpf: "123.456.789-00",
+    email: "anamaria@gmail.com",
+    phone: "(11) 99111-2222",
+    whatsapp: "(11) 99111-2222",
+    cep: "04012-010",
+    street: "Rua Domingos de Morais",
+    number: "500",
+    complement: "Apto 42",
+    neighborhood: "Vila Mariana",
+    city: "São Paulo",
+    state: "SP",
+    createdAt: "2026-05-10T10:00:00Z"
+  },
+  {
+    id: "c2",
+    tenantId: "tenant_atelie_sagrado",
+    type: "PJ",
+    name: "Paróquia Nossa Senhora da Paz",
+    nomeFantasia: "Paróquia NS Paz",
+    cnpj: "98.765.432/0001-11",
+    responsavel: "Padre Julio Lancellotti",
+    email: "contato@nspaz.org.br",
+    phone: "(11) 3211-4400",
+    whatsapp: "(11) 98222-3333",
+    cep: "01519-000",
+    street: "Rua do Glicério",
+    number: "225",
+    neighborhood: "Liberdade",
+    city: "São Paulo",
+    state: "SP",
+    createdAt: "2026-05-15T14:30:00Z"
+  },
+  {
+    id: "c3",
+    tenantId: "tenant_atelie_sagrado",
+    type: "PF",
+    name: "Carlos Eduardo Santos",
+    cpf: "987.654.321-11",
+    email: "carlosedu@hotmail.com",
+    phone: "(11) 97100-5050",
+    whatsapp: "(11) 97100-5050",
+    cep: "04530-001",
+    street: "Rua Joaquim Floriano",
+    number: "820",
+    neighborhood: "Itaim Bibi",
+    city: "São Paulo",
+    state: "SP",
+    createdAt: "2026-05-20T11:15:00Z"
+  },
+  // --- ATELIÊ 2: STUDIO LUZ DIVINA ---
+  {
+    id: "c_luz_1",
+    tenantId: "tenant_luz_divina",
+    type: "PJ",
+    name: "Santuário Mãe de Deus - RJ",
+    nomeFantasia: "Santuário Mãe de Deus",
+    cnpj: "23.456.789/0001-99",
+    responsavel: "Monsenhor Roberto",
+    email: "contato@santuariomaededeus.org.br",
+    phone: "(21) 3344-5566",
+    whatsapp: "(21) 99888-4433",
+    cep: "20040-002",
+    street: "Praça XV de Novembro",
+    number: "34",
+    neighborhood: "Centro",
+    city: "Rio de Janeiro",
+    state: "RJ",
+    createdAt: "2026-05-12T09:00:00Z"
+  },
+  {
+    id: "c_luz_2",
+    tenantId: "tenant_luz_divina",
+    type: "PF",
+    name: "Roberto Gonçalves Ribeiro",
+    cpf: "456.789.012-34",
+    email: "roberto.goncalves@uol.com.br",
+    phone: "(21) 98765-1122",
+    whatsapp: "(21) 98765-1122",
+    cep: "22020-001",
+    street: "Avenida Atlântica",
+    number: "1702",
+    neighborhood: "Copacabana",
+    city: "Rio de Janeiro",
+    state: "RJ",
+    createdAt: "2026-05-18T16:00:00Z"
+  }
 ];
 
 const initialInventory: InventoryItem[] = [
- {
- id: "m1",
- name: "Pérola de Água Doce Branca (8mm)",
- category: "Contas e Pérolas",
- code: "PER-001",
- description: "Pérolas naturais cultivadas em água doce, furo passante de 0.8mm.",
- supplier: "Beads Importadora",
- unit: "pacote (100 un)",
- weightG: 120,
- quantity: 4, // 400 beads total
- minQuantity: 5, // low stock alert!
- unitValue: 45.00, // R$ 45,00 per package of 100
- calcMethod: "fixed",
- notes: "Material de altíssima qualidade para terços de noivas.",
- status: "active",
- createdAt: "2026-05-01T09:00:00Z",
- imageUrl: "https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?q=80&w=300&auto=format&fit=crop"
- },
- {
- id: "m2",
- name: "Crucifixo Clássico Folheado a Ouro",
- category: "Metais e Entremeios",
- code: "CRU-002",
- description: "Crucifixo decorado com detalhes barrocos, banho de 5 milésimos de ouro.",
- supplier: "Metais Sacros Ltda",
- unit: "unidade",
- weightG: 15,
- quantity: 12,
- minQuantity: 15, // low stock alert!
- unitValue: 18.50,
- calcMethod: "fixed",
- notes: "Crucifixo para terços grandes e luxuosos.",
- status: "active",
- createdAt: "2026-05-01T09:15:00Z",
- imageUrl: "https://images.unsplash.com/photo-1544816155-12df9643f363?q=80&w=300&auto=format&fit=crop"
- },
- {
- id: "m3",
- name: "Entremeio de Nossa Senhora das Graças Ouro Velho",
- category: "Metais e Entremeios",
- code: "ENT-012",
- description: "Entremeio resinado com imagem colorida de NS das Graças, banho ouro velho.",
- supplier: "Metais Sacros Ltda",
- unit: "unidade",
- weightG: 8,
- quantity: 35,
- minQuantity: 10, // normal stock
- unitValue: 6.20,
- calcMethod: "fixed",
- notes: "Muito procurado para terços marianos comuns.",
- status: "active",
- createdAt: "2026-05-01T09:20:00Z",
- imageUrl: "https://images.unsplash.com/photo-1617038260897-41a1f14a8ca0?q=80&w=300&auto=format&fit=crop"
- },
- {
- id: "m4",
- name: "Fio de Alpaca Semi-Rígido (0.8mm)",
- category: "Fios e Cordões",
- code: "FIO-003",
- description: "Fio de alpaca excelente para contra-pino de terços duradouros.",
- supplier: "Joias do Vale",
- unit: "rolo (50m)",
- weightG: 300,
- quantity: 1, // critical stock!
- minQuantity: 3,
- unitValue: 28.00,
- calcMethod: "weight",
- notes: "Fácil de manusear com alicate de bico redondo.",
- status: "active",
- createdAt: "2026-05-01T09:30:00Z",
- imageUrl: "https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?q=80&w=300&auto=format&fit=crop"
- },
- {
- id: "m5",
- name: "Caixa de Veludo Luxo - Ateliê",
- category: "Embalagens",
- code: "EMB-101",
- description: "Caixa rígida revestida de veludo azul marinho com gravação dourada do logotipo.",
- supplier: "Cartonagem Imperial",
- unit: "unidade",
- weightG: 85,
- quantity: 25,
- minQuantity: 8,
- unitValue: 12.00,
- calcMethod: "fixed",
- notes: "Embalagem premium para valorizar o produto final.",
- status: "active",
- createdAt: "2026-05-01T10:00:00Z",
- imageUrl: "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?q=80&w=300&auto=format&fit=crop"
- }
+  // --- ATELIÊ 1: ATELIÊ SAGRADO ---
+  {
+    id: "m1",
+    tenantId: "tenant_atelie_sagrado",
+    name: "Pérola de Água Doce Branca (8mm)",
+    category: "Contas e Pérolas",
+    code: "PER-001",
+    description: "Pérolas naturais cultivadas em água doce, furo passante de 0.8mm.",
+    supplier: "Beads Importadora",
+    unit: "pacote (100 un)",
+    weightG: 120,
+    quantity: 4,
+    minQuantity: 5,
+    unitValue: 45.00,
+    calcMethod: "fixed",
+    notes: "Material de altíssima qualidade para terços de noivas.",
+    status: "active",
+    createdAt: "2026-05-01T09:00:00Z",
+    imageUrl: "https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?q=80&w=300&auto=format&fit=crop"
+  },
+  {
+    id: "m2",
+    tenantId: "tenant_atelie_sagrado",
+    name: "Crucifixo Clássico Folheado a Ouro",
+    category: "Metais e Entremeios",
+    code: "CRU-002",
+    description: "Crucifixo decorado com detalhes barrocos, banho de 5 milésimos de ouro.",
+    supplier: "Metais Sacros Ltda",
+    unit: "unidade",
+    weightG: 15,
+    quantity: 12,
+    minQuantity: 15,
+    unitValue: 18.50,
+    calcMethod: "fixed",
+    notes: "Crucifixo para terços grandes e luxuosos.",
+    status: "active",
+    createdAt: "2026-05-01T09:15:00Z",
+    imageUrl: "https://images.unsplash.com/photo-1544816155-12df9643f363?q=80&w=300&auto=format&fit=crop"
+  },
+  {
+    id: "m3",
+    tenantId: "tenant_atelie_sagrado",
+    name: "Entremeio de Nossa Senhora das Graças Ouro Velho",
+    category: "Metais e Entremeios",
+    code: "ENT-012",
+    description: "Entremeio resinado com imagem colorida de NS das Graças, banho ouro velho.",
+    supplier: "Metais Sacros Ltda",
+    unit: "unidade",
+    weightG: 8,
+    quantity: 35,
+    minQuantity: 10,
+    unitValue: 6.20,
+    calcMethod: "fixed",
+    notes: "Muito procurado para terços marianos comuns.",
+    status: "active",
+    createdAt: "2026-05-01T09:20:00Z",
+    imageUrl: "https://images.unsplash.com/photo-1617038260897-41a1f14a8ca0?q=80&w=300&auto=format&fit=crop"
+  },
+  {
+    id: "m4",
+    tenantId: "tenant_atelie_sagrado",
+    name: "Fio de Alpaca Semi-Rígido (0.8mm)",
+    category: "Fios e Cordões",
+    code: "FIO-003",
+    description: "Fio de alpaca excelente para contra-pino de terços duradouros.",
+    supplier: "Joias do Vale",
+    unit: "rolo (50m)",
+    weightG: 300,
+    quantity: 1,
+    minQuantity: 3,
+    unitValue: 28.00,
+    calcMethod: "weight",
+    notes: "Fácil de manusear com alicate de bico redondo.",
+    status: "active",
+    createdAt: "2026-05-01T09:30:00Z",
+    imageUrl: "https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?q=80&w=300&auto=format&fit=crop"
+  },
+  {
+    id: "m5",
+    tenantId: "tenant_atelie_sagrado",
+    name: "Caixa de Veludo Luxo - Ateliê",
+    category: "Embalagens",
+    code: "EMB-101",
+    description: "Caixa rígida revestida de veludo azul marinho com gravação dourada do logotipo.",
+    supplier: "Cartonagem Imperial",
+    unit: "unidade",
+    weightG: 85,
+    quantity: 25,
+    minQuantity: 8,
+    unitValue: 12.00,
+    calcMethod: "fixed",
+    notes: "Embalagem premium para valorizar o produto final.",
+    status: "active",
+    createdAt: "2026-05-01T10:00:00Z",
+    imageUrl: "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?q=80&w=300&auto=format&fit=crop"
+  },
+  // --- ATELIÊ 2: STUDIO LUZ DIVINA ---
+  {
+    id: "m_luz_1",
+    tenantId: "tenant_luz_divina",
+    name: "Cristal Lapidado Aurora Boreal (8mm)",
+    category: "Contas e Cristais",
+    code: "CRI-001",
+    description: "Cristais facetados importados com acabamento furta-cor e reflexo luminoso.",
+    supplier: "Cristais & Brilhos RJ",
+    unit: "fio (70 un)",
+    weightG: 95,
+    quantity: 8,
+    minQuantity: 3,
+    unitValue: 32.00,
+    calcMethod: "fixed",
+    notes: "Utilizado nos terços luminosos devocionais.",
+    status: "active",
+    createdAt: "2026-05-02T10:00:00Z",
+    imageUrl: "https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?q=80&w=300&auto=format&fit=crop"
+  },
+  {
+    id: "m_luz_2",
+    tenantId: "tenant_luz_divina",
+    name: "Contas de Madeira Nobre Imbuia (10mm)",
+    category: "Madeiras e Sementes",
+    code: "MAD-010",
+    description: "Contas artesanais torneadas em madeira nobre com cera de abelha natural.",
+    supplier: "Madeiras da Serra",
+    unit: "pacote (100 un)",
+    weightG: 140,
+    quantity: 15,
+    minQuantity: 5,
+    unitValue: 24.50,
+    calcMethod: "fixed",
+    notes: "Ideal para decenários rústicos e masculinos.",
+    status: "active",
+    createdAt: "2026-05-02T10:30:00Z",
+    imageUrl: "https://images.unsplash.com/photo-1544816155-12df9643f363?q=80&w=300&auto=format&fit=crop"
+  },
+  {
+    id: "m_luz_3",
+    tenantId: "tenant_luz_divina",
+    name: "Crucifixo São Bento Prata Velha 6cm",
+    category: "Metais e Entremeios",
+    code: "CRU-SB-03",
+    description: "Crucifixo de São Bento em liga metálica com banho de prata envelhecida e verniz italiano.",
+    supplier: "Metais Carioca",
+    unit: "unidade",
+    weightG: 18,
+    quantity: 20,
+    minQuantity: 6,
+    unitValue: 14.00,
+    calcMethod: "fixed",
+    notes: "Item de alta durabilidade e acabamento fosco.",
+    status: "active",
+    createdAt: "2026-05-02T11:00:00Z",
+    imageUrl: "https://images.unsplash.com/photo-1617038260897-41a1f14a8ca0?q=80&w=300&auto=format&fit=crop"
+  }
 ];
 
 const initialProducts: Product[] = [
- {
- id: "p1",
- name: "Terço de Noiva Imperial - Pérola de Água Doce",
- category: "Terços de Noiva",
- sku: "TER-N-001",
- description: "Terço de luxo montado à mão com pérolas de água doce naturais de 8mm, crucifixo banhado a ouro barroco e entremeio de Nossa Senhora das Graças resinado. Acompanha caixa de veludo.",
- image: "https://images.unsplash.com/photo-1544816155-12df9643f363?q=80&w=300&auto=format&fit=crop",
- productionTimeMin: 120, // 2 hours
- finalWeightG: 220,
- sellingPrice: 420.00,
- composition: [
- { materialId: "m1", quantity: 0.6, cost: 27.00 }, // 60 beads = 0.6 package
- { materialId: "m2", quantity: 1, cost: 18.50 }, // 1 crucifixo
- { materialId: "m3", quantity: 1, cost: 6.20 }, // 1 entremeio
- { materialId: "m4", quantity: 0.1, cost: 2.80 }, // 5 meters of alpaca wire
- { materialId: "m5", quantity: 1, cost: 12.00 } // 1 velvet box
- ],
- status: "active",
- createdAt: "2026-05-05T11:00:00Z"
- },
- {
- id: "p2",
- name: "Pulseira de Hematita São Bento",
- category: "Pulseiras",
- sku: "PUL-SB-002",
- description: "Pulseira masculina confeccionada com contas de hematita magnética e entremeios da medalha de São Bento em banho ouro velho.",
- image: "https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?q=80&w=300&auto=format&fit=crop",
- productionTimeMin: 30, // 30 mins
- finalWeightG: 45,
- sellingPrice: 65.00,
- composition: [
- { materialId: "m3", quantity: 2, cost: 12.40 }, // Uses 2 medals
- { materialId: "m4", quantity: 0.02, cost: 0.56 }, // a tiny bit of wire/cord
- { materialId: "m5", quantity: 1, cost: 12.00 } // packaging
- ],
- status: "active",
- createdAt: "2026-05-06T15:00:00Z"
- }
+  // --- ATELIÊ 1: ATELIÊ SAGRADO ---
+  {
+    id: "p1",
+    tenantId: "tenant_atelie_sagrado",
+    name: "Terço de Noiva Imperial - Pérola de Água Doce",
+    category: "Terços de Noiva",
+    sku: "TER-N-001",
+    description: "Terço de luxo montado à mão com pérolas de água doce naturais de 8mm, crucifixo banhado a ouro barroco e entremeio de Nossa Senhora das Graças resinado. Acompanha caixa de veludo.",
+    image: "https://images.unsplash.com/photo-1544816155-12df9643f363?q=80&w=300&auto=format&fit=crop",
+    productionTimeMin: 120,
+    finalWeightG: 220,
+    sellingPrice: 420.00,
+    composition: [
+      { materialId: "m1", quantity: 0.6, cost: 27.00 },
+      { materialId: "m2", quantity: 1, cost: 18.50 },
+      { materialId: "m3", quantity: 1, cost: 6.20 },
+      { materialId: "m4", quantity: 0.1, cost: 2.80 },
+      { materialId: "m5", quantity: 1, cost: 12.00 }
+    ],
+    status: "active",
+    createdAt: "2026-05-05T11:00:00Z"
+  },
+  {
+    id: "p2",
+    tenantId: "tenant_atelie_sagrado",
+    name: "Pulseira de Hematita São Bento",
+    category: "Pulseiras",
+    sku: "PUL-SB-002",
+    description: "Pulseira masculina confeccionada com contas de hematita magnética e entremeios da medalha de São Bento em banho ouro velho.",
+    image: "https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?q=80&w=300&auto=format&fit=crop",
+    productionTimeMin: 30,
+    finalWeightG: 45,
+    sellingPrice: 65.00,
+    composition: [
+      { materialId: "m3", quantity: 2, cost: 12.40 },
+      { materialId: "m4", quantity: 0.02, cost: 0.56 },
+      { materialId: "m5", quantity: 1, cost: 12.00 }
+    ],
+    status: "active",
+    createdAt: "2026-05-06T15:00:00Z"
+  },
+  // --- ATELIÊ 2: STUDIO LUZ DIVINA ---
+  {
+    id: "p_luz_1",
+    tenantId: "tenant_luz_divina",
+    name: "Terço Luminoso de Cristal Aurora Boreal",
+    category: "Terços Especiais",
+    sku: "TER-LUZ-01",
+    description: "Terço devocional em cristais lapidados de 8mm que refratam a luz ambiente, com crucifixo de São Bento em prata velha.",
+    image: "https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?q=80&w=300&auto=format&fit=crop",
+    productionTimeMin: 90,
+    finalWeightG: 160,
+    sellingPrice: 280.00,
+    composition: [
+      { materialId: "m_luz_1", quantity: 1, cost: 32.00 },
+      { materialId: "m_luz_3", quantity: 1, cost: 14.00 }
+    ],
+    status: "active",
+    createdAt: "2026-05-08T10:00:00Z"
+  },
+  {
+    id: "p_luz_2",
+    tenantId: "tenant_luz_divina",
+    name: "Decenário de Madeira Nobre Imbuia",
+    category: "Decenários",
+    sku: "DEC-MAD-02",
+    description: "Decenário de bolso produzido com contas de imbuia torneadas à mão e cordão de alta tenacidade.",
+    image: "https://images.unsplash.com/photo-1544816155-12df9643f363?q=80&w=300&auto=format&fit=crop",
+    productionTimeMin: 20,
+    finalWeightG: 35,
+    sellingPrice: 48.00,
+    composition: [
+      { materialId: "m_luz_2", quantity: 0.1, cost: 2.45 },
+      { materialId: "m_luz_3", quantity: 1, cost: 14.00 }
+    ],
+    status: "active",
+    createdAt: "2026-05-09T14:00:00Z"
+  }
 ];
 
 const initialQuotes: Quote[] = [
- {
- id: "q1",
- clientId: "c2",
- clientName: "Paróquia Nossa Senhora da Paz",
- items: [
- {
- productId: "p2",
- productName: "Pulseira de Hematita São Bento",
- quantity: 15,
- unitPrice: 55.00, // discounted
- total: 825.00
- }
- ],
- subtotal: 825.00,
- discount: 50.00,
- shipping: 25.00,
- total: 800.00,
- status: "pending",
- date: "2026-06-15",
- createdAt: "2026-06-15T10:00:00Z"
- },
- {
- id: "q2",
- clientId: "c1",
- clientName: "Ana Maria de Sousa",
- items: [
- {
- productId: "p1",
- productName: "Terço de Noiva Imperial - Pérola de Água Doce",
- quantity: 1,
- unitPrice: 420.00,
- total: 420.00
- }
- ],
- subtotal: 420.00,
- discount: 20.00,
- shipping: 0.00,
- total: 400.00,
- status: "converted",
- date: "2026-06-18",
- createdAt: "2026-06-18T11:20:00Z"
- }
+  // --- ATELIÊ 1 ---
+  {
+    id: "q1",
+    tenantId: "tenant_atelie_sagrado",
+    clientId: "c2",
+    clientName: "Paróquia Nossa Senhora da Paz",
+    items: [
+      {
+        productId: "p2",
+        productName: "Pulseira de Hematita São Bento",
+        quantity: 15,
+        unitPrice: 55.00,
+        total: 825.00
+      }
+    ],
+    subtotal: 825.00,
+    discount: 50.00,
+    shipping: 25.00,
+    total: 800.00,
+    status: "pending",
+    date: "2026-06-15",
+    createdAt: "2026-06-15T10:00:00Z"
+  },
+  {
+    id: "q2",
+    tenantId: "tenant_atelie_sagrado",
+    clientId: "c1",
+    clientName: "Ana Maria de Sousa",
+    items: [
+      {
+        productId: "p1",
+        productName: "Terço de Noiva Imperial - Pérola de Água Doce",
+        quantity: 1,
+        unitPrice: 420.00,
+        total: 420.00
+      }
+    ],
+    subtotal: 420.00,
+    discount: 20.00,
+    shipping: 0.00,
+    total: 400.00,
+    status: "converted",
+    date: "2026-06-18",
+    createdAt: "2026-06-18T11:20:00Z"
+  },
+  // --- ATELIÊ 2 ---
+  {
+    id: "q_luz_1",
+    tenantId: "tenant_luz_divina",
+    clientId: "c_luz_1",
+    clientName: "Santuário Mãe de Deus - RJ",
+    items: [
+      {
+        productId: "p_luz_1",
+        productName: "Terço Luminoso de Cristal Aurora Boreal",
+        quantity: 5,
+        unitPrice: 260.00,
+        total: 1300.00
+      }
+    ],
+    subtotal: 1300.00,
+    discount: 100.00,
+    shipping: 0.00,
+    total: 1200.00,
+    status: "approved",
+    date: "2026-06-19",
+    createdAt: "2026-06-19T14:00:00Z"
+  }
 ];
 
 const initialOrders: Order[] = [
- {
- id: "o1",
- orderNumber: "PED-2026-0001",
- clientId: "c1",
- clientName: "Ana Maria de Sousa",
- items: [
- {
- productId: "p1",
- productName: "Terço de Noiva Imperial - Pérola de Água Doce",
- quantity: 1,
- price: 400.00,
- total: 400.00
- }
- ],
- totalValue: 400.00,
- date: "2026-06-18",
- dueDate: "2026-06-28",
- status: "production",
- productionProgress: 40,
- timeline: [
- { id: "t1", date: "2026-06-18 11:30", description: "Pedido gerado a partir do orçamento Q-2026-0002", user: "Rosana Santos" },
- { id: "t2", date: "2026-06-18 11:32", description: "Status alterado de Recebido para Aprovado", user: "Rosana Santos" },
- { id: "t3", date: "2026-06-20 09:15", description: "Iniciada montagem física das contas", user: "Ana Paula (Artesã)" }
- ],
- createdAt: "2026-06-18T11:30:00Z"
- },
- {
- id: "o2",
- orderNumber: "PED-2026-0002",
- clientId: "c3",
- clientName: "Carlos Eduardo Santos",
- items: [
- {
- productId: "p2",
- productName: "Pulseira de Hematita São Bento",
- quantity: 2,
- price: 65.00,
- total: 130.00
- }
- ],
- totalValue: 130.00,
- date: "2026-06-22",
- dueDate: "2026-06-26",
- status: "received",
- productionProgress: 0,
- timeline: [
- { id: "t4", date: "2026-06-22 14:00", description: "Pedido criado via painel ERP", user: "Rosana Santos" }
- ],
- createdAt: "2026-06-22T14:00:00Z"
- }
+  // --- ATELIÊ 1 ---
+  {
+    id: "o1",
+    tenantId: "tenant_atelie_sagrado",
+    orderNumber: "PED-2026-0001",
+    clientId: "c1",
+    clientName: "Ana Maria de Sousa",
+    items: [
+      {
+        productId: "p1",
+        productName: "Terço de Noiva Imperial - Pérola de Água Doce",
+        quantity: 1,
+        price: 400.00,
+        total: 400.00
+      }
+    ],
+    totalValue: 400.00,
+    date: "2026-06-18",
+    dueDate: "2026-06-28",
+    status: "production",
+    productionProgress: 40,
+    timeline: [
+      { id: "t1", date: "2026-06-18 11:30", description: "Pedido gerado a partir do orçamento Q-2026-0002", user: "Rosana Santos" },
+      { id: "t2", date: "2026-06-18 11:32", description: "Status alterado de Recebido para Aprovado", user: "Rosana Santos" },
+      { id: "t3", date: "2026-06-20 09:15", description: "Iniciada montagem física das contas", user: "Lucas Silva (Artesão)" }
+    ],
+    createdAt: "2026-06-18T11:30:00Z"
+  },
+  {
+    id: "o2",
+    tenantId: "tenant_atelie_sagrado",
+    orderNumber: "PED-2026-0002",
+    clientId: "c3",
+    clientName: "Carlos Eduardo Santos",
+    items: [
+      {
+        productId: "p2",
+        productName: "Pulseira de Hematita São Bento",
+        quantity: 2,
+        price: 65.00,
+        total: 130.00
+      }
+    ],
+    totalValue: 130.00,
+    date: "2026-06-22",
+    dueDate: "2026-06-26",
+    status: "received",
+    productionProgress: 0,
+    timeline: [
+      { id: "t4", date: "2026-06-22 14:00", description: "Pedido criado via painel ERP", user: "Rosana Santos" }
+    ],
+    createdAt: "2026-06-22T14:00:00Z"
+  },
+  // --- ATELIÊ 2 ---
+  {
+    id: "o_luz_1",
+    tenantId: "tenant_luz_divina",
+    orderNumber: "LUZ-2026-0001",
+    clientId: "c_luz_2",
+    clientName: "Roberto Gonçalves Ribeiro",
+    items: [
+      {
+        productId: "p_luz_1",
+        productName: "Terço Luminoso de Cristal Aurora Boreal",
+        quantity: 1,
+        price: 280.00,
+        total: 280.00
+      }
+    ],
+    totalValue: 280.00,
+    date: "2026-06-21",
+    dueDate: "2026-06-27",
+    status: "production",
+    productionProgress: 50,
+    timeline: [
+      { id: "t_luz_1", date: "2026-06-21 10:00", description: "Pedido aprovado e pago via Pix", user: "Carlos Mendonça" },
+      { id: "t_luz_2", date: "2026-06-21 14:30", description: "Iniciado encadeamento dos cristais lapidados", user: "Mariana Costa (Artesã)" }
+    ],
+    createdAt: "2026-06-21T10:00:00Z"
+  }
 ];
 
 const initialProductionTasks: ProductionTask[] = [
- {
- id: "pt1",
- orderId: "o1",
- orderNumber: "PED-2026-0001",
- productId: "p1",
- productName: "Terço de Noiva Imperial - Pérola de Água Doce",
- status: "producing",
- responsible: "Ana Paula (Artesã)",
- startDate: "2026-06-20T09:15:00Z",
- endDate: null,
- timeSpentMinutes: 50,
- totalEstimatedMinutes: 120,
- createdAt: "2026-06-18T11:32:00Z"
- },
- {
- id: "pt2",
- orderId: "o2",
- orderNumber: "PED-2026-0002",
- productId: "p2",
- productName: "Pulseira de Hematita São Bento",
- status: "todo",
- responsible: "Não Atribuído",
- startDate: null,
- endDate: null,
- timeSpentMinutes: 0,
- totalEstimatedMinutes: 30,
- createdAt: "2026-06-22T14:00:00Z"
- }
+  // --- ATELIÊ 1 ---
+  {
+    id: "pt1",
+    tenantId: "tenant_atelie_sagrado",
+    orderId: "o1",
+    orderNumber: "PED-2026-0001",
+    productId: "p1",
+    productName: "Terço de Noiva Imperial - Pérola de Água Doce",
+    status: "producing",
+    responsible: "Lucas Silva (Artesão)",
+    startDate: "2026-06-20T09:15:00Z",
+    endDate: null,
+    timeSpentMinutes: 50,
+    totalEstimatedMinutes: 120,
+    createdAt: "2026-06-18T11:32:00Z"
+  },
+  {
+    id: "pt2",
+    tenantId: "tenant_atelie_sagrado",
+    orderId: "o2",
+    orderNumber: "PED-2026-0002",
+    productId: "p2",
+    productName: "Pulseira de Hematita São Bento",
+    status: "todo",
+    responsible: "Não Atribuído",
+    startDate: null,
+    endDate: null,
+    timeSpentMinutes: 0,
+    totalEstimatedMinutes: 30,
+    createdAt: "2026-06-22T14:00:00Z"
+  },
+  // --- ATELIÊ 2 ---
+  {
+    id: "pt_luz_1",
+    tenantId: "tenant_luz_divina",
+    orderId: "o_luz_1",
+    orderNumber: "LUZ-2026-0001",
+    productId: "p_luz_1",
+    productName: "Terço Luminoso de Cristal Aurora Boreal",
+    status: "producing",
+    responsible: "Mariana Costa (Artesã)",
+    startDate: "2026-06-21T14:30:00Z",
+    endDate: null,
+    timeSpentMinutes: 45,
+    totalEstimatedMinutes: 90,
+    createdAt: "2026-06-21T10:00:00Z"
+  }
 ];
 
 const initialTransactions: FinancialTransaction[] = [
- {
- id: "f1",
- type: "income",
- category: "Venda de Produtos",
- contactName: "Ana Maria de Sousa",
- value: 400.00,
- date: "2026-06-18",
- paymentMethod: "Pix",
- notes: "Sinal de 100% pago na aprovação do terço",
- createdAt: "2026-06-18T11:30:00Z"
- },
- {
- id: "f2",
- type: "expense",
- category: "Compra de Matéria-Prima",
- contactName: "Metais Sacros Ltda",
- value: 155.00,
- date: "2026-06-10",
- paymentMethod: "Boleto Bancário",
- notes: "Compra de crucifixos folheados",
- createdAt: "2026-06-10T15:00:00Z"
- },
- {
- id: "f3",
- type: "expense",
- category: "Custos Operacionais",
- contactName: "Cartonagem Imperial",
- value: 120.00,
- date: "2026-06-12",
- paymentMethod: "Pix",
- notes: "Lote de 10 caixas rígidas de veludo",
- createdAt: "2026-06-12T16:30:00Z"
- },
- // Add some previous months transactions for nice charts
- {
- id: "f4",
- type: "income",
- category: "Venda de Produtos",
- contactName: "Vários Clientes (Consolidado)",
- value: 2850.00,
- date: "2026-05-28",
- paymentMethod: "Cartão de Crédito",
- createdAt: "2026-05-28T18:00:00Z"
- },
- {
- id: "f5",
- type: "expense",
- category: "Compra de Matéria-Prima",
- contactName: "Importadora Geral",
- value: 850.00,
- date: "2026-05-05",
- paymentMethod: "Transferência",
- createdAt: "2026-05-05T10:00:00Z"
- },
- {
- id: "f6",
- type: "income",
- category: "Venda de Produtos",
- contactName: "Paróquia NS Paz",
- value: 1500.00,
- date: "2026-05-16",
- paymentMethod: "Pix",
- createdAt: "2026-05-16T12:00:00Z"
- }
+  // --- ATELIÊ 1 ---
+  {
+    id: "f1",
+    tenantId: "tenant_atelie_sagrado",
+    type: "income",
+    category: "Venda de Produtos",
+    contactName: "Ana Maria de Sousa",
+    value: 400.00,
+    date: "2026-06-18",
+    paymentMethod: "Pix",
+    notes: "Sinal de 100% pago na aprovação do terço",
+    createdAt: "2026-06-18T11:30:00Z"
+  },
+  {
+    id: "f2",
+    tenantId: "tenant_atelie_sagrado",
+    type: "expense",
+    category: "Compra de Matéria-Prima",
+    contactName: "Metais Sacros Ltda",
+    value: 155.00,
+    date: "2026-06-10",
+    paymentMethod: "Boleto Bancário",
+    notes: "Compra de crucifixos folheados",
+    createdAt: "2026-06-10T15:00:00Z"
+  },
+  {
+    id: "f3",
+    tenantId: "tenant_atelie_sagrado",
+    type: "expense",
+    category: "Custos Operacionais",
+    contactName: "Cartonagem Imperial",
+    value: 120.00,
+    date: "2026-06-12",
+    paymentMethod: "Pix",
+    notes: "Lote de 10 caixas rígidas de veludo",
+    createdAt: "2026-06-12T16:30:00Z"
+  },
+  {
+    id: "f4",
+    tenantId: "tenant_atelie_sagrado",
+    type: "income",
+    category: "Venda de Produtos",
+    contactName: "Vários Clientes (Consolidado)",
+    value: 2850.00,
+    date: "2026-05-28",
+    paymentMethod: "Cartão de Crédito",
+    createdAt: "2026-05-28T18:00:00Z"
+  },
+  // --- ATELIÊ 2 ---
+  {
+    id: "f_luz_1",
+    tenantId: "tenant_luz_divina",
+    type: "income",
+    category: "Venda de Produtos",
+    contactName: "Roberto Gonçalves Ribeiro",
+    value: 280.00,
+    date: "2026-06-21",
+    paymentMethod: "Pix",
+    notes: "Pagamento do Terço Luminoso de Cristal",
+    createdAt: "2026-06-21T10:00:00Z"
+  },
+  {
+    id: "f_luz_2",
+    tenantId: "tenant_luz_divina",
+    type: "expense",
+    category: "Compra de Matéria-Prima",
+    contactName: "Cristais & Brilhos RJ",
+    value: 180.00,
+    date: "2026-06-14",
+    paymentMethod: "Pix",
+    notes: "Lote de cristais facetados",
+    createdAt: "2026-06-14T11:00:00Z"
+  }
+];
+
+const initialUsers: AppUser[] = [
+  // --- ATELIÊ 1: ATELIÊ SAGRADO ---
+  {
+   id: 'user_admin',
+   tenantId: 'tenant_atelie_sagrado',
+   isOwner: true,
+   username: 'Admin',
+   name: 'Administrador (Ateliê Sagrado)',
+   email: 'admin@atelie.com',
+   password: '301310Lr',
+   role: 'Administrador',
+   roleLabel: 'Administrador Titular',
+   isActive: true,
+   photoUrl: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=150&auto=format&fit=crop',
+   permissions: {
+    dashboard: true, inventory: true, purchases: true, products: true, pricing: true, clients: true, quotes: true, orders: true, production: true, financial: true, users: true, settings: true
+   }
+  },
+  {
+   id: 'user_rosana',
+   tenantId: 'tenant_atelie_sagrado',
+   isOwner: false,
+   username: 'Rosana',
+   name: 'Rosana Santos',
+   email: 'rosana@atelie.com',
+   password: '123456',
+   role: 'Vendedor',
+   roleLabel: 'Vendedora / Comercial',
+   isActive: true,
+   photoUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=150&auto=format&fit=crop',
+   permissions: {
+    dashboard: true, inventory: false, purchases: false, products: true, pricing: true, clients: true, quotes: true, orders: true, production: false, financial: false, users: false, settings: false
+   }
+  },
+  {
+   id: 'user_lucas',
+   tenantId: 'tenant_atelie_sagrado',
+   isOwner: false,
+   username: 'Lucas',
+   name: 'Lucas Silva',
+   email: 'lucas@atelie.com',
+   password: '123456',
+   role: 'Artesão',
+   roleLabel: 'Artesão / Chão de Fábrica',
+   isActive: true,
+   photoUrl: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?q=80&w=150&auto=format&fit=crop',
+   permissions: {
+    dashboard: true, inventory: false, purchases: false, products: true, pricing: false, clients: false, quotes: false, orders: true, production: true, financial: false, users: false, settings: false
+   }
+  },
+  {
+   id: 'user_marcos',
+   tenantId: 'tenant_atelie_sagrado',
+   isOwner: false,
+   username: 'Marcos',
+   name: 'Marcos Lima',
+   email: 'marcos@atelie.com',
+   password: '123456',
+   role: 'Estoquista',
+   roleLabel: 'Almoxarife / Estoquista',
+   isActive: true,
+   photoUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=150&auto=format&fit=crop',
+   permissions: {
+    dashboard: true, inventory: true, purchases: true, products: true, pricing: false, clients: false, quotes: false, orders: false, production: false, financial: false, users: false, settings: false
+   }
+  },
+
+  // --- ATELIÊ 2: STUDIO LUZ DIVINA ---
+  {
+   id: 'user_admin_luz',
+   tenantId: 'tenant_luz_divina',
+   isOwner: true,
+   username: 'AdminLuz',
+   name: 'Administrador (Luz Divina)',
+   email: 'admin@luzdivina.com',
+   password: '301310Lr',
+   role: 'Administrador',
+   roleLabel: 'Administrador Titular',
+   isActive: true,
+   photoUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?q=80&w=150&auto=format&fit=crop',
+   permissions: {
+    dashboard: true, inventory: true, purchases: true, products: true, pricing: true, clients: true, quotes: true, orders: true, production: true, financial: true, users: true, settings: true
+   }
+  },
+  {
+   id: 'user_carlos_luz',
+   tenantId: 'tenant_luz_divina',
+   isOwner: false,
+   username: 'CarlosLuz',
+   name: 'Carlos Mendonça',
+   email: 'carlos@luzdivina.com',
+   password: '123456',
+   role: 'Vendedor',
+   roleLabel: 'Vendedora / Comercial',
+   isActive: true,
+   photoUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=150&auto=format&fit=crop',
+   permissions: {
+    dashboard: true, inventory: false, purchases: false, products: true, pricing: true, clients: true, quotes: true, orders: true, production: false, financial: false, users: false, settings: false
+   }
+  },
+  {
+   id: 'user_mariana_luz',
+   tenantId: 'tenant_luz_divina',
+   isOwner: false,
+   username: 'MarianaLuz',
+   name: 'Mariana Costa',
+   email: 'mariana@luzdivina.com',
+   password: '123456',
+   role: 'Artesão',
+   roleLabel: 'Artesã / Chão de Fábrica',
+   isActive: true,
+   photoUrl: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=150&auto=format&fit=crop',
+   permissions: {
+    dashboard: true, inventory: false, purchases: false, products: true, pricing: false, clients: false, quotes: false, orders: true, production: true, financial: false, users: false, settings: false
+   }
+  }
+];
+
+const initialNotifications: SystemNotification[] = [
+  {
+    id: 'notif_1',
+    tenantId: 'tenant_atelie_sagrado',
+    title: '🎉 Bem-vindo ao Sistema do Ateliê Sagrado',
+    message: 'Seu painel integrado está pronto! Acompanhe as suas vendas, estoque e produção em tempo real.',
+    type: 'success',
+    date: new Date().toISOString(),
+    read: false
+  }
 ];
 
 export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+ const [tenants, setTenants] = useState<Tenant[]>(initialTenants);
+ const [currentTenantId, setCurrentTenantId] = useState<string>('tenant_atelie_sagrado');
  const [clients, setClients] = useState<Client[]>([]);
  const [inventory, setInventory] = useState<InventoryItem[]>([]);
  const [products, setProducts] = useState<Product[]>([]);
@@ -587,6 +992,15 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
   return initial;
  };
 
+ const loadedTenants = loadData('tenants', initialTenants);
+ setTenants(loadedTenants);
+ const storedActiveTenantId = localStorage.getItem('as_active_tenant_id');
+ if (storedActiveTenantId && loadedTenants.some(t => t.id === storedActiveTenantId)) {
+   setCurrentTenantId(storedActiveTenantId);
+ } else if (loadedTenants.length > 0) {
+   setCurrentTenantId(loadedTenants[0].id);
+ }
+
  setClients(loadData('clients', initialClients));
  setInventory(loadData('inventory', initialInventory));
  setProducts(loadData('products', initialProducts));
@@ -601,48 +1015,7 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
 
  setAgendaActivities(loadData('agenda_activities', initialAgendaActivities));
  setAuditLogs(loadData('audit_logs', initialAuditLogs));
- 
- const initialUsers: AppUser[] = [
-  {
-   id: 'user_admin',
-   username: 'Admin',
-   name: 'Administrador',
-   email: 'admin@atelie.com',
-   password: '301310Lr',
-   role: 'Administrador',
-   isActive: true,
-   photoUrl: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=150&auto=format&fit=crop',
-   permissions: {
-    dashboard: true, inventory: true, purchases: true, products: true, pricing: true, clients: true, quotes: true, orders: true, production: true, financial: true, settings: true
-   }
-  },
-  {
-   id: 'user_rosana',
-   username: 'Rosana',
-   name: 'Rosana Santos',
-   email: 'rosana@atelie.com',
-   password: '123456',
-   role: 'Vendedor',
-   isActive: true,
-   photoUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=150&auto=format&fit=crop',
-   permissions: {
-    dashboard: true, inventory: true, purchases: true, products: true, pricing: true, clients: true, quotes: true, orders: true, production: false, financial: false, settings: false
-   }
-  }
- ];
  setUsers(loadData('users', initialUsers));
-
- // Seed notifications if empty
- const initialNotifications: SystemNotification[] = [
-  {
-    id: 'notif_1',
-    title: '🎉 Bem-vindo ao Sistema do Ateliê Sagrado',
-    message: 'Seu painel integrado está pronto! Acompanhe as suas vendas, estoque e produção em tempo real.',
-    type: 'success',
-    date: new Date().toISOString(),
-    read: false
-  }
- ];
  setNotifications(loadData('notifications', initialNotifications));
 
  const storedSettings = localStorage.getItem('as_settings');
@@ -701,19 +1074,7 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
   
   const userMap = new Map<string, AppUser>();
   [
-   {
-    id: 'user_admin',
-    username: 'Admin',
-    name: 'Administrador',
-    email: 'admin@atelie.com',
-    password: '301310Lr',
-    role: 'Administrador',
-    isActive: true,
-    photoUrl: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=150&auto=format&fit=crop',
-    permissions: {
-     dashboard: true, inventory: true, purchases: true, products: true, pricing: true, clients: true, quotes: true, orders: true, production: true, financial: true, settings: true
-    }
-   },
+   ...initialUsers,
    ...parsedUsers,
    ...users
   ].forEach(u => userMap.set(u.id, u));
@@ -730,6 +1091,19 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
   if (foundUser) {
    setUser(foundUser);
    localStorage.setItem('as_user', JSON.stringify(foundUser));
+   if (foundUser.tenantId) {
+     setCurrentTenantId(foundUser.tenantId);
+     localStorage.setItem('as_active_tenant_id', foundUser.tenantId);
+     const targetTenant = tenants.find(t => t.id === foundUser.tenantId);
+     if (targetTenant?.primaryColor) {
+       applyThemeColors(targetTenant.primaryColor);
+       setSettings(prev => ({
+         ...prev,
+         primaryColor: targetTenant.primaryColor || prev.primaryColor,
+         companyName: targetTenant.name || prev.companyName
+       }));
+     }
+   }
    return true;
   }
   return false;
@@ -784,6 +1158,7 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
  const addUser = (userData: Omit<AppUser, 'id'>) => {
   const newUser: AppUser = {
    ...userData,
+   tenantId: (userData as any).tenantId || currentTenantId,
    id: 'user_' + Date.now()
   };
   const updated = [...users, newUser];
@@ -846,6 +1221,7 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
  const addAuditLog = (logData: Omit<AuditLog, 'id' | 'timestamp'>) => {
   const newLog: AuditLog = {
    ...logData,
+   tenantId: (logData as any).tenantId || currentTenantId,
    id: 'log_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
    timestamp: new Date().toISOString()
   };
@@ -866,6 +1242,7 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
  const addAgendaActivity = (activityData: Omit<AgendaActivity, 'id' | 'createdAt'>) => {
   const newActivity: AgendaActivity = {
    ...activityData,
+   tenantId: (activityData as any).tenantId || currentTenantId,
    id: 'activity_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
    createdAt: new Date().toISOString()
   };
@@ -925,6 +1302,7 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
  const addClient = (clientData: Omit<Client, 'id' | 'createdAt'>) => {
  const newClient: Client = {
  ...clientData,
+ tenantId: (clientData as any).tenantId || currentTenantId,
  id: 'client_' + Date.now(),
  createdAt: new Date().toISOString()
  };
@@ -983,6 +1361,7 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
  const addInventoryItem = (itemData: Omit<InventoryItem, 'id' | 'createdAt'>) => {
  const newItem: InventoryItem = {
  ...itemData,
+ tenantId: (itemData as any).tenantId || currentTenantId,
  id: 'inv_' + Date.now(),
  createdAt: new Date().toISOString()
  };
@@ -1089,6 +1468,7 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
  const addProduct = (productData: Omit<Product, 'id' | 'createdAt'>) => {
  const newProduct: Product = {
  ...productData,
+ tenantId: (productData as any).tenantId || currentTenantId,
  id: 'prod_' + Date.now(),
  createdAt: new Date().toISOString()
  };
@@ -1123,6 +1503,7 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
   };
  const newQuote: Quote = {
  ...quoteData,
+ tenantId: (quoteData as any).tenantId || currentTenantId,
  id: 'quote_' + Date.now(),
  createdAt: new Date().toISOString()
  };
@@ -1256,6 +1637,7 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
  const orderNum = `PED-${year}-${Math.floor(1000 + Math.random() * 9000)}`;
  const newOrder: Order = {
  id: 'order_' + Date.now(),
+ tenantId: quote.tenantId || currentTenantId,
  orderNumber: orderNum,
  clientId: quote.clientId,
  clientName: quote.clientName,
@@ -1292,6 +1674,7 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
  const prod = products.find(p => p.id === item.productId);
  return {
  id: `task_${Date.now()}_${idx}`,
+ tenantId: quote.tenantId || currentTenantId,
  orderId: newOrder.id,
  orderNumber: newOrder.orderNumber,
  productId: item.productId,
@@ -1397,6 +1780,7 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
  const orderNum = `PED-${year}-${Math.floor(1000 + Math.random() * 9000)}`;
  const newOrder: Order = {
  ...orderData,
+ tenantId: (orderData as any).tenantId || currentTenantId,
  id: 'order_' + Date.now(),
  orderNumber: orderNum,
  timeline: [
@@ -1428,6 +1812,7 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
  const prod = products.find(p => p.id === item.productId);
  return {
  id: `task_${Date.now()}_${idx}`,
+ tenantId: (orderData as any).tenantId || currentTenantId,
  orderId: newOrder.id,
  orderNumber: newOrder.orderNumber,
  productId: item.productId,
@@ -1986,6 +2371,7 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
  const addTransaction = (transData: Omit<FinancialTransaction, 'id' | 'createdAt'>) => {
  const newTrans: FinancialTransaction = {
  ...transData,
+ tenantId: (transData as any).tenantId || currentTenantId,
  id: 'trans_' + Date.now(),
  createdAt: new Date().toISOString()
  };
@@ -2060,6 +2446,7 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
  const addNotification = (title: string, message: string, type: SystemNotification['type']) => {
   const newNotif: SystemNotification = {
    id: 'notif_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
+   tenantId: currentTenantId,
    title,
    message,
    type,
@@ -2174,6 +2561,82 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
   }
  };
 
+  const currentTenant = useMemo(() => {
+    return tenants.find(t => t.id === currentTenantId) || tenants[0] || initialTenants[0];
+  }, [tenants, currentTenantId]);
+
+  const switchTenant = (tenantId: string) => {
+    const target = tenants.find(t => t.id === tenantId);
+    if (target) {
+      setCurrentTenantId(tenantId);
+      localStorage.setItem('as_active_tenant_id', tenantId);
+      if (target.primaryColor) {
+        applyThemeColors(target.primaryColor);
+        setSettings(prev => ({
+          ...prev,
+          primaryColor: target.primaryColor || prev.primaryColor,
+          companyName: target.name || prev.companyName,
+          razaoSocial: target.razaoSocial || prev.razaoSocial,
+          nomeFantasia: target.nomeFantasia || prev.nomeFantasia,
+          cnpj: target.document || prev.cnpj,
+          address: target.address || prev.address,
+          email: target.email || prev.email,
+          phone: target.phone || prev.phone
+        }));
+      }
+    }
+  };
+
+  const createTenant = async (newTenantData: Omit<Tenant, 'id' | 'createdAt'>): Promise<Tenant> => {
+    const newTenant: Tenant = {
+      ...newTenantData,
+      id: 'tenant_' + Date.now(),
+      createdAt: new Date().toISOString(),
+      status: 'active'
+    };
+    const updatedTenants = [...tenants, newTenant];
+    setTenants(updatedTenants);
+    localStorage.setItem('as_tenants', JSON.stringify(updatedTenants));
+    try {
+      await fetch('/api/tenants', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newTenant)
+      });
+    } catch (e) {}
+    return newTenant;
+  };
+
+  const updateTenant = async (id: string, partial: Partial<Tenant>): Promise<Tenant> => {
+    const updatedTenants = tenants.map(t => t.id === id ? { ...t, ...partial } : t);
+    setTenants(updatedTenants);
+    localStorage.setItem('as_tenants', JSON.stringify(updatedTenants));
+    const updated = updatedTenants.find(t => t.id === id) || tenants[0];
+    try {
+      await fetch(`/api/tenants/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(partial)
+      });
+    } catch (e) {}
+    return updated;
+  };
+
+  const deleteTenant = async (id: string): Promise<boolean> => {
+    if (tenants.length <= 1) return false;
+    const filtered = tenants.filter(t => t.id !== id);
+    setTenants(filtered);
+    localStorage.setItem('as_tenants', JSON.stringify(filtered));
+    if (currentTenantId === id) {
+      setCurrentTenantId(filtered[0].id);
+      localStorage.setItem('as_active_tenant_id', filtered[0].id);
+    }
+    try {
+      await fetch(`/api/tenants/${id}`, { method: 'DELETE' });
+    } catch (e) {}
+    return true;
+  };
+
   const syncAllData = () => {
     const loadLatest = <T,>(key: string): T[] => {
       const stored = localStorage.getItem(`as_${key}`);
@@ -2217,15 +2680,66 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
   window.location.reload();
  };
 
+ // Filtered by currentTenantId for complete multi-tenant isolation
+ const scopedClients = React.useMemo(() => {
+  return clients.filter(c => !c.tenantId || c.tenantId === currentTenantId);
+ }, [clients, currentTenantId]);
+
+ const scopedInventory = React.useMemo(() => {
+  return inventoryWithReserved.filter(i => !i.tenantId || i.tenantId === currentTenantId);
+ }, [inventoryWithReserved, currentTenantId]);
+
+ const scopedProducts = React.useMemo(() => {
+  return products.filter(p => !p.tenantId || p.tenantId === currentTenantId);
+ }, [products, currentTenantId]);
+
+ const scopedQuotes = React.useMemo(() => {
+  return quotes.filter(q => !q.tenantId || q.tenantId === currentTenantId);
+ }, [quotes, currentTenantId]);
+
+ const scopedOrders = React.useMemo(() => {
+  return orders.filter(o => !o.tenantId || o.tenantId === currentTenantId);
+ }, [orders, currentTenantId]);
+
+ const scopedProductionTasks = React.useMemo(() => {
+  return productionTasks.filter(t => !t.tenantId || t.tenantId === currentTenantId);
+ }, [productionTasks, currentTenantId]);
+
+ const scopedTransactions = React.useMemo(() => {
+  return transactions.filter(t => !t.tenantId || t.tenantId === currentTenantId);
+ }, [transactions, currentTenantId]);
+
+ const scopedUsers = React.useMemo(() => {
+  return users.filter(u => !u.tenantId || u.tenantId === currentTenantId);
+ }, [users, currentTenantId]);
+
+ const scopedAgendaActivities = React.useMemo(() => {
+  return agendaActivities.filter(a => !a.tenantId || a.tenantId === currentTenantId);
+ }, [agendaActivities, currentTenantId]);
+
+ const scopedAuditLogs = React.useMemo(() => {
+  return auditLogs.filter(l => !l.tenantId || l.tenantId === currentTenantId);
+ }, [auditLogs, currentTenantId]);
+
+ const scopedNotifications = React.useMemo(() => {
+  return notifications.filter(n => !n.tenantId || n.tenantId === currentTenantId);
+ }, [notifications, currentTenantId]);
+
  return (
  <DbContext.Provider value={{
- clients,
- inventory: inventoryWithReserved,
- products,
- quotes,
- orders,
- productionTasks,
- transactions,
+ tenants: tenants || [],
+ currentTenant: currentTenant || initialTenants[0],
+ switchTenant,
+ createTenant,
+ updateTenant,
+ deleteTenant,
+ clients: scopedClients,
+ inventory: scopedInventory,
+ products: scopedProducts,
+ quotes: scopedQuotes,
+ orders: scopedOrders,
+ productionTasks: scopedProductionTasks,
+ transactions: scopedTransactions,
  settings,
  user,
  login,
@@ -2233,7 +2747,7 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
  resetSystem,
  syncAllData,
  recoverPassword,
-  users,
+  users: scopedUsers,
   addUser,
   updateUser,
   deleteUser,
@@ -2270,7 +2784,7 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
  deleteTransaction,
 
  updateSettings,
- notifications,
+ notifications: scopedNotifications,
  addNotification,
  toggleNotificationRead,
  markNotificationAsRead,
@@ -2279,8 +2793,8 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
  clearAllNotifications,
  scanReceipt,
  importFinancialFile,
- agendaActivities,
- auditLogs,
+ agendaActivities: scopedAgendaActivities,
+ auditLogs: scopedAuditLogs,
  addAgendaActivity,
  updateAgendaActivity,
  deleteAgendaActivity,

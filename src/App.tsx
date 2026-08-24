@@ -19,6 +19,7 @@ import { UsersPermissionsView } from './components/UsersPermissionsView';
 import { SubscriptionBillingView } from './components/subscription/SubscriptionBillingView';
 import { AccountSecurityView } from './components/account/AccountSecurityView';
 import { UserProfileView } from './components/account/UserProfileView';
+import { TenantsManagementView } from './components/tenants/TenantsManagementView';
 import { motion, AnimatePresence } from 'motion/react';
 import { ToastContainer, toast } from './components/Toast';
 
@@ -101,6 +102,8 @@ const AppContent: React.FC = () => {
  return <ProductionView />;
  case 'financial':
  return <FinancialView />;
+ case 'tenants':
+ return <TenantsManagementView />;
  case 'subscription':
  return <SubscriptionBillingView />;
  case 'users':

@@ -30,7 +30,12 @@ export class LocalAuthRepository implements IAuthRepository {
     if (!raw) {
       const defaultPassMap: Record<string, string> = {
         'admin@atelie.com': '301310Lr',
-        'rosana@atelie.com': '123456'
+        'rosana@atelie.com': '123456',
+        'lucas@atelie.com': '123456',
+        'marcos@atelie.com': '123456',
+        'admin@luzdivina.com': '301310Lr',
+        'carlos@luzdivina.com': '123456',
+        'mariana@luzdivina.com': '123456'
       };
       localStorage.setItem(PASSWORDS_KEY, JSON.stringify(defaultPassMap));
     }
@@ -46,18 +51,107 @@ export class LocalAuthRepository implements IAuthRepository {
   }
 
   private syncAsUser(user: UserAccount): void {
+    const isAdmin = user.role === 'admin' || user.roleLabel?.toLowerCase().includes('admin');
+    const isVendas = user.roleLabel?.toLowerCase().includes('vendedor') || user.roleLabel?.toLowerCase().includes('comercial');
+    const isArtesao = user.roleLabel?.toLowerCase().includes('artes') || user.roleLabel?.toLowerCase().includes('fábrica') || user.roleLabel?.toLowerCase().includes('produção');
+    const isEstoquista = user.roleLabel?.toLowerCase().includes('estoqu') || user.roleLabel?.toLowerCase().includes('almoxarif');
+
+    let permissions = {
+      dashboard: true,
+      inventory: true,
+      purchases: true,
+      products: true,
+      pricing: true,
+      clients: true,
+      quotes: true,
+      orders: true,
+      production: true,
+      financial: true,
+      settings: true,
+      subscription: true,
+      users: true
+    };
+
+    if (!isAdmin) {
+      if (isVendas) {
+        permissions = {
+          dashboard: true,
+          inventory: false,
+          purchases: false,
+          products: true,
+          pricing: true,
+          clients: true,
+          quotes: true,
+          orders: true,
+          production: false,
+          financial: false,
+          settings: false,
+          subscription: false,
+          users: false
+        };
+      } else if (isArtesao) {
+        permissions = {
+          dashboard: true,
+          inventory: false,
+          purchases: false,
+          products: true,
+          pricing: false,
+          clients: false,
+          quotes: false,
+          orders: true,
+          production: true,
+          financial: false,
+          settings: false,
+          subscription: false,
+          users: false
+        };
+      } else if (isEstoquista) {
+        permissions = {
+          dashboard: true,
+          inventory: true,
+          purchases: true,
+          products: true,
+          pricing: false,
+          clients: false,
+          quotes: false,
+          orders: false,
+          production: false,
+          financial: false,
+          settings: false,
+          subscription: false,
+          users: false
+        };
+      } else {
+        permissions = {
+          dashboard: true,
+          inventory: true,
+          purchases: true,
+          products: true,
+          pricing: false,
+          clients: true,
+          quotes: true,
+          orders: true,
+          production: true,
+          financial: false,
+          settings: false,
+          subscription: false,
+          users: false
+        };
+      }
+    }
+
     const dbUserFormat = {
       id: user.id,
+      tenantId: user.tenantId || user.activeTenantId || 'tenant_atelie_sagrado',
       username: user.username || user.name,
       name: user.name,
       email: user.email,
       role: user.roleLabel || user.role,
       photoUrl: user.photoUrl,
-      permissions: {
-        dashboard: true, inventory: true, purchases: true, products: true, pricing: true, clients: true, quotes: true, orders: true, production: true, financial: true, settings: true
-      }
+      permissions
     };
     localStorage.setItem('as_user', JSON.stringify(dbUserFormat));
+    localStorage.setItem('as_active_tenant_id', dbUserFormat.tenantId);
   }
 
   async login(credentials: AuthCredentials): Promise<AuthResponse> {
@@ -148,18 +242,55 @@ export class LocalAuthRepository implements IAuthRepository {
     }
 
     const username = data.email.split('@')[0].replace(/[^a-zA-Z0-9]/g, '_');
+    const tenantSlug = data.tenantSlug || username.toLowerCase().replace(/[^a-z0-9]/g, '-');
+    const tenantId = 'tenant_' + tenantSlug + '_' + Math.floor(Math.random() * 1000);
+    const tenantName = data.companyName || `${data.name} Ateliê`;
 
     const newUser = await this.userRepo.createUser({
+      tenantId,
+      activeTenantId: tenantId,
+      tenants: [
+        {
+          tenantId,
+          tenantName,
+          tenantSlug,
+          role: data.role || 'admin',
+          roleLabel: data.role === 'admin' ? 'Administrador' : 'Gestor do Ateliê',
+          joinedAt: new Date().toISOString()
+        }
+      ],
       email: data.email,
       username,
       name: data.name,
-      role: data.role || 'authenticated',
-      roleLabel: data.role === 'admin' ? 'Administrador' : 'Ateliê / Cliente',
+      role: data.role || 'admin',
+      roleLabel: data.role === 'admin' ? 'Administrador' : 'Gestor do Ateliê',
       phone: data.phone,
-      companyName: data.companyName || 'Ateliê Sagrado',
+      companyName: tenantName,
       emailVerified: true, // Auto verify in mock preview for immediate UX
       twoFactorEnabled: false
     });
+
+    // Also register the new tenant in as_tenants storage
+    try {
+      const existingTenantsRaw = localStorage.getItem('as_tenants');
+      const existingTenants = existingTenantsRaw ? JSON.parse(existingTenantsRaw) : [];
+      const newTenantRecord = {
+        id: tenantId,
+        name: tenantName,
+        slug: tenantSlug,
+        document: data.document || '',
+        email: data.email,
+        phone: data.phone || '',
+        planId: data.planId || 'free_trial',
+        status: 'active',
+        ownerId: newUser.id,
+        createdAt: new Date().toISOString()
+      };
+      existingTenants.push(newTenantRecord);
+      localStorage.setItem('as_tenants', JSON.stringify(existingTenants));
+    } catch (e) {
+      console.error('Failed to persist tenant list', e);
+    }
 
     // Save password
     const passMap = this.getPasswords();
@@ -182,7 +313,8 @@ export class LocalAuthRepository implements IAuthRepository {
       success: true,
       user: newUser,
       session,
-      subscription
+      subscription,
+      activeTenantId: tenantId
     };
   }
 

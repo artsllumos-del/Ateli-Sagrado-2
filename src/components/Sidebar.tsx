@@ -7,18 +7,19 @@ import {
   Sparkles, 
   DollarSign, 
   Users, 
-  Shield,
+  Shield, 
   FileText, 
   ShoppingCart, 
   Hammer, 
   TrendingUp, 
   Settings, 
-  LogOut,
-  X,
-  ShoppingBag,
-  CreditCard,
-  UserCheck,
-  ShieldCheck
+  LogOut, 
+  X, 
+  ShoppingBag, 
+  CreditCard, 
+  UserCheck, 
+  ShieldCheck,
+  Building2
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -29,7 +30,7 @@ interface SidebarProps {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, isOpen, onClose }) => {
-  const { settings, logout: dbLogout, user: dbUser } = useDb();
+  const { settings, logout: dbLogout, user: dbUser, currentTenant } = useDb();
   const { logout: authLogout, user: authUser } = useAuth();
   const user = authUser || dbUser;
   const [isHovered, setIsHovered] = useState(false);
@@ -56,6 +57,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, isO
     { id: 'orders', label: 'Pedidos de Venda', icon: ShoppingCart },
     { id: 'production', label: 'Chão de Fábrica', icon: Hammer },
     { id: 'financial', label: 'Fluxo Financeiro', icon: TrendingUp },
+    { id: 'tenants', label: 'Multi-Ateliês & Unidades', icon: Building2 },
     { id: 'subscription', label: 'Planos & Assinatura', icon: CreditCard },
     { id: 'users', label: 'Operadores & Permissões', icon: Shield },
     { id: 'profile', label: 'Meu Perfil & Segurança', icon: UserCheck },

@@ -250,11 +250,31 @@ export const ModernAuthView: React.FC<ModernAuthViewProps> = ({ onSuccess }) => 
               )}
             </button>
 
-            {/* Quick Demo Credentials Info */}
-            <div className="mt-4 p-3 bg-amber-50/80 rounded-xl border border-amber-200/60 flex items-start gap-2.5">
-              <ShieldCheck size={18} className="text-amber-700 shrink-0 mt-0.5" />
-              <div className="text-xs text-amber-900 leading-relaxed">
-                <span className="font-bold">Acesso Rápido Master:</span> Usuário: <code className="bg-amber-100 px-1 py-0.5 rounded font-mono font-bold">Admin</code> | Senha: <code className="bg-amber-100 px-1 py-0.5 rounded font-mono font-bold">301310Lr</code>
+            {/* Quick Demo Credentials by Ateliê */}
+            <div className="mt-4 p-3 bg-amber-50/80 rounded-xl border border-amber-200/60 space-y-2">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-amber-900">
+                <ShieldCheck size={16} className="text-amber-700 shrink-0" />
+                <span>Acesso Rápido de Demonstração por Ateliê:</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+                <button
+                  type="button"
+                  onClick={() => { setEmailOrUsername('Admin'); setPassword('301310Lr'); }}
+                  className="p-2 bg-white rounded-lg border border-amber-200 text-left hover:bg-amber-100/60 transition-colors cursor-pointer"
+                >
+                  <div className="font-bold text-amber-950">Ateliê Sagrado</div>
+                  <div className="text-slate-600 text-[10px]">👑 Admin (301310Lr)</div>
+                  <div className="text-slate-500 text-[10px]">💼 Rosana / 🔨 Lucas</div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setEmailOrUsername('AdminLuz'); setPassword('301310Lr'); }}
+                  className="p-2 bg-white rounded-lg border border-emerald-200 text-left hover:bg-emerald-50 transition-colors cursor-pointer"
+                >
+                  <div className="font-bold text-emerald-950">Studio Luz Divina</div>
+                  <div className="text-slate-600 text-[10px]">👑 AdminLuz (301310Lr)</div>
+                  <div className="text-slate-500 text-[10px]">💼 Carlos / 🔨 Mariana</div>
+                </button>
               </div>
             </div>
           </form>
@@ -326,7 +346,7 @@ export const ModernAuthView: React.FC<ModernAuthViewProps> = ({ onSuccess }) => 
                 <Sparkles size={13} className="text-amber-600" /> Escolha seu Plano Inicial
               </label>
               <div className="grid grid-cols-2 gap-2">
-                {availablePlans.map(p => (
+                {(availablePlans || []).map(p => (
                   <button
                     key={p.id}
                     type="button"

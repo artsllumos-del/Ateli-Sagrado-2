@@ -75,9 +75,19 @@ export interface UserSubscription {
   usage: SubscriptionUsage;
 }
 
+export interface TenantMembership {
+  tenantId: string;
+  tenantName: string;
+  tenantSlug: string;
+  role: UserRole;
+  roleLabel: string;
+  joinedAt: string;
+}
+
 export interface AuthSession {
   id: string;
   userId: string;
+  tenantId?: string;
   accessToken: string;
   refreshToken: string;
   expiresAt: number; // timestamp in ms
@@ -92,6 +102,9 @@ export interface AuthSession {
 
 export interface UserAccount {
   id: string;
+  tenantId?: string; // Active or primary tenant ID
+  activeTenantId?: string;
+  tenants?: TenantMembership[];
   email: string;
   username: string;
   name: string;
@@ -143,6 +156,7 @@ export interface AuthCredentials {
   emailOrUsername: string;
   password?: string;
   rememberMe?: boolean;
+  tenantId?: string;
 }
 
 export interface RegisterData {
@@ -150,6 +164,8 @@ export interface RegisterData {
   email: string;
   password?: string;
   companyName?: string;
+  tenantSlug?: string;
+  document?: string; // CNPJ / CPF
   phone?: string;
   role?: UserRole;
   planId?: PlanId;
@@ -161,6 +177,7 @@ export interface AuthResponse {
   user?: UserAccount;
   session?: AuthSession;
   subscription?: UserSubscription;
+  activeTenantId?: string;
   error?: string;
   requiresEmailConfirmation?: boolean;
 }

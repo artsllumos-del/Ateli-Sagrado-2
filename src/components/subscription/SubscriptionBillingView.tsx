@@ -144,10 +144,10 @@ export const SubscriptionBillingView: React.FC = () => {
 
   // Real usage calculation from database context
   const currentMonthStr = new Date().toISOString().substring(0, 7);
-  const realOrdersThisMonth = orders.filter(o => (o.date || '').startsWith(currentMonthStr)).length || orders.length;
-  const realQuotesThisMonth = quotes.filter(q => (q.date || '').startsWith(currentMonthStr)).length || quotes.length;
-  const realUsersCount = users.length || 1;
-  const realProductsCount = products.length || 0;
+  const realOrdersThisMonth = (orders || []).filter(o => (o.date || '').startsWith(currentMonthStr)).length || (orders || []).length;
+  const realQuotesThisMonth = (quotes || []).filter(q => (q.date || '').startsWith(currentMonthStr)).length || (quotes || []).length;
+  const realUsersCount = (users || []).length || 1;
+  const realProductsCount = (products || []).length || 0;
   const realStorageMb = Math.round(40 + (realProductsCount * 2.5) + (realOrdersThisMonth * 1.5));
 
   const usage = {
@@ -180,7 +180,7 @@ export const SubscriptionBillingView: React.FC = () => {
   const basePlanPrice = subscription?.billingCycle === 'annual' ? (currentPlan?.priceAnnual || 0) : (currentPlan?.priceMonthly || 0);
 
   // Invoice filtering
-  const filteredInvoices = invoices.filter(inv => {
+  const filteredInvoices = (invoices || []).filter(inv => {
     if (invoiceFilterYear === 'all') return true;
     return (inv.date || '').startsWith(invoiceFilterYear);
   });
@@ -543,7 +543,7 @@ export const SubscriptionBillingView: React.FC = () => {
             </div>
 
             <div className="space-y-3">
-              {paymentMethods.map((pm) => (
+              {(paymentMethods || []).map((pm) => (
                 <div 
                   key={pm.id} 
                   className={`p-3.5 rounded-2xl border transition-all flex items-center justify-between gap-3 text-xs ${

@@ -156,6 +156,7 @@ function verifyJwt(token: string): any | null {
 
 // Load database schema and seeder
 let db: {
+  tenants: any[];
   users: any[];
   clients: any[];
   inventory: any[];
@@ -168,6 +169,7 @@ let db: {
   notifications: any[];
   auditLogs: any[];
 } = {
+  tenants: [],
   users: [],
   clients: [],
   inventory: [],
@@ -201,6 +203,56 @@ function saveDatabase() {
 
 function initializeDefaultDb() {
   db = {
+    tenants: [
+      {
+        id: "tenant_atelie_sagrado",
+        name: "Ateliê Sagrado (Matriz)",
+        slug: "matriz",
+        document: "12.345.678/0001-90",
+        razaoSocial: "Ateliê Sagrado Arte Sacra LTDA",
+        nomeFantasia: "Ateliê Sagrado - Matriz",
+        email: "contato@ateliesagrado.com.br",
+        phone: "(11) 98765-4321",
+        address: "Rua das Flores, 120 - Centro, São Paulo/SP",
+        primaryColor: "#D4AF37",
+        planId: "professional",
+        status: "active",
+        ownerId: "u1",
+        createdAt: "2026-01-01T00:00:00.000Z"
+      },
+      {
+        id: "tenant_sao_bento",
+        name: "Unidade São Bento",
+        slug: "sao-bento",
+        document: "12.345.678/0002-71",
+        razaoSocial: "Ateliê Sagrado Arte Sacra LTDA - Filial 01",
+        nomeFantasia: "Ateliê Sagrado - São Bento",
+        email: "saobento@ateliesagrado.com.br",
+        phone: "(11) 97654-3210",
+        address: "Av. São Bento, 450 - Centro, São Paulo/SP",
+        primaryColor: "#3B82F6",
+        planId: "starter",
+        status: "active",
+        ownerId: "u1",
+        createdAt: "2026-02-15T00:00:00.000Z"
+      },
+      {
+        id: "tenant_luz_divina",
+        name: "Ateliê Luz Divina",
+        slug: "luz-divina",
+        document: "98.765.432/0001-10",
+        razaoSocial: "Luz Divina Artesanatos ME",
+        nomeFantasia: "Luz Divina",
+        email: "contato@luzdivina.com",
+        phone: "(21) 98888-7777",
+        address: "Rua do Rosário, 88 - Centro, Rio de Janeiro/RJ",
+        primaryColor: "#10B981",
+        planId: "enterprise",
+        status: "active",
+        ownerId: "u1",
+        createdAt: "2026-03-01T00:00:00.000Z"
+      }
+    ],
     users: [
       {
         id: "u1",
@@ -532,14 +584,107 @@ declare global {
         name: string;
         email: string;
         role: string;
+        tenantId?: string;
+        activeTenantId?: string;
+        tenants?: any[];
       };
+      tenantId?: string;
     }
   }
 }
 
+// Tenant Extraction Middleware (Multi-Tenant scoping)
+const extractTenant = (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  const headerTenant = req.headers['x-tenant-id'] as string;
+  const userTenant = req.user?.activeTenantId || req.user?.tenantId;
+  req.tenantId = headerTenant || userTenant || 'tenant_atelie_sagrado';
+  next();
+};
+
+app.use(extractTenant);
+
 // ----------------------------------------------------
 // REST API ROUTES
 // ----------------------------------------------------
+
+// Multi-Tenant Endpoints
+app.get('/api/tenants', (req, res) => {
+  res.json(db.tenants || []);
+});
+
+app.get('/api/tenants/:id', (req, res) => {
+  const tenant = (db.tenants || []).find(t => t.id === req.params.id || t.slug === req.params.id);
+  if (!tenant) return res.status(404).json({ error: 'Ateliê não encontrado' });
+  res.json(tenant);
+});
+
+app.post('/api/tenants', (req, res) => {
+  const { name, slug, document, razaoSocial, nomeFantasia, email, phone, address, primaryColor, planId } = req.body;
+  if (!name || !slug) {
+    return res.status(400).json({ error: 'Nome e slug são obrigatórios' });
+  }
+  const cleanSlug = slug.toLowerCase().replace(/[^a-z0-9-]/g, '');
+  db.tenants = db.tenants || [];
+  if (db.tenants.some(t => t.slug === cleanSlug)) {
+    return res.status(400).json({ error: 'Identificador / Slug já está em uso.' });
+  }
+
+  const newTenant = {
+    id: req.body.id || ('tenant_' + Date.now()),
+    name,
+    slug: cleanSlug,
+    document: document || '',
+    razaoSocial: razaoSocial || '',
+    nomeFantasia: nomeFantasia || name,
+    email: email || '',
+    phone: phone || '',
+    address: address || '',
+    primaryColor: primaryColor || '#D4AF37',
+    planId: planId || 'professional',
+    status: 'active',
+    ownerId: req.user?.id || 'user_admin',
+    createdAt: new Date().toISOString(),
+    settings: {
+      companyName: name,
+      razaoSocial: razaoSocial || '',
+      nomeFantasia: nomeFantasia || name,
+      cnpj: document || '',
+      address: address || '',
+      email: email || '',
+      phone: phone || '',
+      primaryColor: primaryColor || '#D4AF37'
+    }
+  };
+
+  db.tenants.push(newTenant);
+  saveDatabase();
+  writeAuditLog(req.user?.email || 'admin', 'Ateliê Criado', `Criada unidade ${newTenant.name} (${newTenant.slug})`);
+  res.status(201).json(newTenant);
+});
+
+app.put('/api/tenants/:id', (req, res) => {
+  db.tenants = db.tenants || [];
+  const idx = db.tenants.findIndex(t => t.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'Ateliê não encontrado' });
+
+  db.tenants[idx] = { ...db.tenants[idx], ...req.body, id: req.params.id };
+  saveDatabase();
+  res.json(db.tenants[idx]);
+});
+
+app.delete('/api/tenants/:id', (req, res) => {
+  db.tenants = db.tenants || [];
+  if (db.tenants.length <= 1) {
+    return res.status(400).json({ error: 'Não é permitido excluir o único ateliê do sistema.' });
+  }
+  const idx = db.tenants.findIndex(t => t.id === req.params.id);
+  if (idx !== -1) {
+    const deleted = db.tenants.splice(idx, 1)[0];
+    saveDatabase();
+    writeAuditLog(req.user?.email || 'admin', 'Ateliê Removido', `Excluída unidade ${deleted.name}`);
+  }
+  res.json({ success: true });
+});
 
 // Auth Endpoints
 app.post('/api/auth/login', (req, res) => {

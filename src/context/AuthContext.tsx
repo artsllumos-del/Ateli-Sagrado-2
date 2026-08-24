@@ -22,6 +22,7 @@ import { LocalPermissionRepository } from '../infrastructure/repositories/LocalP
 import { LocalBillingRepository } from '../infrastructure/repositories/LocalBillingRepository';
 import { LocalNotificationRepository } from '../infrastructure/repositories/LocalNotificationRepository';
 import { LocalFeatureFlagRepository } from '../infrastructure/repositories/LocalFeatureFlagRepository';
+import { PLANS_SEED } from '../infrastructure/repositories/MockPlans';
 import { AppNotificationItem } from '../domain/repositories/INotificationRepository';
 
 interface AuthContextType {
@@ -96,8 +97,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<UserAccount | null>(null);
   const [session, setSession] = useState<AuthSession | null>(null);
   const [subscription, setSubscription] = useState<UserSubscription | null>(null);
-  const [currentPlan, setCurrentPlan] = useState<Plan | null>(null);
-  const [availablePlans, setAvailablePlans] = useState<Plan[]>([]);
+  const [currentPlan, setCurrentPlan] = useState<Plan | null>(PLANS_SEED[0]);
+  const [availablePlans, setAvailablePlans] = useState<Plan[]>(PLANS_SEED);
   const [permissions, setPermissions] = useState<Record<ResourcePermission, boolean>>({} as Record<ResourcePermission, boolean>);
   const [notifications, setNotifications] = useState<AppNotificationItem[]>([]);
   const [activeSessions, setActiveSessions] = useState<AuthSession[]>([]);

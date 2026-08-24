@@ -1,5 +1,25 @@
 export type ClientType = 'PF' | 'PJ';
 
+export interface Tenant {
+  id: string;
+  name: string;
+  slug: string;
+  document?: string; // CNPJ / CPF
+  razaoSocial?: string;
+  nomeFantasia?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  logo?: string;
+  favicon?: string;
+  primaryColor?: string;
+  planId?: 'free_trial' | 'basic' | 'professional' | 'enterprise';
+  status: 'active' | 'trial' | 'suspended';
+  ownerId?: string;
+  createdAt: string;
+  settings?: SystemSettings;
+}
+
 export interface ClientAddress {
   id: string;
   cep: string;
@@ -15,6 +35,7 @@ export interface ClientAddress {
 
 export interface Client {
   id: string;
+  tenantId?: string;
   type: ClientType;
   name: string; // Used for PF Name or PJ Razão Social
   cpf?: string;
@@ -41,6 +62,7 @@ export type InventoryStatus = 'active' | 'inactive';
 
 export interface InventoryItem {
  id: string;
+ tenantId?: string;
  name: string;
  category: string;
  code: string;
@@ -82,6 +104,7 @@ export type ProductStatus = 'active' | 'inactive';
 
 export interface Product {
  id: string;
+ tenantId?: string;
  name: string;
  category: string;
  sku: string;
@@ -132,6 +155,7 @@ export interface DocumentSnapshot {
 
 export interface Quote {
  id: string;
+ tenantId?: string;
  clientId: string;
  clientName: string;
  items: QuoteItem[];
@@ -165,6 +189,7 @@ export interface OrderTimelineEvent {
 
 export interface Order {
  id: string;
+ tenantId?: string;
  orderNumber: string;
  clientId: string;
  clientName: string;
@@ -179,7 +204,7 @@ export interface Order {
  createdAt: string;
  responsible?: string;
  priority?: 'Baixa' | 'Média' | 'Alta' | 'Urgente';
-  snapshot?: DocumentSnapshot;
+ snapshot?: DocumentSnapshot;
  archivedAt?: string;
  isArchived?: boolean;
  isCancelled?: boolean;
@@ -189,6 +214,7 @@ export type ProductionStatus = 'todo' | 'producing' | 'finishing' | 'done';
 
 export interface ProductionTask {
  id: string;
+ tenantId?: string;
  orderId: string;
  orderNumber: string;
  productId: string;
@@ -206,6 +232,7 @@ export type TransactionType = 'income' | 'expense';
 
 export interface FinancialTransaction {
  id: string;
+ tenantId?: string;
  type: TransactionType;
  category: string;
  contactName: string; // client name or supplier name
@@ -222,6 +249,7 @@ export interface FinancialTransaction {
 }
 
 export interface SystemSettings {
+ tenantId?: string;
  // Dados Institucionais
  companyName: string;
  logo: string;
@@ -287,32 +315,40 @@ export interface SystemSettings {
 }
 
 export interface AppUser {
- id: string;
- username: string;
- name: string;
- email: string;
- phone?: string;
- password?: string;
- role: string;
- isActive: boolean;
- photoUrl?: string;
- permissions: {
-  dashboard: boolean;
-  inventory: boolean;
-  purchases: boolean;
-  products: boolean;
-  pricing: boolean;
-  clients: boolean;
-  quotes: boolean;
-  orders: boolean;
-  production: boolean;
-  financial: boolean;
-  settings: boolean;
- };
+  id: string;
+  tenantId: string;
+  isOwner?: boolean;
+  username: string;
+  name: string;
+  email: string;
+  phone?: string;
+  password?: string;
+  role: string;
+  roleLabel?: string;
+  isActive: boolean;
+  photoUrl?: string;
+  createdAt?: string;
+  lastLoginAt?: string;
+  permissions: {
+    dashboard: boolean;
+    inventory: boolean;
+    purchases: boolean;
+    products: boolean;
+    pricing: boolean;
+    clients: boolean;
+    quotes: boolean;
+    orders: boolean;
+    production: boolean;
+    financial: boolean;
+    settings: boolean;
+    subscription?: boolean;
+    users?: boolean;
+  };
 }
 
 export interface SystemNotification {
  id: string;
+ tenantId?: string;
  title: string;
  message: string;
  type: 'low_stock' | 'critical_stock' | 'delayed_order' | 'info' | 'success';
@@ -323,6 +359,7 @@ export interface SystemNotification {
 
 export interface AgendaActivity {
   id: string;
+  tenantId?: string;
   time: string; // e.g. "14:00"
   date: string; // e.g. "YYYY-MM-DD"
   title: string;
@@ -334,6 +371,7 @@ export interface AgendaActivity {
 
 export interface AuditLog {
   id: string;
+  tenantId?: string;
   timestamp: string; // ISO date-time
   user: string;
   action: string;

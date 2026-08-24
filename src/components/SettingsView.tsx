@@ -4,14 +4,38 @@ import { applyThemeColors } from '../utils/theme';
 import { AppUser, SystemSettings } from '../types/erp';
 import { 
   Building, DollarSign, FileText, Sliders, User, Shield, 
-  Plus, Edit3, Trash2, Key, Check, AlertCircle, Eye, EyeOff, Sparkles, CreditCard
+  Plus, Edit3, Trash2, Key, Check, AlertCircle, Eye, EyeOff, Sparkles, CreditCard,
+  Database, RefreshCw, UploadCloud, Copy, ExternalLink, CheckCircle2, ShieldCheck
 } from 'lucide-react';
 import { toast } from './Toast';
 import { UsersPermissionsView } from './UsersPermissionsView';
 import { SubscriptionBillingView } from './subscription/SubscriptionBillingView';
+import { 
+  getSupabaseCredentials, 
+  saveSupabaseCredentials, 
+  testSupabaseConnection, 
+  isSupabaseConfigured,
+  getSupabaseClient
+} from '../lib/supabase';
 
 export const SettingsView: React.FC = () => {
-  const { settings, updateSettings, user, users, addUser, updateUser, deleteUser, resetSystem } = useDb();
+  const { 
+    settings, 
+    updateSettings, 
+    user, 
+    users, 
+    addUser, 
+    updateUser, 
+    deleteUser, 
+    resetSystem,
+    tenants,
+    clients,
+    inventory,
+    products,
+    quotes,
+    orders,
+    transactions
+  } = useDb();
 
   const isAdminRole = (role?: string) => {
     if (!role) return false;
@@ -19,8 +43,16 @@ export const SettingsView: React.FC = () => {
     return r.includes('admin') || r.includes('gerente') || r === 'administrador';
   };
 
-  // Active tab state: 'atelier' | 'financial' | 'documents' | 'system' | 'profile' | 'users' | 'subscription'
-  const [activeTab, setActiveTab] = useState<'atelier' | 'financial' | 'documents' | 'system' | 'profile' | 'users' | 'subscription'>('atelier');
+  // Active tab state: 'atelier' | 'financial' | 'documents' | 'system' | 'profile' | 'users' | 'subscription' | 'supabase'
+  const [activeTab, setActiveTab] = useState<'atelier' | 'financial' | 'documents' | 'system' | 'profile' | 'users' | 'subscription' | 'supabase'>('atelier');
+
+  // --- SUPABASE STATE ---
+  const [sbUrl, setSbUrl] = useState(() => getSupabaseCredentials().url || '');
+  const [sbAnonKey, setSbAnonKey] = useState(() => getSupabaseCredentials().anonKey || '');
+  const [sbTesting, setSbTesting] = useState(false);
+  const [sbResult, setSbResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [sbSyncing, setSbSyncing] = useState(false);
+  const [sbCopiedSql, setSbCopiedSql] = useState(false);
 
   // --- 1. ATELIER STATE ---
   const [companyName, setCompanyName] = useState(settings.companyName || '');
@@ -356,7 +388,7 @@ export const SettingsView: React.FC = () => {
                 : 'text-slate-500 hover:bg-slate-50'
             }`}
           >
-            <Shield size={16} /> Usuários & Permissões
+            <Shield size={16} /> Operadores & Permissões
           </button>
         )}
 
@@ -369,6 +401,21 @@ export const SettingsView: React.FC = () => {
           }`}
         >
           <CreditCard size={16} /> Planos & Assinatura
+        </button>
+
+        <button
+          onClick={() => { setActiveTab('supabase'); setShowUserForm(false); }}
+          className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all text-left ${
+            activeTab === 'supabase'
+              ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+              : 'text-slate-500 hover:bg-slate-50'
+          }`}
+        >
+          <Database size={16} className={isSupabaseConfigured() ? "text-emerald-600" : "text-slate-400"} />
+          <div className="flex items-center justify-between w-full">
+            <span>Supabase Cloud</span>
+            <span className={`w-2 h-2 rounded-full ${isSupabaseConfigured() ? 'bg-emerald-500 ring-2 ring-emerald-200' : 'bg-stone-300'}`} />
+          </div>
         </button>
       </div>
 
@@ -1090,6 +1137,148 @@ export const SettingsView: React.FC = () => {
         {/* TAB 7: PLANOS & ASSINATURA */}
         {activeTab === 'subscription' && (
           <SubscriptionBillingView />
+        )}
+
+        {/* TAB 8: BANCO DE DADOS SUPABASE */}
+        {activeTab === 'supabase' && (
+          <div className="space-y-6">
+            <div className="border-b border-slate-100 pb-3 flex items-center justify-between">
+              <div>
+                <h3 className="font-serif font-bold text-base text-slate-900 flex items-center gap-2">
+                  <Database size={18} className="text-emerald-600" />
+                  Integração com Supabase (PostgreSQL Cloud)
+                </h3>
+                <p className="text-[11px] text-slate-500">
+                  Persistência corporativa de dados na nuvem com autenticação segura e sincronização multi-dispositivo.
+                </p>
+              </div>
+              <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${
+                isSupabaseConfigured()
+                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                  : 'bg-amber-100 text-amber-800 border border-amber-200'
+              }`}>
+                {isSupabaseConfigured() ? 'Supabase Conectado' : 'Modo Offline / Local'}
+              </span>
+            </div>
+
+            <div className="bg-stone-50 border border-stone-200/70 rounded-2xl p-4 text-xs text-stone-700 space-y-3">
+              <div className="flex items-start gap-2.5">
+                <Sparkles size={16} className="text-amber-600 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-bold text-stone-900">Como conectar o Ateliê ao Supabase:</p>
+                  <ol className="list-decimal ml-4 mt-1 space-y-1 text-[11px] text-stone-600">
+                    <li>Acesse seu painel no <strong>Supabase (app.supabase.com)</strong>.</li>
+                    <li>Vá em <strong>SQL Editor</strong> &gt; execute o script de tabelas do Ateliê.</li>
+                    <li>Vá em <strong>Project Settings &gt; API</strong> &gt; copie a <strong>Project URL</strong> e <strong>anon / public key</strong>.</li>
+                    <li>Cole as chaves abaixo e clique em <strong>Testar Conexão</strong>.</li>
+                  </ol>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-4 text-xs font-semibold">
+              <div>
+                <label className="block text-[10px] uppercase font-bold text-slate-500 mb-1.5">
+                  Project URL (URL do Projeto Supabase)
+                </label>
+                <input
+                  type="url"
+                  value={sbUrl}
+                  onChange={(e) => setSbUrl(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:outline-none focus:bg-white font-mono text-xs"
+                  placeholder="https://seu-projeto.supabase.co"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] uppercase font-bold text-slate-500 mb-1.5">
+                  Anon / Public API Key
+                </label>
+                <textarea
+                  value={sbAnonKey}
+                  onChange={(e) => setSbAnonKey(e.target.value)}
+                  rows={3}
+                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 bg-slate-50 focus:outline-none focus:bg-white font-mono text-xs break-all"
+                  placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                />
+              </div>
+
+              {sbResult && (
+                <div className={`p-4 rounded-xl border text-xs flex items-start gap-3 ${
+                  sbResult.success 
+                    ? 'bg-emerald-50 border-emerald-200 text-emerald-900' 
+                    : 'bg-rose-50 border-rose-200 text-rose-900'
+                }`}>
+                  {sbResult.success ? (
+                    <CheckCircle2 size={16} className="text-emerald-600 shrink-0 mt-0.5" />
+                  ) : (
+                    <AlertCircle size={16} className="text-rose-600 shrink-0 mt-0.5" />
+                  )}
+                  <div>
+                    <p className="font-bold">{sbResult.success ? 'Conectado com Sucesso!' : 'Falha na Conexão'}</p>
+                    <p className="text-[11px] opacity-90 mt-0.5">{sbResult.message}</p>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-100 justify-between items-center">
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (!sbUrl.trim() || !sbAnonKey.trim()) {
+                        toast.warning('Aviso', 'Preencha a URL e a Anon Key do Supabase.');
+                        return;
+                      }
+                      setSbTesting(true);
+                      setSbResult(null);
+                      const res = await testSupabaseConnection(sbUrl.trim(), sbAnonKey.trim());
+                      setSbTesting(false);
+                      setSbResult(res);
+                      if (res.success) {
+                        toast.success('Sucesso', res.message);
+                        saveSupabaseCredentials(sbUrl.trim(), sbAnonKey.trim());
+                      } else {
+                        toast.error('Falha', res.message);
+                      }
+                    }}
+                    disabled={sbTesting}
+                    className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
+                  >
+                    <RefreshCw size={13} className={sbTesting ? 'animate-spin' : ''} />
+                    <span>{sbTesting ? 'Testando...' : 'Testar Conexão'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const sqlSchema = `-- ATELIÊ SAGRADO ERP SCHEMA (Copie e cole no Supabase SQL Editor)\n-- Arquivo completo disponível em /supabase/schema.sql`;
+                      navigator.clipboard.writeText(sqlSchema);
+                      setSbCopiedSql(true);
+                      toast.success('Copiado!', 'Script SQL de criação das tabelas copiado.');
+                      setTimeout(() => setSbCopiedSql(false), 3000);
+                    }}
+                    className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
+                  >
+                    <Copy size={13} />
+                    <span>{sbCopiedSql ? 'SQL Copiado!' : 'Copiar DDL das Tabelas'}</span>
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    saveSupabaseCredentials(sbUrl.trim(), sbAnonKey.trim());
+                    toast.success('Credenciais Salvas', 'Configurações do Supabase salvas com sucesso.');
+                  }}
+                  className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm flex items-center gap-1.5"
+                >
+                  <ShieldCheck size={14} />
+                  <span>Salvar Credenciais</span>
+                </button>
+              </div>
+            </div>
+          </div>
         )}
 
       </div>

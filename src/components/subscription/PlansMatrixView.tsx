@@ -188,7 +188,7 @@ export const PlansMatrixView: React.FC = () => {
 
       {/* Plans Pricing Grid Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {availablePlans.map((p) => {
+        {(availablePlans || []).map((p) => {
           const isCurrent = currentPlan?.id === p.id;
           const price = billingCycle === 'annual' ? p.priceAnnual : p.priceMonthly;
 
