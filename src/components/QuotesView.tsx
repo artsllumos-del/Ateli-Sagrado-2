@@ -9,37 +9,8 @@ import {
 import { toast } from './Toast';
 import { jsPDF } from 'jspdf';
 import { getPdfThemeColors } from '../utils/theme';
-
-const loadLogoBase64 = (logoUrl: string): Promise<string> => {
-  return new Promise((resolve) => {
-    if (!logoUrl || logoUrl.trim() === '' || logoUrl === '📿') {
-      resolve('data:image/png;base64,iVBOR0KGgoAAAANSUhEUgAAAAEAAAABCAAAAAA6fptVAAAACklEQVR42mP8DwABAQEAWk1vMwAAAABJRU5ErkJggg==');
-      return;
-    }
-    const img = new Image();
-    img.crossOrigin = 'Anonymous';
-    img.onload = function() {
-      try {
-        const canvas = document.createElement('canvas');
-        canvas.width = img.naturalWidth || img.width;
-        canvas.height = img.naturalHeight || img.height;
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          ctx.drawImage(img, 0, 0);
-          resolve(canvas.toDataURL('image/png'));
-          return;
-        }
-      } catch (e) {
-        console.warn("Canvas conversion failed", e);
-      }
-      resolve(logoUrl);
-    };
-    img.onerror = function() {
-      resolve('data:image/png;base64,iVBOR0KGgoAAAANSUhEUgAAAAEAAAABCAAAAAA6fptVAAAACklEQVR42mP8DwABAQEAWk1vMwAAAABJRU5ErkJggg==');
-    };
-    img.src = logoUrl;
-  });
-};
+import { loadLogoBase64 } from '../utils/pdf';
+import { calculateOrderTotals, calculateItemTotal, roundCurrency } from '../utils/finance';
 
 export const QuotesView: React.FC = () => {
   const { 
@@ -162,9 +133,14 @@ export const QuotesView: React.FC = () => {
     return matchesSearch && matchesStatus;
   });
 
-  // Calculate items sum
-  const subtotal = items.reduce((sum, item) => sum + item.total, 0);
-  const total = subtotal - discount + shipping;
+  // Calculate items sum and complete order totals with cent-perfect precision
+  const totals = calculateOrderTotals({
+    items,
+    discount,
+    shipping
+  });
+  const subtotal = totals.subtotal;
+  const total = totals.total;
 
   const handleOpenAdd = () => {
     setClientId(activeClients[0]?.id || '');
@@ -180,8 +156,8 @@ export const QuotesView: React.FC = () => {
   const handleOpenEdit = (q: Quote) => {
     setSelectedQuote(q);
     setClientId(q.clientId);
-    setDiscount(q.discount);
-    setShipping(q.shipping);
+    setDiscount(roundCurrency(q.discount || 0));
+    setShipping(roundCurrency(q.shipping || 0));
     setStatus(q.status);
     setItems(q.items || []);
     setSelectedProdId(activeProducts[0]?.id || '');
@@ -201,16 +177,20 @@ export const QuotesView: React.FC = () => {
       return;
     }
 
+    const safeQty = Math.max(1, Math.floor(selectedQty || 1));
+    const safeUnitPrice = roundCurrency(Math.max(0, prod.sellingPrice || 0));
+    const itemTotal = calculateItemTotal(safeQty, safeUnitPrice);
+
     const newItem: QuoteItem = {
       productId: selectedProdId,
       productName: prod.name,
-      quantity: selectedQty,
-      unitPrice: prod.sellingPrice,
-      total: selectedQty * prod.sellingPrice
+      quantity: safeQty,
+      unitPrice: safeUnitPrice,
+      total: itemTotal
     };
 
     setItems([...items, newItem]);
-    toast.success("Item adicionado", `${prod.name} x ${selectedQty}`);
+    toast.success("Item adicionado", `${prod.name} x ${safeQty}`);
   };
 
   const handleRemoveItem = (prodId: string) => {
@@ -225,6 +205,18 @@ export const QuotesView: React.FC = () => {
     }
     if (items.length === 0) {
       toast.error("Validação", "O orçamento precisa de pelo menos 1 item.");
+      return;
+    }
+    if (discount < 0) {
+      toast.error("Validação", "O valor do desconto não pode ser negativo.");
+      return;
+    }
+    if (discount > subtotal) {
+      toast.error("Validação", `O desconto (R$ ${discount.toFixed(2)}) não pode ser superior ao subtotal dos itens (R$ ${subtotal.toFixed(2)}).`);
+      return;
+    }
+    if (shipping < 0) {
+      toast.error("Validação", "O valor do frete não pode ser negativo.");
       return;
     }
 
@@ -243,8 +235,8 @@ export const QuotesView: React.FC = () => {
       clientName: client?.name || "Cliente Desconhecido",
       items,
       subtotal,
-      discount,
-      shipping,
+      discount: roundCurrency(discount),
+      shipping: roundCurrency(shipping),
       total,
       status,
       date: new Date().toISOString().split('T')[0]
@@ -260,6 +252,18 @@ export const QuotesView: React.FC = () => {
 
     if (items.length === 0) {
       toast.error("Validação", "O orçamento precisa de pelo menos 1 item.");
+      return;
+    }
+    if (discount < 0) {
+      toast.error("Validação", "O valor do desconto não pode ser negativo.");
+      return;
+    }
+    if (discount > subtotal) {
+      toast.error("Validação", `O desconto (R$ ${discount.toFixed(2)}) não pode ser superior ao subtotal dos itens (R$ ${subtotal.toFixed(2)}).`);
+      return;
+    }
+    if (shipping < 0) {
+      toast.error("Validação", "O valor do frete não pode ser negativo.");
       return;
     }
 
@@ -278,8 +282,8 @@ export const QuotesView: React.FC = () => {
       clientName: client?.name || "Cliente Desconhecido",
       items,
       subtotal,
-      discount,
-      shipping,
+      discount: roundCurrency(discount),
+      shipping: roundCurrency(shipping),
       total,
       status
     });

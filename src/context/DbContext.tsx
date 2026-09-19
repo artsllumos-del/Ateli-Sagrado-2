@@ -18,8 +18,14 @@ import {
  AppUser,
  DocumentSnapshot,
  AgendaActivity,
- AuditLog
+ AuditLog,
+ ReceiptOcrData,
+ AccountPayable,
+ AccountReceivable,
+ OnlinePaymentCharge,
+ OnlinePaymentConfig
 } from '../types/erp';
+import { roundCurrency, roundQty, safeNumber, calculateWeightedAverageCost, calculateOrderTotals } from '../utils/finance';
 
  interface DbContextType {
  // Multi-Tenant Core
@@ -93,7 +99,7 @@ import {
  markAllNotificationsAsRead: () => void;
  clearNotification: (id: string) => void;
  clearAllNotifications: () => void;
- scanReceipt: (imageBase64: string) => Promise<{ success: boolean; data?: any; error?: string }>;
+ scanReceipt: (imageBase64: string) => Promise<{ success: boolean; data?: ReceiptOcrData; error?: string }>;
  importFinancialFile: (fileType: 'csv' | 'ofx' | 'xlsx', fileContent: string) => Promise<{ success: boolean; count?: number; error?: string }>;
  resetSystem: () => void;
 
@@ -105,6 +111,25 @@ import {
  deleteAgendaActivity: (id: string) => void;
  addAuditLog: (log: Omit<AuditLog, 'id' | 'timestamp'>) => void;
  syncAllData: () => void;
+
+ // Contas a Pagar, Contas a Receber e Gateway
+ payables: AccountPayable[];
+ receivables: AccountReceivable[];
+ paymentCharges: OnlinePaymentCharge[];
+ paymentConfig: OnlinePaymentConfig;
+ addPayable: (payable: Omit<AccountPayable, 'id' | 'createdAt'>) => Promise<void>;
+ updatePayable: (id: string, payable: Partial<AccountPayable>) => Promise<void>;
+ deletePayable: (id: string) => Promise<void>;
+ settlePayable: (id: string, paidAmount: number, paymentDate: string, paymentMethod: string, notes?: string) => Promise<{ success: boolean; error?: string }>;
+ addReceivable: (receivable: Omit<AccountReceivable, 'id' | 'createdAt'>) => Promise<void>;
+ updateReceivable: (id: string, receivable: Partial<AccountReceivable>) => Promise<void>;
+ deleteReceivable: (id: string) => Promise<void>;
+ settleReceivable: (id: string, receivedAmount: number, receiptDate: string, paymentMethod: string, notes?: string) => Promise<{ success: boolean; error?: string }>;
+ createPaymentCheckout: (params: { receivableId?: string; orderId?: string; customerName: string; customerDocument?: string; amount: number; method: 'pix' | 'credit_card' | 'bank_slip'; installments?: number }) => Promise<OnlinePaymentCharge>;
+ simulateWebhookPayment: (chargeId: string) => Promise<boolean>;
+ refundCharge: (chargeId: string, reason?: string) => Promise<boolean>;
+ updatePaymentConfig: (config: Partial<OnlinePaymentConfig>) => Promise<void>;
+ exportFinancialReport: (type: 'transactions' | 'payables' | 'receivables' | 'cashflow') => Promise<{ success: boolean; filename?: string; error?: string }>;
 }
 
 const DbContext = createContext<DbContextType | undefined>(undefined);
@@ -935,6 +960,159 @@ const initialUsers: AppUser[] = [
   }
 ];
 
+const initialPayables: AccountPayable[] = [
+  {
+    id: "pay1",
+    tenantId: "tenant_atelie_sagrado",
+    description: "Fornecedor de Metais e Cruzes (1/2)",
+    supplierName: "Metais Sacros Brasil",
+    category: "Compra de Materiais",
+    issueDate: "2026-06-01",
+    dueDate: "2026-06-20",
+    amount: 450.00,
+    paidAmount: 0,
+    installmentNumber: 1,
+    totalInstallments: 2,
+    status: "overdue",
+    barcode: "34191.79001 01043.510047 91020.150008 8 99800000045000",
+    pixKey: "financeiro@metaissacros.com.br",
+    notes: "Fatura de insumos de crucifixos em ouro velho",
+    createdAt: "2026-06-01T10:00:00Z"
+  },
+  {
+    id: "pay2",
+    tenantId: "tenant_atelie_sagrado",
+    description: "Fornecedor de Metais e Cruzes (2/2)",
+    supplierName: "Metais Sacros Brasil",
+    category: "Compra de Materiais",
+    issueDate: "2026-06-01",
+    dueDate: "2026-07-20",
+    amount: 450.00,
+    paidAmount: 0,
+    installmentNumber: 2,
+    totalInstallments: 2,
+    status: "pending",
+    barcode: "34191.79001 01043.510047 91020.150008 8 99800000045000",
+    pixKey: "financeiro@metaissacros.com.br",
+    notes: "Segunda parcela de crucifixos",
+    createdAt: "2026-06-01T10:00:00Z"
+  },
+  {
+    id: "pay3",
+    tenantId: "tenant_atelie_sagrado",
+    description: "Aluguel e Condomínio do Ateliê",
+    supplierName: "Imobiliária São José",
+    category: "Custos Fixos",
+    issueDate: "2026-06-01",
+    dueDate: "2026-06-10",
+    amount: 1200.00,
+    paidAmount: 1200.00,
+    installmentNumber: 1,
+    totalInstallments: 1,
+    status: "paid",
+    paymentDate: "2026-06-09",
+    paymentMethod: "pix",
+    notes: "Aluguel mensal quitado via PIX",
+    createdAt: "2026-06-01T08:00:00Z"
+  },
+  {
+    id: "pay_luz_1",
+    tenantId: "tenant_luz_divina",
+    description: "Fornecedor de Cera de Abelha",
+    supplierName: "Apiários da Serra",
+    category: "Compra de Materiais",
+    issueDate: "2026-06-05",
+    dueDate: "2026-06-25",
+    amount: 320.00,
+    paidAmount: 0,
+    installmentNumber: 1,
+    totalInstallments: 1,
+    status: "pending",
+    pixKey: "apiario@serra.com.br",
+    createdAt: "2026-06-05T09:00:00Z"
+  }
+];
+
+const initialReceivables: AccountReceivable[] = [
+  {
+    id: "rec1",
+    tenantId: "tenant_atelie_sagrado",
+    description: "Pedido #00101 - Terço Imperial (1/2)",
+    clientName: "Paróquia Nossa Senhora da Paz",
+    clientId: "c2",
+    orderId: "o1",
+    orderNumber: "00101",
+    category: "Venda de Terço",
+    issueDate: "2026-06-15",
+    dueDate: "2026-06-15",
+    amount: 320.00,
+    receivedAmount: 320.00,
+    installmentNumber: 1,
+    totalInstallments: 2,
+    status: "received",
+    receiptDate: "2026-06-15",
+    paymentMethod: "pix",
+    notes: "Entrada do pedido recebida via PIX",
+    createdAt: "2026-06-15T14:45:00Z"
+  },
+  {
+    id: "rec2",
+    tenantId: "tenant_atelie_sagrado",
+    description: "Pedido #00101 - Terço Imperial (2/2)",
+    clientName: "Paróquia Nossa Senhora da Paz",
+    clientId: "c2",
+    orderId: "o1",
+    orderNumber: "00101",
+    category: "Venda de Terço",
+    issueDate: "2026-06-15",
+    dueDate: "2026-06-30",
+    amount: 320.00,
+    receivedAmount: 0,
+    installmentNumber: 2,
+    totalInstallments: 2,
+    status: "pending",
+    paymentLink: "https://pay.ateliesagrado.com/c/rec2",
+    pixCopyPaste: "00020126580014br.gov.bcb.pix0136pix@ateliesagrado.com.br5204000053039865406320.005802BR5921Atelie Sagrado LTDA6009Sao Paulo62070503REC26304E8A2",
+    notes: "Saldo restante contra entrega do produto",
+    createdAt: "2026-06-15T14:45:00Z"
+  },
+  {
+    id: "rec3",
+    tenantId: "tenant_atelie_sagrado",
+    description: "Restauração de Crucifixo de Madeira",
+    clientName: "Ana Maria de Sousa",
+    clientId: "c1",
+    category: "Restauração",
+    issueDate: "2026-05-20",
+    dueDate: "2026-06-05",
+    amount: 280.00,
+    receivedAmount: 0,
+    installmentNumber: 1,
+    totalInstallments: 1,
+    status: "overdue",
+    paymentLink: "https://pay.ateliesagrado.com/c/rec3",
+    notes: "Cobrança vencida em atraso",
+    createdAt: "2026-05-20T11:00:00Z"
+  },
+  {
+    id: "rec_luz_1",
+    tenantId: "tenant_luz_divina",
+    description: "Vela Votiva Decorada",
+    clientName: "Igreja de São Bento",
+    category: "Velas",
+    issueDate: "2026-06-10",
+    dueDate: "2026-06-25",
+    amount: 190.00,
+    receivedAmount: 190.00,
+    installmentNumber: 1,
+    totalInstallments: 1,
+    status: "received",
+    receiptDate: "2026-06-12",
+    paymentMethod: "pix",
+    createdAt: "2026-06-10T09:00:00Z"
+  }
+];
+
 const initialNotifications: SystemNotification[] = [
   {
     id: 'notif_1',
@@ -963,6 +1141,16 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
  const [notifications, setNotifications] = useState<SystemNotification[]>([]);
  const [agendaActivities, setAgendaActivities] = useState<AgendaActivity[]>([]);
  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+ const [payables, setPayables] = useState<AccountPayable[]>([]);
+ const [receivables, setReceivables] = useState<AccountReceivable[]>([]);
+ const [paymentCharges, setPaymentCharges] = useState<OnlinePaymentCharge[]>([]);
+ const [paymentConfig, setPaymentConfig] = useState<OnlinePaymentConfig>({
+   enabled: false,
+   gateway: 'pix_bacen',
+   pixKey: 'pix@ateliesagrado.com.br',
+   autoReconcile: true,
+   sandbox: true
+ });
 
  // Initialize and load from LocalStorage
  useEffect(() => {
@@ -1008,6 +1196,13 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
  setOrders(loadData('orders', initialOrders));
  setProductionTasks(loadData('production_tasks', initialProductionTasks));
  setTransactions(loadData('transactions', initialTransactions));
+ setPayables(loadData('payables', initialPayables));
+ setReceivables(loadData('receivables', initialReceivables));
+ setPaymentCharges(loadData('payment_charges', []));
+ const storedPayConfig = localStorage.getItem('as_payment_config');
+ if (storedPayConfig) {
+   try { setPaymentConfig(JSON.parse(storedPayConfig)); } catch (e) {}
+ }
 
  const initialAgendaActivities: AgendaActivity[] = [];
 
@@ -1361,6 +1556,9 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
  const addInventoryItem = (itemData: Omit<InventoryItem, 'id' | 'createdAt'>) => {
  const newItem: InventoryItem = {
  ...itemData,
+ quantity: roundQty(Math.max(0, safeNumber(itemData.quantity, 0))),
+ unitValue: roundCurrency(Math.max(0, safeNumber(itemData.unitValue, 0))),
+ minQuantity: roundQty(Math.max(0, safeNumber(itemData.minQuantity, 0))),
  tenantId: (itemData as any).tenantId || currentTenantId,
  id: 'inv_' + Date.now(),
  createdAt: new Date().toISOString()
@@ -1372,7 +1570,17 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
 
  const updateInventoryItem = (id: string, updatedFields: Partial<InventoryItem>) => {
   const itemBefore = inventory.find(i => i.id === id);
-  const updated = inventory.map(i => i.id === id ? { ...i, ...updatedFields } : i);
+  const sanitizedFields = { ...updatedFields };
+  if (sanitizedFields.quantity !== undefined) {
+   sanitizedFields.quantity = roundQty(Math.max(0, safeNumber(sanitizedFields.quantity, 0)));
+  }
+  if (sanitizedFields.unitValue !== undefined) {
+   sanitizedFields.unitValue = roundCurrency(Math.max(0, safeNumber(sanitizedFields.unitValue, 0)));
+  }
+  if (sanitizedFields.minQuantity !== undefined) {
+   sanitizedFields.minQuantity = roundQty(Math.max(0, safeNumber(sanitizedFields.minQuantity, 0)));
+  }
+  const updated = inventory.map(i => i.id === id ? { ...i, ...sanitizedFields } : i);
   setInventory(updated);
   saveToLocal('inventory', updated);
 
@@ -1421,11 +1629,16 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
  const target = inventory.find(i => i.id === id);
  if (!target) return;
 
- const newQty = Math.max(0, target.quantity + amount);
-	const updatedFields: Partial<InventoryItem> = { quantity: newQty };
-	if (newUnitValue !== undefined && newUnitValue > 0) {
-		updatedFields.unitValue = newUnitValue;
-	}
+ const safeAmount = safeNumber(amount, 0);
+ if (safeAmount === 0) return;
+
+ const newQty = roundQty(Math.max(0, target.quantity + safeAmount));
+ const updatedFields: Partial<InventoryItem> = { quantity: newQty };
+ if (safeAmount > 0 && newUnitValue !== undefined && newUnitValue > 0) {
+  updatedFields.unitValue = calculateWeightedAverageCost(target.quantity, target.unitValue, safeAmount, newUnitValue);
+ } else if (newUnitValue !== undefined && newUnitValue > 0) {
+  updatedFields.unitValue = roundCurrency(newUnitValue);
+ }
  updateInventoryItem(id, updatedFields);
 
  // Generate audit log
@@ -1435,21 +1648,21 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
   module: 'inventory'
  });
 
- // Record financial transaction if buying stock (negative amount means purchasing/expense)
- if (amount > 0) {
+ // Record financial transaction if buying stock
+ if (safeAmount > 0) {
  const value = customExpenseValue !== undefined && customExpenseValue > 0
-		? customExpenseValue
-		: amount * (newUnitValue || target.unitValue);
+  ? customExpenseValue
+  : safeAmount * (newUnitValue || target.unitValue);
  addTransaction({
  type: 'expense',
  category: 'Compra de Matéria-Prima',
  contactName: contactName || target.supplier || 'Fornecedor Diverso',
- value: Number(value.toFixed(2)),
+ value: roundCurrency(value),
  date: new Date().toISOString().split('T')[0],
  paymentMethod: 'Pix',
- notes: `Estoque+: ${amount} ${target.unit} de ${target.name}. Obs: ${notes}`
+ notes: `Estoque+: ${safeAmount} ${target.unit} de ${target.name}. Obs: ${notes}`
  });
- } else if (amount < 0) {
+ } else if (safeAmount < 0) {
     addTransaction({
       type: 'expense',
       category: 'Perda/Ajuste de Estoque',
@@ -1457,7 +1670,7 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
       value: 0,
       date: new Date().toISOString().split('T')[0],
       paymentMethod: 'Outros',
-      notes: `Estoque-: ${Math.abs(amount)} ${target.unit} de ${target.name}. Obs: ${notes}`
+      notes: `Estoque-: ${Math.abs(safeAmount)} ${target.unit} de ${target.name}. Obs: ${notes}`
     });
   } else if (false) {
  // Just stock correction/reduction log
@@ -1605,10 +1818,10 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
  prod.composition.forEach(comp => {
  updatedInventory = updatedInventory.map(m => {
  if (m.id === comp.materialId) {
- const deductedQty = comp.quantity * item.quantity;
+ const deductedQty = roundQty(comp.quantity * item.quantity);
  return {
  ...m,
- quantity: Math.max(0, m.quantity - deductedQty)
+ quantity: roundQty(Math.max(0, m.quantity - deductedQty))
  };
  }
  return m;
@@ -1838,10 +2051,10 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
  prod.composition.forEach(comp => {
  updatedInventory = updatedInventory.map(m => {
  if (m.id === comp.materialId) {
- const deductedQty = comp.quantity * item.quantity;
+ const deductedQty = roundQty(comp.quantity * item.quantity);
  return {
  ...m,
- quantity: Math.max(0, Number((m.quantity - deductedQty).toFixed(2)))
+ quantity: roundQty(Math.max(0, m.quantity - deductedQty))
  };
  }
  return m;
@@ -2190,12 +2403,12 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
    setTransactions(updatedTransactions);
    saveToLocal('transactions', updatedTransactions);
 
-   // 4. Update the order object to reflect cancelled state and soft delete for active charts/views
+   // 4. Update the order object to reflect cancelled state
    const updatedOrders = orders.map(o => {
      if (o.id === orderId) {
        return {
          ...o,
-         isDeleted: true,
+         status: 'cancelled' as OrderStatus,
          isCancelled: true,
          timeline: cancelledTimeline
        };
@@ -2369,8 +2582,10 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
 
  // FINANCIAL TRANSACTIONS CRUD
  const addTransaction = (transData: Omit<FinancialTransaction, 'id' | 'createdAt'>) => {
+ const safeVal = roundCurrency(Math.max(0, safeNumber(transData.value, 0)));
  const newTrans: FinancialTransaction = {
  ...transData,
+ value: safeVal,
  tenantId: (transData as any).tenantId || currentTenantId,
  id: 'trans_' + Date.now(),
  createdAt: new Date().toISOString()
@@ -2381,7 +2596,11 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
  };
 
  const updateTransaction = (id: string, updatedFields: Partial<FinancialTransaction>) => {
- const updated = transactions.map(t => t.id === id ? { ...t, ...updatedFields } : t);
+ const fieldsToUpdate = { ...updatedFields };
+ if (fieldsToUpdate.value !== undefined) {
+  fieldsToUpdate.value = roundCurrency(Math.max(0, safeNumber(fieldsToUpdate.value, 0)));
+ }
+ const updated = transactions.map(t => t.id === id ? { ...t, ...fieldsToUpdate } : t);
  setTransactions(updated);
  saveToLocal('transactions', updated);
  };
@@ -2390,6 +2609,453 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
  const updated = transactions.map(t => t.id === id ? { ...t, isDeleted: true } : t);
  setTransactions(updated);
  saveToLocal('transactions', updated);
+ };
+
+ // ----------------------------------------------------
+ // CONTAS A PAGAR, CONTAS A RECEBER E GATEWAY HANDLERS
+ // ----------------------------------------------------
+ const addPayable = async (payableData: Omit<AccountPayable, 'id' | 'createdAt'>) => {
+   const token = localStorage.getItem('as_access_token');
+   let serverItems: AccountPayable[] | null = null;
+   if (token) {
+     try {
+       const res = await fetch('/api/financial/payables', {
+         method: 'POST',
+         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', 'x-tenant-id': currentTenantId },
+         body: JSON.stringify(payableData)
+       });
+       if (res.ok) {
+         serverItems = await res.json();
+       }
+     } catch (e) {
+       console.warn('API offline, saving payable locally');
+     }
+   }
+
+   if (serverItems && Array.isArray(serverItems)) {
+     setPayables(prev => [...serverItems!, ...prev]);
+     saveToLocal('payables', [...serverItems, ...payables]);
+   } else {
+     const count = Math.max(1, payableData.totalInstallments || 1);
+     const amount = Number(payableData.amount);
+     const instAmount = Math.round((amount / count) * 100) / 100;
+     const newItems: AccountPayable[] = [];
+     const baseDate = new Date(payableData.dueDate || payableData.issueDate || new Date());
+
+     for (let i = 1; i <= count; i++) {
+       const instDueDate = new Date(baseDate);
+       instDueDate.setMonth(instDueDate.getMonth() + (i - 1));
+       newItems.push({
+         ...payableData,
+         id: 'pay_' + Date.now() + '_' + i,
+         tenantId: currentTenantId,
+         description: count > 1 ? `${payableData.description} (${i}/${count})` : payableData.description,
+         amount: i === count ? Number((amount - (instAmount * (count - 1))).toFixed(2)) : instAmount,
+         paidAmount: 0,
+         installmentNumber: i,
+         totalInstallments: count,
+         status: 'pending',
+         dueDate: instDueDate.toISOString().split('T')[0],
+         createdAt: new Date().toISOString()
+       });
+     }
+     const updated = [...newItems, ...payables];
+     setPayables(updated);
+     saveToLocal('payables', updated);
+   }
+
+   addNotification("📋 Conta a Pagar Cadastrada", `Título "${payableData.description}" registrado com sucesso.`, "info");
+ };
+
+ const updatePayable = async (id: string, updatedFields: Partial<AccountPayable>) => {
+   const token = localStorage.getItem('as_access_token');
+   if (token) {
+     try {
+       await fetch(`/api/financial/payables/${id}`, {
+         method: 'PUT',
+         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', 'x-tenant-id': currentTenantId },
+         body: JSON.stringify(updatedFields)
+       });
+     } catch (e) {}
+   }
+   const updated = payables.map(p => p.id === id ? { ...p, ...updatedFields } : p);
+   setPayables(updated);
+   saveToLocal('payables', updated);
+ };
+
+ const deletePayable = async (id: string) => {
+   const token = localStorage.getItem('as_access_token');
+   if (token) {
+     try {
+       await fetch(`/api/financial/payables/${id}`, {
+         method: 'DELETE',
+         headers: { 'Authorization': `Bearer ${token}`, 'x-tenant-id': currentTenantId }
+       });
+     } catch (e) {}
+   }
+   const updated = payables.filter(p => p.id !== id);
+   setPayables(updated);
+   saveToLocal('payables', updated);
+ };
+
+ const settlePayable = async (id: string, paidAmount: number, paymentDate: string, paymentMethod: string, notes?: string): Promise<{ success: boolean; error?: string }> => {
+   const token = localStorage.getItem('as_access_token');
+   if (token) {
+     try {
+       const res = await fetch(`/api/financial/payables/${id}/settle`, {
+         method: 'POST',
+         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', 'x-tenant-id': currentTenantId },
+         body: JSON.stringify({ paidAmount, paymentDate, paymentMethod, notes })
+       });
+       if (res.ok) {
+         const data = await res.json();
+         setPayables(prev => prev.map(p => p.id === id ? { ...p, ...data.payable } : p));
+         const trRes = await fetch('/api/financial', { headers: { 'Authorization': `Bearer ${token}`, 'x-tenant-id': currentTenantId } });
+         if (trRes.ok) {
+           const trData = await trRes.json();
+           setTransactions(trData);
+           saveToLocal('transactions', trData);
+         }
+         addNotification("💸 Título Liquidado", `Baixa realizada com sucesso no valor de R$ ${Number(paidAmount).toFixed(2)}.`, "success");
+         return { success: true };
+       }
+     } catch (e) {
+       console.warn('API error settling payable, running local fallback', e);
+     }
+   }
+
+   const target = payables.find(p => p.id === id);
+   if (!target) return { success: false, error: 'Título não localizado.' };
+   const val = Number(paidAmount) || (target.amount - (target.paidAmount || 0));
+   const newPaidAmount = Number(((target.paidAmount || 0) + val).toFixed(2));
+   const newStatus = newPaidAmount >= target.amount ? 'paid' : 'partially_paid';
+
+   const updatedPayables = payables.map(p => p.id === id ? {
+     ...p,
+     paidAmount: newPaidAmount,
+     status: newStatus as any,
+     paymentDate: paymentDate || new Date().toISOString().split('T')[0],
+     paymentMethod: paymentMethod || 'pix'
+   } : p);
+   setPayables(updatedPayables);
+   saveToLocal('payables', updatedPayables);
+
+   addTransaction({
+     type: 'expense',
+     category: target.category || 'Contas a Pagar',
+     contactName: target.supplierName,
+     value: val,
+     date: paymentDate || new Date().toISOString().split('T')[0],
+     paymentMethod: paymentMethod || 'Pix',
+     notes: `Baixa de título #${target.description} - ${notes || 'Liquidação'}`.trim()
+   });
+
+   addNotification("💸 Título Liquidado", `Baixa registrada no valor de R$ ${val.toFixed(2)}.`, "success");
+   return { success: true };
+ };
+
+ const addReceivable = async (recData: Omit<AccountReceivable, 'id' | 'createdAt'>) => {
+   const token = localStorage.getItem('as_access_token');
+   let serverItems: AccountReceivable[] | null = null;
+   if (token) {
+     try {
+       const res = await fetch('/api/financial/receivables', {
+         method: 'POST',
+         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', 'x-tenant-id': currentTenantId },
+         body: JSON.stringify(recData)
+       });
+       if (res.ok) {
+         serverItems = await res.json();
+       }
+     } catch (e) {
+       console.warn('API offline, saving receivable locally');
+     }
+   }
+
+   if (serverItems && Array.isArray(serverItems)) {
+     setReceivables(prev => [...serverItems!, ...prev]);
+     saveToLocal('receivables', [...serverItems, ...receivables]);
+   } else {
+     const count = Math.max(1, recData.totalInstallments || 1);
+     const amount = Number(recData.amount);
+     const instAmount = Math.round((amount / count) * 100) / 100;
+     const newItems: AccountReceivable[] = [];
+     const baseDate = new Date(recData.dueDate || recData.issueDate || new Date());
+
+     for (let i = 1; i <= count; i++) {
+       const instDueDate = new Date(baseDate);
+       instDueDate.setMonth(instDueDate.getMonth() + (i - 1));
+       const instId = 'rec_' + Date.now() + '_' + i;
+       newItems.push({
+         ...recData,
+         id: instId,
+         tenantId: currentTenantId,
+         description: count > 1 ? `${recData.description} (${i}/${count})` : recData.description,
+         amount: i === count ? Number((amount - (instAmount * (count - 1))).toFixed(2)) : instAmount,
+         receivedAmount: 0,
+         installmentNumber: i,
+         totalInstallments: count,
+         status: 'pending',
+         dueDate: instDueDate.toISOString().split('T')[0],
+         paymentLink: `https://pay.ateliesagrado.com/c/${instId}`,
+         createdAt: new Date().toISOString()
+       });
+     }
+     const updated = [...newItems, ...receivables];
+     setReceivables(updated);
+     saveToLocal('receivables', updated);
+   }
+
+   addNotification("💰 Conta a Receber Cadastrada", `Título "${recData.description}" registrado com sucesso.`, "info");
+ };
+
+ const updateReceivable = async (id: string, updatedFields: Partial<AccountReceivable>) => {
+   const token = localStorage.getItem('as_access_token');
+   if (token) {
+     try {
+       await fetch(`/api/financial/receivables/${id}`, {
+         method: 'PUT',
+         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', 'x-tenant-id': currentTenantId },
+         body: JSON.stringify(updatedFields)
+       });
+     } catch (e) {}
+   }
+   const updated = receivables.map(r => r.id === id ? { ...r, ...updatedFields } : r);
+   setReceivables(updated);
+   saveToLocal('receivables', updated);
+ };
+
+ const deleteReceivable = async (id: string) => {
+   const token = localStorage.getItem('as_access_token');
+   if (token) {
+     try {
+       await fetch(`/api/financial/receivables/${id}`, {
+         method: 'DELETE',
+         headers: { 'Authorization': `Bearer ${token}`, 'x-tenant-id': currentTenantId }
+       });
+     } catch (e) {}
+   }
+   const updated = receivables.filter(r => r.id !== id);
+   setReceivables(updated);
+   saveToLocal('receivables', updated);
+ };
+
+ const settleReceivable = async (id: string, receivedAmount: number, receiptDate: string, paymentMethod: string, notes?: string): Promise<{ success: boolean; error?: string }> => {
+   const token = localStorage.getItem('as_access_token');
+   if (token) {
+     try {
+       const res = await fetch(`/api/financial/receivables/${id}/settle`, {
+         method: 'POST',
+         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', 'x-tenant-id': currentTenantId },
+         body: JSON.stringify({ receivedAmount, receiptDate, paymentMethod, notes })
+       });
+       if (res.ok) {
+         const data = await res.json();
+         setReceivables(prev => prev.map(r => r.id === id ? { ...r, ...data.receivable } : r));
+         const trRes = await fetch('/api/financial', { headers: { 'Authorization': `Bearer ${token}`, 'x-tenant-id': currentTenantId } });
+         if (trRes.ok) {
+           const trData = await trRes.json();
+           setTransactions(trData);
+           saveToLocal('transactions', trData);
+         }
+         addNotification("✅ Recebimento Confirmado", `Recebimento de R$ ${Number(receivedAmount).toFixed(2)} liquidado.`, "success");
+         return { success: true };
+       }
+     } catch (e) {
+       console.warn('API error settling receivable, running local fallback', e);
+     }
+   }
+
+   const target = receivables.find(r => r.id === id);
+   if (!target) return { success: false, error: 'Título não localizado.' };
+   const val = Number(receivedAmount) || (target.amount - (target.receivedAmount || 0));
+   const newReceived = Number(((target.receivedAmount || 0) + val).toFixed(2));
+   const newStatus = newReceived >= target.amount ? 'received' : 'partially_received';
+
+   const updatedReceivables = receivables.map(r => r.id === id ? {
+     ...r,
+     receivedAmount: newReceived,
+     status: newStatus as any,
+     receiptDate: receiptDate || new Date().toISOString().split('T')[0],
+     paymentMethod: paymentMethod || 'pix'
+   } : r);
+   setReceivables(updatedReceivables);
+   saveToLocal('receivables', updatedReceivables);
+
+   addTransaction({
+     type: 'income',
+     category: target.category || 'Contas a Receber',
+     contactName: target.clientName,
+     value: val,
+     date: receiptDate || new Date().toISOString().split('T')[0],
+     paymentMethod: paymentMethod || 'Pix',
+     notes: `Recebimento #${target.description} - ${notes || 'Liquidação'}`.trim()
+   });
+
+   addNotification("✅ Recebimento Confirmado", `Recebimento de R$ ${val.toFixed(2)} registrado.`, "success");
+   return { success: true };
+ };
+
+ const createPaymentCheckout = async (params: { receivableId?: string; orderId?: string; customerName: string; customerDocument?: string; amount: number; method: 'pix' | 'credit_card' | 'bank_slip'; installments?: number }): Promise<OnlinePaymentCharge> => {
+   const token = localStorage.getItem('as_access_token');
+   if (token) {
+     try {
+       const res = await fetch('/api/financial/gateway/checkout', {
+         method: 'POST',
+         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', 'x-tenant-id': currentTenantId },
+         body: JSON.stringify(params)
+       });
+       if (res.ok) {
+         const charge: OnlinePaymentCharge = await res.json();
+         setPaymentCharges(prev => [charge, ...prev]);
+         saveToLocal('payment_charges', [charge, ...paymentCharges]);
+         return charge;
+       }
+     } catch (e) {
+       console.warn('Gateway checkout API call failed, generating local charge', e);
+     }
+   }
+
+   const chargeId = 'chg_' + Date.now();
+   const cleanAmount = Number(params.amount).toFixed(2);
+   const pixKey = paymentConfig.pixKey || 'pix@ateliesagrado.com.br';
+   const pixCopyPaste = `00020126580014br.gov.bcb.pix0136${pixKey}520400005303986540${cleanAmount.length.toString().padStart(2, '0')}${cleanAmount}5802BR5921Atelie Sagrado LTDA6009Sao Paulo62190515${chargeId}6304E1F2`;
+
+   const charge: OnlinePaymentCharge = {
+     id: chargeId,
+     tenantId: currentTenantId,
+     receivableId: params.receivableId,
+     orderId: params.orderId,
+     customerName: params.customerName,
+     customerDocument: params.customerDocument,
+     amount: Number(params.amount),
+     method: params.method,
+     status: 'pending',
+     pixCopyPaste,
+     installments: params.installments || 1,
+     gatewayName: paymentConfig.gateway || 'pix_bacen',
+     idempotencyKey: 'idemp_' + chargeId,
+     createdAt: new Date().toISOString()
+   };
+
+   setPaymentCharges(prev => [charge, ...prev]);
+   saveToLocal('payment_charges', [charge, ...paymentCharges]);
+   return charge;
+ };
+
+ const simulateWebhookPayment = async (chargeId: string): Promise<boolean> => {
+   try {
+     const res = await fetch('/api/financial/gateway/webhook', {
+       method: 'POST',
+       headers: { 'Content-Type': 'application/json' },
+       body: JSON.stringify({
+         event: 'payment.confirmed',
+         chargeId,
+         status: 'paid',
+         paymentDate: new Date().toISOString()
+       })
+     });
+     if (res.ok) {
+       const token = localStorage.getItem('as_access_token');
+       if (token) {
+         const recRes = await fetch('/api/financial/receivables', { headers: { 'Authorization': `Bearer ${token}`, 'x-tenant-id': currentTenantId } });
+         if (recRes.ok) setReceivables(await recRes.json());
+         const trRes = await fetch('/api/financial', { headers: { 'Authorization': `Bearer ${token}`, 'x-tenant-id': currentTenantId } });
+         if (trRes.ok) setTransactions(await trRes.json());
+       }
+       setPaymentCharges(prev => prev.map(c => c.id === chargeId ? { ...c, status: 'paid', paidAt: new Date().toISOString() } : c));
+       addNotification("✅ Pagamento Confirmado", `A cobrança #${chargeId} foi liquidada com sucesso via Webhook do gateway.`, "success");
+       return true;
+     }
+   } catch (e) {
+     console.error('Webhook simulation failed', e);
+   }
+   return false;
+ };
+
+ const refundCharge = async (chargeId: string, reason?: string): Promise<boolean> => {
+   const token = localStorage.getItem('as_access_token');
+   if (token) {
+     try {
+       const res = await fetch('/api/financial/gateway/refund', {
+         method: 'POST',
+         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', 'x-tenant-id': currentTenantId },
+         body: JSON.stringify({ chargeId, reason })
+       });
+       if (res.ok) {
+         const trRes = await fetch('/api/financial', { headers: { 'Authorization': `Bearer ${token}`, 'x-tenant-id': currentTenantId } });
+         if (trRes.ok) setTransactions(await trRes.json());
+         setPaymentCharges(prev => prev.map(c => c.id === chargeId ? { ...c, status: 'refunded', refundedAt: new Date().toISOString(), refundReason: reason } : c));
+         addNotification("↩️ Estorno Efetuado", `Cobrança #${chargeId} foi reembolsada e gerou lançamento de estorno no extrato.`, "info");
+         return true;
+       }
+     } catch (e) {
+       console.error('Refund failed', e);
+     }
+   }
+   return false;
+ };
+
+ const updatePaymentConfig = async (configData: Partial<OnlinePaymentConfig>) => {
+   const token = localStorage.getItem('as_access_token');
+   if (token) {
+     try {
+       const res = await fetch('/api/financial/gateway/config', {
+         method: 'PUT',
+         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', 'x-tenant-id': currentTenantId },
+         body: JSON.stringify(configData)
+       });
+       if (res.ok) {
+         const updated = await res.json();
+         setPaymentConfig(updated);
+         localStorage.setItem('as_payment_config', JSON.stringify(updated));
+         addNotification("⚙️ Configurações Salvas", "Gateway de pagamentos atualizado.", "success");
+         return;
+       }
+     } catch (e) {
+       console.warn('API config update failed', e);
+     }
+   }
+   const updated = { ...paymentConfig, ...configData };
+   setPaymentConfig(updated);
+   localStorage.setItem('as_payment_config', JSON.stringify(updated));
+ };
+
+ const exportFinancialReport = async (type: 'transactions' | 'payables' | 'receivables' | 'cashflow'): Promise<{ success: boolean; filename?: string; error?: string }> => {
+   const token = localStorage.getItem('as_access_token');
+   try {
+     const res = await fetch(`/api/financial/export?type=${type}`, {
+       headers: {
+         'Authorization': `Bearer ${token}`,
+         'x-tenant-id': currentTenantId
+       }
+     });
+     if (!res.ok) {
+       return { success: false, error: 'Falha ao gerar relatório no servidor.' };
+     }
+
+     const blob = await res.blob();
+     const contentDisp = res.headers.get('Content-Disposition');
+     let filename = `relatorio-financeiro-${type}.csv`;
+     if (contentDisp && contentDisp.includes('filename=')) {
+       const match = contentDisp.match(/filename="?([^";]+)"?/);
+       if (match && match[1]) filename = match[1];
+     }
+
+     const url = window.URL.createObjectURL(blob);
+     const a = document.createElement('a');
+     a.href = url;
+     a.download = filename;
+     document.body.appendChild(a);
+     a.click();
+     document.body.removeChild(a);
+     window.URL.revokeObjectURL(url);
+
+     addNotification("📥 Download Concluído", `Arquivo ${filename} exportado com sucesso.`, "success");
+     return { success: true, filename };
+   } catch (e: any) {
+     return { success: false, error: e.message || 'Erro durante a exportação.' };
+   }
  };
 
  // SYSTEM SETTINGS
@@ -2410,7 +3076,8 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
  finishing: 'Acabamento',
  packing: 'Embalagem',
  ready: 'Pronto para Entrega',
- completed: 'Concluído'
+ completed: 'Concluído',
+ cancelled: 'Cancelado'
  };
  return labels[status] || status;
  };
@@ -2497,7 +3164,7 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
   saveToLocal('notifications', []);
  };
 
- const scanReceipt = async (imageBase64: string): Promise<{ success: boolean; data?: any; error?: string }> => {
+ const scanReceipt = async (imageBase64: string): Promise<{ success: boolean; data?: ReceiptOcrData; error?: string }> => {
   try {
    const token = localStorage.getItem('as_jwt');
    const res = await fetch('/api/ocr/receipt', {
@@ -2518,8 +3185,9 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
    );
    
    return { success: true, data: data.data };
-  } catch (e: any) {
-   return { success: false, error: e.message };
+  } catch (e: unknown) {
+   const msg = e instanceof Error ? e.message : 'Erro ao processar recibo.';
+   return { success: false, error: msg };
   }
  };
 
@@ -2725,6 +3393,18 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
   return notifications.filter(n => !n.tenantId || n.tenantId === currentTenantId);
  }, [notifications, currentTenantId]);
 
+ const scopedPayables = React.useMemo(() => {
+  return payables.filter(p => !p.isDeleted && (!p.tenantId || p.tenantId === currentTenantId));
+ }, [payables, currentTenantId]);
+
+ const scopedReceivables = React.useMemo(() => {
+  return receivables.filter(r => !r.isDeleted && (!r.tenantId || r.tenantId === currentTenantId));
+ }, [receivables, currentTenantId]);
+
+ const scopedPaymentCharges = React.useMemo(() => {
+  return paymentCharges.filter(c => !c.tenantId || c.tenantId === currentTenantId);
+ }, [paymentCharges, currentTenantId]);
+
  return (
  <DbContext.Provider value={{
  tenants: tenants || [],
@@ -2798,7 +3478,26 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
  addAgendaActivity,
  updateAgendaActivity,
  deleteAgendaActivity,
- addAuditLog
+ addAuditLog,
+
+ // Financial & Gateway
+ payables: scopedPayables,
+ receivables: scopedReceivables,
+ paymentCharges: scopedPaymentCharges,
+ paymentConfig,
+ addPayable,
+ updatePayable,
+ deletePayable,
+ settlePayable,
+ addReceivable,
+ updateReceivable,
+ deleteReceivable,
+ settleReceivable,
+ createPaymentCheckout,
+ simulateWebhookPayment,
+ refundCharge,
+ updatePaymentConfig,
+ exportFinancialReport
  }}>
  {children}
  </DbContext.Provider>

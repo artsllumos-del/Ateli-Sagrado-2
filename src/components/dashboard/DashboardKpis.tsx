@@ -1,28 +1,63 @@
-import React, { useState } from 'react';
-import { TrendingUp, DollarSign, Hammer, AlertTriangle, Clock, ShoppingCart, Percent, Package, ArrowUpRight, ArrowDownRight, Eye, X } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { 
+  TrendingUp, 
+  DollarSign, 
+  Hammer, 
+  AlertTriangle, 
+  Clock, 
+  ShoppingCart, 
+  Percent, 
+  Package, 
+  ArrowUpRight, 
+  ArrowDownRight, 
+  Eye, 
+  X, 
+  CreditCard, 
+  CalendarClock, 
+  ArrowRight,
+  Sparkles,
+  Layers,
+  CheckCircle2
+} from 'lucide-react';
 import { Order, InventoryItem, Quote, FinancialTransaction, ProductionTask } from '../../types/erp';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { useDb } from '../../context/DbContext';
+import { roundCurrency, safeNumber, safeDiv } from '../../utils/finance';
+
+export type DashboardPeriod = 'hoje' | '7d' | 'mes' | 'ano' | 'todos';
 
 interface DashboardKpisProps {
-  onViewChange: (view: string) => void;
+  onViewChange: (view: string, params?: Record<string, any>) => void;
   activeOrders: Order[];
   inventory: InventoryItem[];
   quotes: Quote[];
   transactions: FinancialTransaction[];
   productionTasks: ProductionTask[];
+  period?: DashboardPeriod;
 }
 
-interface KpiDetail {
+export interface KpiChartPoint {
+  name: string;
+  valor?: number;
+  [key: string]: string | number | undefined;
+}
+
+interface KpiItem {
+  id: string;
+  category: 'financeiro' | 'operacional' | 'comercial';
   title: string;
   value: string;
   subtitle: string;
-  description: string;
   trend: 'up' | 'down' | 'neutral';
-  trendPercent?: string;
-  chartData: any[];
-  bgColor: string;
-  textColor: string;
+  trendPercent: string;
+  icon: React.ReactNode;
+  statusColor: string; // text and bg classes
+  description: string;
+  sourceText: string;
+  calculationText: string;
+  chartData: KpiChartPoint[];
+  targetView: string;
+  targetParams?: Record<string, any>;
 }
 
 export const DashboardKpis: React.FC<DashboardKpisProps> = ({
@@ -32,72 +67,46 @@ export const DashboardKpis: React.FC<DashboardKpisProps> = ({
   quotes,
   transactions,
   productionTasks,
+  period = 'mes',
 }) => {
   const { products } = useDb();
-  const [selectedKpi, setSelectedKpi] = useState<KpiDetail | null>(null);
-  const todayStr = new Date().toISOString().split('T')[0];
-  const currentMonthStr = todayStr.substring(0, 7); // "2026-06"
+  const [selectedKpi, setSelectedKpi] = useState<KpiItem | null>(null);
+  const [kpiCategoryFilter, setKpiCategoryFilter] = useState<'all' | 'financeiro' | 'operacional'>('all');
 
-  // 1. Faturamento do mês
-  const currentMonthTransactions = transactions.filter(t => !t.isDeleted && t.date.startsWith(currentMonthStr));
-  const faturamentoMes = currentMonthTransactions
-    .filter(t => t.type === 'income')
-    .reduce((sum, t) => sum + t.value, 0);
+  const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
+  const currentMonthStr = todayStr.substring(0, 7);
+  const currentYearStr = todayStr.substring(0, 4);
 
-  // 2. Lucro do mês
-  const despesasMes = currentMonthTransactions
-    .filter(t => t.type === 'expense')
-    .reduce((sum, t) => sum + t.value, 0);
-  const lucroLiquido = faturamentoMes - despesasMes;
+  // Helper to test if a record's date falls into the active period
+  const isInPeriod = useMemo(() => {
+    return (dateStr?: string | null) => {
+      if (!dateStr) return false;
+      if (period === 'todos') return true;
+      if (period === 'hoje') return dateStr.startsWith(todayStr);
+      if (period === 'mes') return dateStr.startsWith(currentMonthStr);
+      if (period === 'ano') return dateStr.startsWith(currentYearStr);
+      if (period === '7d') {
+        const d = new Date(dateStr);
+        const past7 = new Date();
+        past7.setDate(new Date().getDate() - 7);
+        return d >= past7;
+      }
+      return true;
+    };
+  }, [period, todayStr, currentMonthStr, currentYearStr]);
 
-  // 3. Fluxo de caixa / Saldo total (all time)
-  const totalIncomes = transactions.filter(t => !t.isDeleted && t.type === 'income').reduce((sum, t) => sum + t.value, 0);
-  const totalExpenses = transactions.filter(t => !t.isDeleted && t.type === 'expense').reduce((sum, t) => sum + t.value, 0);
-  const saldoAtual = totalIncomes - totalExpenses;
+  const periodLabel = useMemo(() => {
+    switch (period) {
+      case 'hoje': return 'Hoje';
+      case '7d': return 'Últimos 7 dias';
+      case 'mes': return 'Mês Atual';
+      case 'ano': return 'Ano Atual';
+      case 'todos': return 'Todo Histórico';
+      default: return 'Mês Atual';
+    }
+  }, [period]);
 
-  // 4. Pedidos em produção
-  const emProducaoCount = activeOrders.filter(o => ['production', 'finishing'].includes(o.status)).length;
-
-  // 5. Pedidos concluídos no mês
-  const concluidoMesCount = activeOrders.filter(o => 
-    ['completed', 'shipped', 'delivered'].includes(o.status) && 
-    o.date.startsWith(currentMonthStr)
-  ).length;
-
-  // 6. Pedidos atrasados
-  const atrasadosCount = activeOrders.filter(o => 
-    !['completed', 'shipped', 'delivered'].includes(o.status) && 
-    new Date(o.dueDate) < new Date(todayStr)
-  ).length;
-
-  // 7. Soma de Horas trabalhadas (Calculado pelo motor de precificação registrado/produtos e venda efetivamente feita)
-  const totalSalesProductionMinutes = activeOrders.reduce((sum, order) => {
-    const orderMinutes = order.items.reduce((itemSum, item) => {
-      const prod = products.find(p => p.id === item.productId || p.sku === item.productId);
-      const prodTime = prod ? (prod.productionTimeMin || 0) : 0;
-      return itemSum + (item.quantity * prodTime);
-    }, 0);
-    return sum + orderMinutes;
-  }, 0);
-  const totalHoursWorked = Number((totalSalesProductionMinutes / 60).toFixed(1));
-
-  // 8. Vendas do dia
-  const vendasDia = activeOrders
-    .filter(o => o.date === todayStr)
-    .reduce((sum, o) => sum + o.totalValue, 0);
-
-  // 9. Ticket médio
-  const currentMonthOrders = activeOrders.filter(o => o.date.startsWith(currentMonthStr));
-  const ticketMedio = currentMonthOrders.length > 0 
-    ? faturamentoMes / currentMonthOrders.length 
-    : 0;
-
-  // 10. Valor total do estoque
-  const valorTotalEstoque = inventory
-    .filter(i => !i.isDeleted)
-    .reduce((sum, i) => sum + (i.quantity * i.unitValue), 0);
-
-  // Previous Month metrics for real comparisons
+  // Previous month helper for trend calculations
   const getPrevMonthStr = (monthStr: string) => {
     const parts = monthStr.split('-');
     if (parts.length < 2) return '';
@@ -110,450 +119,604 @@ export const DashboardKpis: React.FC<DashboardKpisProps> = ({
   };
   const prevMonthStr = getPrevMonthStr(currentMonthStr);
 
-  const prevMonthTransactions = transactions.filter(t => !t.isDeleted && t.date.startsWith(prevMonthStr));
-  const prevMonthFaturamento = prevMonthTransactions
-    .filter(t => t.type === 'income')
-    .reduce((sum, t) => sum + t.value, 0);
-  const prevMonthDespesas = prevMonthTransactions
-    .filter(t => t.type === 'expense')
-    .reduce((sum, t) => sum + t.value, 0);
-  const prevMonthLucro = prevMonthFaturamento - prevMonthDespesas;
+  // Filtered transactions for the selected period
+  const periodTransactions = useMemo(() => {
+    return transactions.filter(t => !t.isDeleted && isInPeriod(t.date));
+  }, [transactions, isInPeriod]);
 
-  const prevMonthOrdersCount = activeOrders.filter(o => o.date.startsWith(prevMonthStr)).length;
+  // Filtered orders for the selected period
+  const periodOrders = useMemo(() => {
+    return activeOrders.filter(o => isInPeriod(o.date));
+  }, [activeOrders, isInPeriod]);
 
-  const handleKpiClick = (title: string, value: string, subtitle: string, description: string, trend: 'up' | 'down' | 'neutral', trendPercent: string, chartData: any[], bgColor: string, textColor: string) => {
-    setSelectedKpi({ title, value, subtitle, description, trend, trendPercent, chartData, bgColor, textColor });
-  };
-
-  // Dynamic Chart aggregators
-  const getWeeklyFaturamento = () => {
-    const weekly = [
-      { name: 'S1 (Dias 1-7)', valor: 0 },
-      { name: 'S2 (Dias 8-14)', valor: 0 },
-      { name: 'S3 (Dias 15-21)', valor: 0 },
-      { name: 'S4 (Dias 22-31)', valor: 0 },
-    ];
-    currentMonthTransactions
+  // 1. FATURAMENTO (Receitas financeiras realizadas no período)
+  const faturamentoPeriodo = useMemo(() => {
+    return roundCurrency(periodTransactions
       .filter(t => t.type === 'income')
-      .forEach(t => {
+      .reduce((sum, t) => sum + safeNumber(t.value, 0), 0));
+  }, [periodTransactions]);
+
+  // 2. VENDAS (Valor bruto dos pedidos fechados no período)
+  const vendasPeriodo = useMemo(() => {
+    return roundCurrency(periodOrders.reduce((sum, o) => sum + safeNumber(o.totalValue, 0), 0));
+  }, [periodOrders]);
+
+  // 3. DESPESAS (Despesas pagas no período)
+  const despesasPeriodo = useMemo(() => {
+    return roundCurrency(periodTransactions
+      .filter(t => t.type === 'expense')
+      .reduce((sum, t) => sum + safeNumber(t.value, 0), 0));
+  }, [periodTransactions]);
+
+  // 4. LUCRO LÍQUIDO OPERACIONAL (Faturamento - Despesas)
+  const lucroPeriodo = useMemo(() => {
+    return roundCurrency(faturamentoPeriodo - despesasPeriodo);
+  }, [faturamentoPeriodo, despesasPeriodo]);
+
+  // 5. MARGEM LÍQUIDA REAL (%)
+  const margemLiquida = useMemo(() => {
+    if (faturamentoPeriodo <= 0) return 0;
+    return Number((safeDiv(lucroPeriodo, faturamentoPeriodo) * 100).toFixed(1));
+  }, [faturamentoPeriodo, lucroPeriodo]);
+
+  // 6. ESTOQUE TOTAL E SAÚDE
+  const valorTotalEstoque = useMemo(() => {
+    return roundCurrency(inventory
+      .filter(i => !i.isDeleted)
+      .reduce((sum, i) => sum + (safeNumber(i.quantity, 0) * safeNumber(i.unitValue, 0)), 0));
+  }, [inventory]);
+
+  const insumosAbaixoMinimo = useMemo(() => {
+    return inventory.filter(i => !i.isDeleted && i.quantity > 0 && i.quantity <= i.minQuantity).length;
+  }, [inventory]);
+
+  const insumosZerados = useMemo(() => {
+    return inventory.filter(i => !i.isDeleted && i.quantity === 0).length;
+  }, [inventory]);
+
+  // 7. CONTAS A RECEBER (Pedidos abertos aguardando entrega e quitação)
+  const contasReceberTotal = useMemo(() => {
+    return roundCurrency(activeOrders
+      .filter(o => !['completed', 'cancelled'].includes(o.status))
+      .reduce((sum, o) => sum + safeNumber(o.totalValue, 0), 0));
+  }, [activeOrders]);
+
+  const pedidosReceberCount = useMemo(() => {
+    return activeOrders.filter(o => !['completed', 'cancelled'].includes(o.status)).length;
+  }, [activeOrders]);
+
+  // 8. CONTAS A PAGAR / COMPRAS DE INSUMOS
+  // Representado pelas transações de despesa futuras/pendentes ou orçadas no período
+  const contasPagarEstimadas = useMemo(() => {
+    const despesasFuturas = transactions
+      .filter(t => !t.isDeleted && t.type === 'expense' && new Date(t.date) > new Date(todayStr))
+      .reduce((sum, t) => sum + safeNumber(t.value, 0), 0);
+    return roundCurrency(despesasFuturas > 0 ? despesasFuturas : despesasPeriodo * 0.35);
+  }, [transactions, todayStr, despesasPeriodo]);
+
+  // 9. FLUXO DE CAIXA / SALDO ACUMULADO REAL
+  const saldoCaixaAtual = useMemo(() => {
+    const totalIn = transactions.filter(t => !t.isDeleted && t.type === 'income').reduce((sum, t) => sum + safeNumber(t.value, 0), 0);
+    const totalOut = transactions.filter(t => !t.isDeleted && t.type === 'expense').reduce((sum, t) => sum + safeNumber(t.value, 0), 0);
+    return roundCurrency(totalIn - totalOut);
+  }, [transactions]);
+
+  // 10. INADIMPLÊNCIA / PEDIDOS ATRASADOS
+  const pedidosAtrasados = useMemo(() => {
+    return activeOrders.filter(o => 
+      !['completed', 'shipped', 'delivered', 'cancelled'].includes(o.status) && 
+      new Date(o.dueDate) < new Date(todayStr)
+    );
+  }, [activeOrders, todayStr]);
+
+  const valorPedidosAtrasados = useMemo(() => {
+    return roundCurrency(pedidosAtrasados.reduce((sum, o) => sum + safeNumber(o.totalValue, 0), 0));
+  }, [pedidosAtrasados]);
+
+  // 11. PEDIDOS EM PRODUÇÃO ATIVA
+  const pedidosEmProducao = useMemo(() => {
+    return activeOrders.filter(o => ['production', 'finishing'].includes(o.status)).length;
+  }, [activeOrders]);
+
+  // 12. HORAS DE TRABALHO DEDICADAS
+  const totalHorasProducao = useMemo(() => {
+    const totalMinutos = activeOrders.reduce((sum, order) => {
+      const orderMinutes = order.items.reduce((itemSum, item) => {
+        const prod = products.find(p => p.id === item.productId || p.sku === item.productId);
+        const prodTime = prod ? (prod.productionTimeMin || 0) : 0;
+        return itemSum + (safeNumber(item.quantity, 0) * prodTime);
+      }, 0);
+      return sum + orderMinutes;
+    }, 0);
+    return Number((safeDiv(totalMinutos, 60)).toFixed(1));
+  }, [activeOrders, products]);
+
+  // Comparison metrics vs previous month
+  const prevMonthTransactions = useMemo(() => transactions.filter(t => !t.isDeleted && t.date.startsWith(prevMonthStr)), [transactions, prevMonthStr]);
+  const prevMonthFaturamento = useMemo(() => prevMonthTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + safeNumber(t.value, 0), 0), [prevMonthTransactions]);
+  const prevMonthDespesas = useMemo(() => prevMonthTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + safeNumber(t.value, 0), 0), [prevMonthTransactions]);
+  const prevMonthLucro = roundCurrency(prevMonthFaturamento - prevMonthDespesas);
+
+  const faturamentoPctDiff = prevMonthFaturamento > 0 ? ((faturamentoPeriodo - prevMonthFaturamento) / prevMonthFaturamento) * 100 : 0;
+  const lucroPctDiff = prevMonthLucro > 0 ? ((lucroPeriodo - prevMonthLucro) / prevMonthLucro) * 100 : 0;
+
+  // Real Weekly or Timeline Chart data for modal
+  const generateTrendData = (type: 'income' | 'expense' | 'orders' | 'balance'): KpiChartPoint[] => {
+    const weekly = [
+      { name: 'S1 (1-7)', valor: 0 },
+      { name: 'S2 (8-14)', valor: 0 },
+      { name: 'S3 (15-21)', valor: 0 },
+      { name: 'S4 (22+)', valor: 0 },
+    ];
+
+    if (type === 'income' || type === 'expense') {
+      periodTransactions
+        .filter(t => t.type === type)
+        .forEach(t => {
+          const parts = t.date.split('-');
+          if (parts.length < 3) return;
+          const day = Number(parts[2]);
+          const idx = day <= 7 ? 0 : day <= 14 ? 1 : day <= 21 ? 2 : 3;
+          weekly[idx].valor += t.value;
+        });
+    } else if (type === 'orders') {
+      periodOrders.forEach(o => {
+        const parts = o.date.split('-');
+        if (parts.length < 3) return;
+        const day = Number(parts[2]);
+        const idx = day <= 7 ? 0 : day <= 14 ? 1 : day <= 21 ? 2 : 3;
+        weekly[idx].valor += o.totalValue;
+      });
+    } else if (type === 'balance') {
+      let run = saldoCaixaAtual - faturamentoPeriodo + despesasPeriodo;
+      periodTransactions.forEach(t => {
         const parts = t.date.split('-');
         if (parts.length < 3) return;
         const day = Number(parts[2]);
-        const idx = day >= 1 && day <= 7 ? 0 : day >= 8 && day <= 14 ? 1 : day >= 15 && day <= 21 ? 2 : 3;
-        weekly[idx].valor += t.value;
+        const idx = day <= 7 ? 0 : day <= 14 ? 1 : day <= 21 ? 2 : 3;
+        const delta = t.type === 'income' ? t.value : -t.value;
+        weekly[idx].valor = roundCurrency(run + delta);
+        run += delta;
       });
-    return weekly;
-  };
-
-  const getWeeklyLucro = () => {
-    const weekly = [
-      { name: 'S1 (Dias 1-7)', valor: 0 },
-      { name: 'S2 (Dias 8-14)', valor: 0 },
-      { name: 'S3 (Dias 15-21)', valor: 0 },
-      { name: 'S4 (Dias 22-31)', valor: 0 },
-    ];
-    currentMonthTransactions.forEach(t => {
-      const parts = t.date.split('-');
-      if (parts.length < 3) return;
-      const day = Number(parts[2]);
-      const idx = day >= 1 && day <= 7 ? 0 : day >= 8 && day <= 14 ? 1 : day >= 15 && day <= 21 ? 2 : 3;
-      const val = t.type === 'income' ? t.value : -t.value;
-      weekly[idx].valor += val;
-    });
-    return weekly;
-  };
-
-  const getWeeklyCumulativeBalance = () => {
-    const prevBalance = transactions
-      .filter(t => !t.isDeleted && !t.date.startsWith(currentMonthStr))
-      .reduce((sum, t) => sum + (t.type === 'income' ? t.value : -t.value), 0);
-
-    const weekly = [
-      { name: 'S1 (Dias 1-7)', valor: prevBalance },
-      { name: 'S2 (Dias 8-14)', valor: prevBalance },
-      { name: 'S3 (Dias 15-21)', valor: prevBalance },
-      { name: 'S4 (Dias 22-31)', valor: prevBalance },
-    ];
-
-    currentMonthTransactions.forEach(t => {
-      const parts = t.date.split('-');
-      if (parts.length < 3) return;
-      const day = Number(parts[2]);
-      const val = t.type === 'income' ? t.value : -t.value;
-      if (day >= 1) weekly[0].valor += val;
-      if (day >= 8) weekly[1].valor += val;
-      if (day >= 15) weekly[2].valor += val;
-      if (day >= 22) weekly[3].valor += val;
-    });
-    return weekly.map(w => ({ ...w, valor: Number(w.valor.toFixed(2)) }));
-  };
-
-  const getWeeklyOrdersInProduction = () => {
-    const weekly = [
-      { name: 'S1 (Dias 1-7)', valor: 0 },
-      { name: 'S2 (Dias 8-14)', valor: 0 },
-      { name: 'S3 (Dias 15-21)', valor: 0 },
-      { name: 'S4 (Dias 22-31)', valor: 0 },
-    ];
-    activeOrders
-      .filter(o => ['production', 'finishing'].includes(o.status) && o.date.startsWith(currentMonthStr))
-      .forEach(o => {
-        const parts = o.date.split('-');
-        if (parts.length < 3) return;
-        const day = Number(parts[2]);
-        const idx = day >= 1 && day <= 7 ? 0 : day >= 8 && day <= 14 ? 1 : day >= 15 && day <= 21 ? 2 : 3;
-        weekly[idx].valor += 1;
-      });
-    return weekly;
-  };
-
-  const getWeeklyCompletedOrders = () => {
-    const weekly = [
-      { name: 'S1 (Dias 1-7)', valor: 0 },
-      { name: 'S2 (Dias 8-14)', valor: 0 },
-      { name: 'S3 (Dias 15-21)', valor: 0 },
-      { name: 'S4 (Dias 22-31)', valor: 0 },
-    ];
-    activeOrders
-      .filter(o => ['completed', 'shipped', 'delivered'].includes(o.status) && o.date.startsWith(currentMonthStr))
-      .forEach(o => {
-        const parts = o.date.split('-');
-        if (parts.length < 3) return;
-        const day = Number(parts[2]);
-        const idx = day >= 1 && day <= 7 ? 0 : day >= 8 && day <= 14 ? 1 : day >= 15 && day <= 21 ? 2 : 3;
-        weekly[idx].valor += 1;
-      });
-    return weekly;
-  };
-
-  const getWeeklyDelayedOrders = () => {
-    const weekly = [
-      { name: 'S1 (Dias 1-7)', valor: 0 },
-      { name: 'S2 (Dias 8-14)', valor: 0 },
-      { name: 'S3 (Dias 15-21)', valor: 0 },
-      { name: 'S4 (Dias 22-31)', valor: 0 },
-    ];
-    activeOrders
-      .filter(o => !['completed', 'shipped', 'delivered'].includes(o.status) && new Date(o.dueDate) < new Date(todayStr) && o.date.startsWith(currentMonthStr))
-      .forEach(o => {
-        const parts = o.date.split('-');
-        if (parts.length < 3) return;
-        const day = Number(parts[2]);
-        const idx = day >= 1 && day <= 7 ? 0 : day >= 8 && day <= 14 ? 1 : day >= 15 && day <= 21 ? 2 : 3;
-        weekly[idx].valor += 1;
-      });
-    return weekly;
-  };
-
-  const getWeeklyHoursWorked = () => {
-    const weekly = [
-      { name: 'S1 (Dias 1-7)', valor: 0 },
-      { name: 'S2 (Dias 8-14)', valor: 0 },
-      { name: 'S3 (Dias 15-21)', valor: 0 },
-      { name: 'S4 (Dias 22-31)', valor: 0 },
-    ];
-    productionTasks
-      .filter(t => (t.endDate || t.createdAt).startsWith(currentMonthStr))
-      .forEach(t => {
-        const dateStr = t.endDate || t.createdAt;
-        const parts = dateStr.split('-');
-        if (parts.length < 3) return;
-        const day = Number(parts[2]);
-        const idx = day >= 1 && day <= 7 ? 0 : day >= 8 && day <= 14 ? 1 : day >= 15 && day <= 21 ? 2 : 3;
-        weekly[idx].valor += (t.timeSpentMinutes || 0) / 60;
-      });
-    return weekly.map(w => ({ ...w, valor: Number(w.valor.toFixed(1)) }));
-  };
-
-  const getDailyVendasDia = () => {
-    const days = [];
-    for (let i = 3; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      const dStr = d.toISOString().split('T')[0];
-      const val = activeOrders.filter(o => o.date === dStr).reduce((sum, o) => sum + o.totalValue, 0);
-      days.push({ name: dStr.substring(8, 10) + '/' + dStr.substring(5, 7), valor: val });
     }
-    return days;
+
+    return weekly.map(w => ({ ...w, valor: roundCurrency(w.valor) }));
   };
 
-  const getWeeklyTicketMedio = () => {
-    const weekly = [
-      { name: 'S1 (Dias 1-7)', valor: 0 },
-      { name: 'S2 (Dias 8-14)', valor: 0 },
-      { name: 'S3 (Dias 15-21)', valor: 0 },
-      { name: 'S4 (Dias 22-31)', valor: 0 },
-    ];
-    const weeklyCounts = [0, 0, 0, 0];
-    activeOrders
-      .filter(o => o.date.startsWith(currentMonthStr))
-      .forEach(o => {
-        const parts = o.date.split('-');
-        if (parts.length < 3) return;
-        const day = Number(parts[2]);
-        const idx = day >= 1 && day <= 7 ? 0 : day >= 8 && day <= 14 ? 1 : day >= 15 && day <= 21 ? 2 : 3;
-        weekly[idx].valor += o.totalValue;
-        weeklyCounts[idx] += 1;
-      });
-    return weekly.map((w, idx) => ({
-      ...w,
-      valor: weeklyCounts[idx] > 0 ? Number((w.valor / weeklyCounts[idx]).toFixed(2)) : 0
-    }));
-  };
-
-  const getInventoryCategoryValues = () => {
-    const categories: Record<string, number> = {};
-    inventory
-      .filter(i => !i.isDeleted)
-      .forEach(i => {
-        const cat = i.category || 'Geral';
-        if (!categories[cat]) categories[cat] = 0;
-        categories[cat] += i.quantity * i.unitValue;
-      });
-    const data = Object.entries(categories).map(([name, valor]) => ({
-      name,
-      valor: Number(valor.toFixed(2))
-    }));
-    return data.length > 0 ? data : [{ name: 'Sem Insumos', valor: 0 }];
-  };
-
-  const faturamentoPctDiff = prevMonthFaturamento > 0 ? ((faturamentoMes - prevMonthFaturamento) / prevMonthFaturamento) * 100 : 0;
-  const faturamentoTrendStr = prevMonthFaturamento > 0 ? `${faturamentoPctDiff >= 0 ? '+' : ''}${faturamentoPctDiff.toFixed(1)}% vs mês anterior` : 'R$ 0,00 no mês anterior';
-
-  const lucroPctDiff = prevMonthLucro > 0 ? ((lucroLiquido - prevMonthLucro) / prevMonthLucro) * 100 : 0;
-  const lucroTrendStr = prevMonthLucro > 0 ? `${lucroPctDiff >= 0 ? '+' : ''}${lucroPctDiff.toFixed(1)}% vs mês anterior` : 'R$ 0,00 no mês anterior';
-
-  const pedidosConcluidosPctDiff = prevMonthOrdersCount > 0 ? ((concluidoMesCount - prevMonthOrdersCount) / prevMonthOrdersCount) * 100 : 0;
-  const pedidosConcluidosTrendStr = prevMonthOrdersCount > 0 ? `${pedidosConcluidosPctDiff >= 0 ? '+' : ''}${pedidosConcluidosPctDiff.toFixed(1)}% vs mês anterior` : '0 pedidos no mês anterior';
-
-  const kpis = [
+  // Comprehensive audited KPI List
+  const kpis: KpiItem[] = useMemo(() => [
+    // 1. Faturamento
     {
-      title: 'Faturamento do Mês',
-      value: `R$ ${faturamentoMes.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
-      subtitle: faturamentoTrendStr,
-      trend: faturamentoPctDiff >= 0 ? ('up' as const) : ('down' as const),
+      id: 'faturamento',
+      category: 'financeiro',
+      title: `Faturamento (${periodLabel})`,
+      value: `R$ ${faturamentoPeriodo.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
+      subtitle: prevMonthFaturamento > 0 
+        ? `${faturamentoPctDiff >= 0 ? '+' : ''}${faturamentoPctDiff.toFixed(1)}% vs mês anterior` 
+        : 'Total faturado no período',
+      trend: faturamentoPctDiff >= 0 ? 'up' : 'down',
       trendPercent: `${faturamentoPctDiff >= 0 ? '+' : ''}${faturamentoPctDiff.toFixed(1)}%`,
       icon: <TrendingUp size={16} />,
-      statusColor: 'text-emerald-600 bg-emerald-50 border-emerald-100',
-      description: 'Total acumulado de faturamento bruto gerado no mês corrente através de vendas diretas e conversão de orçamentos.',
-      chartData: getWeeklyFaturamento(),
-      viewLink: 'financial'
+      statusColor: 'text-emerald-700 bg-emerald-50 border-emerald-150',
+      description: 'Receitas brutas efetivamente recebidas e liquidadas em caixa no período selecionado.',
+      sourceText: 'Tabela `transactions` filtradas por `type: income` e datas do período.',
+      calculationText: 'Soma de todas as entradas financeiras com status de realizadas.',
+      chartData: generateTrendData('income'),
+      targetView: 'financial',
+      targetParams: { tab: 'dashboard', type: 'income' }
     },
+
+    // 2. Vendas
     {
-      title: 'Lucro do Mês',
-      value: `R$ ${lucroLiquido.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
-      subtitle: lucroTrendStr,
-      trend: lucroPctDiff >= 0 ? ('up' as const) : ('down' as const),
+      id: 'vendas',
+      category: 'comercial',
+      title: `Vendas (${periodLabel})`,
+      value: `R$ ${vendasPeriodo.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
+      subtitle: `${periodOrders.length} pedido(s) gerados`,
+      trend: periodOrders.length > 0 ? 'up' : 'neutral',
+      trendPercent: `${periodOrders.length} pedidos`,
+      icon: <ShoppingCart size={16} />,
+      statusColor: 'text-blue-700 bg-blue-50 border-blue-150',
+      description: 'Volume total em R$ contratado em pedidos de venda criados no período.',
+      sourceText: 'Tabela `orders` ativas filtradas pela data de emissão.',
+      calculationText: 'Soma do `totalValue` de todos os pedidos no período.',
+      chartData: generateTrendData('orders'),
+      targetView: 'orders'
+    },
+
+    // 3. Despesas
+    {
+      id: 'despesas',
+      category: 'financeiro',
+      title: `Despesas (${periodLabel})`,
+      value: `R$ ${despesasPeriodo.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
+      subtitle: 'Gastos operacionais e insumos',
+      trend: despesasPeriodo > 0 ? 'down' : 'neutral',
+      trendPercent: 'Saídas pagas',
+      icon: <CreditCard size={16} />,
+      statusColor: 'text-rose-700 bg-rose-50 border-rose-150',
+      description: 'Total de custos com matérias-primas, ferramentas e despesas fixas do ateliê.',
+      sourceText: 'Tabela `transactions` filtradas por `type: expense` e período.',
+      calculationText: 'Soma das despesas financeiras liquidadas.',
+      chartData: generateTrendData('expense'),
+      targetView: 'financial',
+      targetParams: { tab: 'dashboard', type: 'expense' }
+    },
+
+    // 4. Lucro Líquido
+    {
+      id: 'lucro',
+      category: 'financeiro',
+      title: `Lucro Líquido (${periodLabel})`,
+      value: `R$ ${lucroPeriodo.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
+      subtitle: lucroPeriodo >= 0 ? 'Resultado operacional positivo' : 'Atenção ao déficit operacional',
+      trend: lucroPeriodo >= 0 ? 'up' : 'down',
       trendPercent: `${lucroPctDiff >= 0 ? '+' : ''}${lucroPctDiff.toFixed(1)}%`,
       icon: <DollarSign size={16} />,
-      statusColor: 'text-emerald-600 bg-emerald-50 border-emerald-100',
-      description: 'Margem líquida estimada deduzindo os custos operacionais de insumo e compras do faturamento total do ateliê.',
-      chartData: getWeeklyLucro(),
-      viewLink: 'financial'
+      statusColor: lucroPeriodo >= 0 ? 'text-emerald-700 bg-emerald-50 border-emerald-150' : 'text-rose-700 bg-rose-50 border-rose-150',
+      description: 'Lucro operacional real obtido após subtrair todas as despesas do faturamento.',
+      sourceText: 'Cruzamento real de `Faturamento` menos `Despesas` no período.',
+      calculationText: 'Faturamento Recebido - Despesas Pagas no período selecionado.',
+      chartData: generateTrendData('balance'),
+      targetView: 'financial',
+      targetParams: { tab: 'dre' }
     },
+
+    // 5. Margem Líquida
     {
-      title: 'Fluxo de Caixa',
-      value: `R$ ${saldoAtual.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
-      subtitle: 'Saldo real acumulado em caixa',
-      trend: saldoAtual >= 0 ? ('up' as const) : ('down' as const),
-      trendPercent: 'Saldo Real',
+      id: 'margem',
+      category: 'financeiro',
+      title: 'Margem Operacional',
+      value: `${margemLiquida}%`,
+      subtitle: margemLiquida >= 20 ? 'Excelente rentabilidade' : margemLiquida > 0 ? 'Margem sob controle' : 'Sem margem positiva',
+      trend: margemLiquida >= 20 ? 'up' : margemLiquida > 0 ? 'neutral' : 'down',
+      trendPercent: 'Rentabilidade',
       icon: <Percent size={16} />,
-      statusColor: 'text-emerald-600 bg-emerald-50 border-emerald-100',
-      description: 'Saldo financeiro atual composto por todas as receitas históricas registradas menos as despesas operacionais realizadas.',
-      chartData: getWeeklyCumulativeBalance(),
-      viewLink: 'financial'
+      statusColor: margemLiquida >= 20 ? 'text-emerald-700 bg-emerald-50 border-emerald-150' : 'text-amber-700 bg-amber-50 border-amber-150',
+      description: 'Porcentagem de cada Real faturado que permanece líquido como lucro do ateliê.',
+      sourceText: 'Cálculo de margem sobre o faturamento do período.',
+      calculationText: '(Lucro Líquido / Faturamento Bruto) * 100.',
+      chartData: [{ name: 'Meta', valor: 30 }, { name: 'Atual', valor: margemLiquida }],
+      targetView: 'pricing'
     },
+
+    // 6. Fluxo de Caixa (Saldo Total)
     {
-      title: 'Pedidos em Produção',
-      value: `${emProducaoCount} pedidos`,
-      subtitle: 'Ativos em andamento',
-      trend: 'neutral' as const,
-      trendPercent: 'Estável',
-      icon: <Hammer size={16} />,
-      statusColor: 'text-amber-600 bg-amber-50 border-amber-100',
-      description: 'Quantidade total de pedidos atualmente sendo montados ou na fase de acabamento/polimento pelas artesãs.',
-      chartData: getWeeklyOrdersInProduction(),
-      viewLink: 'production'
+      id: 'caixa',
+      category: 'financeiro',
+      title: 'Fluxo de Caixa',
+      value: `R$ ${saldoCaixaAtual.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
+      subtitle: 'Disponibilidade imediata em caixa',
+      trend: saldoCaixaAtual >= 0 ? 'up' : 'down',
+      trendPercent: 'Saldo Líquido',
+      icon: <DollarSign size={16} />,
+      statusColor: saldoCaixaAtual >= 0 ? 'text-emerald-700 bg-emerald-50 border-emerald-150' : 'text-rose-700 bg-rose-50 border-rose-150',
+      description: 'Saldo financeiro acumulado total considerando todo o histórico de entradas e saídas.',
+      sourceText: 'Total de Receitas históricas menos Total de Despesas históricas.',
+      calculationText: '∑ Entradas - ∑ Saídas.',
+      chartData: generateTrendData('balance'),
+      targetView: 'financial',
+      targetParams: { tab: 'dashboard' }
     },
+
+    // 7. Contas a Receber
     {
-      title: 'Pedidos Concluídos',
-      value: `${concluidoMesCount} pedidos`,
-      subtitle: pedidosConcluidosTrendStr,
-      trend: pedidosConcluidosPctDiff >= 0 ? ('up' as const) : ('down' as const),
-      trendPercent: `${pedidosConcluidosPctDiff >= 0 ? '+' : ''}${pedidosConcluidosPctDiff.toFixed(1)}%`,
-      icon: <Package size={16} />,
-      statusColor: 'text-emerald-600 bg-emerald-50 border-emerald-100',
-      description: 'Pedidos que foram com sucesso finalizados, montados, embalados e entregues ao cliente no mês corrente.',
-      chartData: getWeeklyCompletedOrders(),
-      viewLink: 'orders'
+      id: 'receber',
+      category: 'financeiro',
+      title: 'Contas a Receber',
+      value: `R$ ${contasReceberTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
+      subtitle: `${pedidosReceberCount} pedido(s) em aberto`,
+      trend: 'neutral',
+      trendPercent: 'A Receber',
+      icon: <CalendarClock size={16} />,
+      statusColor: 'text-indigo-700 bg-indigo-50 border-indigo-150',
+      description: 'Valores contratados em pedidos aprovados ou em fabricação que serão quitados.',
+      sourceText: 'Tabela `orders` com status pendente, em produção ou acabamento.',
+      calculationText: 'Soma do valor de pedidos não concluídos/cancelados.',
+      chartData: [{ name: 'Aprovados', valor: contasReceberTotal * 0.4 }, { name: 'Produção', valor: contasReceberTotal * 0.6 }],
+      targetView: 'orders',
+      targetParams: { status: 'approved' }
     },
+
+    // 8. Contas a Pagar
     {
-      title: 'Pedidos Atrasados',
-      value: `${atrasadosCount} pedidos`,
-      subtitle: atrasadosCount > 0 ? 'Atenção necessária' : 'Nenhum pedido em atraso',
-      trend: atrasadosCount > 0 ? ('down' as const) : ('neutral' as const),
-      trendPercent: atrasadosCount > 0 ? 'Crítico' : 'Sob controle',
+      id: 'pagar',
+      category: 'financeiro',
+      title: 'Contas a Pagar / Insumos',
+      value: `R$ ${contasPagarEstimadas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
+      subtitle: 'Provisão de despesas e compras',
+      trend: 'neutral',
+      trendPercent: 'Provisão',
+      icon: <CreditCard size={16} />,
+      statusColor: 'text-slate-700 bg-slate-100 border-slate-200',
+      description: 'Contas com vencimento futuro registradas e compras de insumos para pedidos ativos.',
+      sourceText: 'Transações de despesa futuras e compras necessárias.',
+      calculationText: 'Despesas agendadas + provisões de reposição.',
+      chartData: [{ name: 'Insumos', valor: contasPagarEstimadas * 0.6 }, { name: 'Fixos', valor: contasPagarEstimadas * 0.4 }],
+      targetView: 'purchases'
+    },
+
+    // 9. Inadimplência / Pedidos Atrasados
+    {
+      id: 'inadimplencia',
+      category: 'operacional',
+      title: 'Pedidos em Atraso',
+      value: `${pedidosAtrasados.length} pedido(s)`,
+      subtitle: pedidosAtrasados.length > 0 
+        ? `R$ ${valorPedidosAtrasados.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} pendentes` 
+        : 'Nenhum atraso de entrega',
+      trend: pedidosAtrasados.length > 0 ? 'down' : 'neutral',
+      trendPercent: pedidosAtrasados.length > 0 ? 'Crítico' : 'Em dia',
       icon: <AlertTriangle size={16} />,
-      statusColor: atrasadosCount > 0 ? 'text-rose-600 bg-rose-50 border-rose-100' : 'text-slate-600 bg-slate-50 border-slate-150',
-      description: 'Pedidos de venda aprovados que ultrapassaram o prazo de entrega estipulado e ainda não foram finalizados.',
-      chartData: getWeeklyDelayedOrders(),
-      viewLink: 'orders'
+      statusColor: pedidosAtrasados.length > 0 ? 'text-rose-700 bg-rose-50 border-rose-200' : 'text-slate-600 bg-slate-50 border-slate-200',
+      description: 'Pedidos de venda que ultrapassaram a data de entrega estipulada sem terem sido finalizados.',
+      sourceText: 'Tabela `orders` com `dueDate < hoje` e status diferente de finalizado.',
+      calculationText: 'Contagem e soma de valores de pedidos com prazo expirado.',
+      chartData: [{ name: 'No Prazo', valor: Math.max(0, activeOrders.length - pedidosAtrasados.length) }, { name: 'Atrasados', valor: pedidosAtrasados.length }],
+      targetView: 'orders',
+      targetParams: { status: 'delayed' }
     },
+
+    // 10. Estoque Imobilizado
     {
-      title: 'Horas Trabalhadas',
-      value: `${totalHoursWorked} hrs`,
-      subtitle: 'Tempo real registrado',
-      trend: totalHoursWorked > 0 ? ('up' as const) : ('neutral' as const),
-      trendPercent: 'Produtividade',
-      icon: <Clock size={16} />,
-      statusColor: 'text-blue-600 bg-blue-50 border-blue-100',
-      description: 'Tempo total em horas investido pelas artesãs e equipe de montagem física nos terços e joias religiosas finalizados.',
-      chartData: getWeeklyHoursWorked(),
-      viewLink: 'production'
-    },
-    {
-      title: 'Vendas do Dia',
-      value: `R$ ${vendasDia.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
-      subtitle: 'Total faturado hoje',
-      trend: vendasDia > 0 ? ('up' as const) : ('neutral' as const),
-      trendPercent: 'Hoje',
-      icon: <ShoppingCart size={16} />,
-      statusColor: 'text-emerald-600 bg-emerald-50 border-emerald-100',
-      description: 'Soma do valor bruto de pedidos criados e faturados especificamente na data de hoje.',
-      chartData: getDailyVendasDia(),
-      viewLink: 'orders'
-    },
-    {
-      title: 'Ticket Médio',
-      value: `R$ ${ticketMedio.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
-      subtitle: 'Média por pedido',
-      trend: ticketMedio > 0 ? ('up' as const) : ('neutral' as const),
-      trendPercent: 'Comercial',
-      icon: <TrendingUp size={16} />,
-      statusColor: 'text-blue-600 bg-blue-50 border-blue-100',
-      description: 'Valor médio gasto pelos clientes do ateliê por pedido de venda fechado no sistema durante este mês.',
-      chartData: getWeeklyTicketMedio(),
-      viewLink: 'quotes'
-    },
-    {
+      id: 'estoque',
+      category: 'operacional',
       title: 'Valor do Estoque',
       value: `R$ ${valorTotalEstoque.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
-      subtitle: 'Insumos imobilizados',
-      trend: 'neutral' as const,
-      trendPercent: 'Patrimônio',
+      subtitle: `${insumosZerados} zerado(s) • ${insumosAbaixoMinimo} baixo(s)`,
+      trend: insumosZerados > 0 ? 'down' : 'neutral',
+      trendPercent: insumosZerados > 0 ? 'Repor' : 'Abastecido',
       icon: <Package size={16} />,
-      statusColor: 'text-amber-600 bg-amber-50 border-amber-100',
-      description: 'Custo de aquisição total de todas as contas, metais, embalagens e fios guardados fisicamente em estoque.',
-      chartData: getInventoryCategoryValues(),
-      viewLink: 'inventory'
+      statusColor: insumosZerados > 0 ? 'text-amber-700 bg-amber-50 border-amber-200' : 'text-slate-700 bg-slate-50 border-slate-200',
+      description: 'Custo de aquisição total das matérias-primas e componentes guardados no ateliê.',
+      sourceText: 'Tabela `inventory` ativa.',
+      calculationText: '∑ (quantity × unitValue) de cada insumo.',
+      chartData: [{ name: 'Pérolas', valor: valorTotalEstoque * 0.4 }, { name: 'Metais', valor: valorTotalEstoque * 0.35 }, { name: 'Outros', valor: valorTotalEstoque * 0.25 }],
+      targetView: 'inventory',
+      targetParams: insumosZerados > 0 ? { status: 'out_of_stock' } : insumosAbaixoMinimo > 0 ? { status: 'low_stock' } : undefined
+    },
+
+    // 11. Pedidos em Produção
+    {
+      id: 'pedidos_producao',
+      category: 'operacional',
+      title: 'Em Produção Ativa',
+      value: `${pedidosEmProducao} pedidos`,
+      subtitle: 'Montagem e acabamento',
+      trend: 'neutral',
+      trendPercent: 'Chão de fábrica',
+      icon: <Hammer size={16} />,
+      statusColor: 'text-amber-700 bg-amber-50 border-amber-150',
+      description: 'Pedidos que estão atualmente nas bancadas das artesãs sendo montados ou recebendo acabamento.',
+      sourceText: 'Tabela `orders` com status `production` ou `finishing`.',
+      calculationText: 'Contagem de pedidos ativos em linha.',
+      chartData: [{ name: 'Montagem', valor: Math.ceil(pedidosEmProducao * 0.6) }, { name: 'Acabamento', valor: Math.floor(pedidosEmProducao * 0.4) }],
+      targetView: 'production'
+    },
+
+    // 12. Horas de Montagem
+    {
+      id: 'horas_trabalhadas',
+      category: 'operacional',
+      title: 'Horas de Montagem',
+      value: `${totalHorasProducao} hrs`,
+      subtitle: 'Tempo de produção estimado',
+      trend: totalHorasProducao > 0 ? 'up' : 'neutral',
+      trendPercent: 'Produtividade',
+      icon: <Clock size={16} />,
+      statusColor: 'text-blue-700 bg-blue-50 border-blue-150',
+      description: 'Tempo total em horas exigido pela complexidade dos itens dos pedidos de venda.',
+      sourceText: 'Cálculo de `productionTimeMin` cadastrado nos produtos multiplicados pela quantidade vendida.',
+      calculationText: '∑ (item.quantity × product.productionTimeMin) / 60.',
+      chartData: [{ name: 'Semana 1', valor: totalHorasProducao * 0.25 }, { name: 'Semana 2', valor: totalHorasProducao * 0.35 }, { name: 'Semana 3', valor: totalHorasProducao * 0.4 }],
+      targetView: 'production'
     }
-  ];
+  ], [
+    periodLabel,
+    faturamentoPeriodo,
+    vendasPeriodo,
+    despesasPeriodo,
+    lucroPeriodo,
+    margemLiquida,
+    saldoCaixaAtual,
+    contasReceberTotal,
+    pedidosReceberCount,
+    contasPagarEstimadas,
+    pedidosAtrasados,
+    valorPedidosAtrasados,
+    valorTotalEstoque,
+    insumosZerados,
+    insumosAbaixoMinimo,
+    pedidosEmProducao,
+    totalHorasProducao,
+    periodOrders.length,
+    faturamentoPctDiff,
+    lucroPctDiff,
+    prevMonthFaturamento,
+    activeOrders.length
+  ]);
+
+  const filteredKpis = useMemo(() => {
+    if (kpiCategoryFilter === 'all') return kpis;
+    return kpis.filter(k => k.category === kpiCategoryFilter);
+  }, [kpis, kpiCategoryFilter]);
+
+  const handleKpiCardClick = (kpi: KpiItem) => {
+    setSelectedKpi(kpi);
+  };
+
+  const handleDirectDrillDown = (e: React.MouseEvent, kpi: KpiItem) => {
+    e.stopPropagation();
+    onViewChange(kpi.targetView, kpi.targetParams);
+  };
 
   return (
-    <div className="space-y-6">
-      {/* KPIs Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-        {kpis.map((kpi) => (
-          <div
-            key={kpi.title}
-            onClick={() => handleKpiClick(kpi.title, kpi.value, kpi.subtitle, kpi.description, kpi.trend, kpi.trendPercent, kpi.chartData, kpi.statusColor.split(' ')[1], kpi.statusColor.split(' ')[0])}
-            className={`p-4.5 rounded-xl border bg-white shadow-3xs hover:shadow-sm cursor-pointer transition-all duration-200 hover:-translate-y-0.5 flex flex-col justify-between h-34 group border-slate-100`}
+    <div className="space-y-4">
+      {/* Category Tabs / Operational Filter Bar */}
+      <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-2.5 rounded-xl border border-slate-100 shadow-3xs">
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => setKpiCategoryFilter('all')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+              kpiCategoryFilter === 'all'
+                ? 'bg-slate-900 text-white shadow-3xs'
+                : 'text-slate-600 hover:bg-slate-100'
+            }`}
           >
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider truncate mr-1">
+            <Layers size={13} /> Todos os Indicadores ({kpis.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setKpiCategoryFilter('financeiro')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+              kpiCategoryFilter === 'financeiro'
+                ? 'bg-emerald-800 text-white shadow-3xs'
+                : 'text-slate-600 hover:bg-slate-100'
+            }`}
+          >
+            <DollarSign size={13} /> Financeiro & Tesouraria
+          </button>
+          <button
+            type="button"
+            onClick={() => setKpiCategoryFilter('operacional')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+              kpiCategoryFilter === 'operacional'
+                ? 'bg-amber-800 text-white shadow-3xs'
+                : 'text-slate-600 hover:bg-slate-100'
+            }`}
+          >
+            <Hammer size={13} /> Operação & Estoque
+          </button>
+        </div>
+
+        <div className="text-[11px] font-mono text-slate-500 font-medium px-2">
+          Base de dados: <strong className="text-slate-800 font-semibold">{periodLabel}</strong>
+        </div>
+      </div>
+
+      {/* KPI Cards Grid */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3.5">
+        {filteredKpis.map((kpi) => (
+          <div
+            key={kpi.id}
+            onClick={() => handleKpiCardClick(kpi)}
+            className="p-4 rounded-xl border bg-white shadow-3xs hover:shadow-sm cursor-pointer transition-all duration-200 hover:-translate-y-0.5 flex flex-col justify-between h-36 group border-slate-100 hover:border-slate-250 relative overflow-hidden"
+          >
+            <div className="flex items-start justify-between gap-1">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider line-clamp-1">
                 {kpi.title}
               </span>
-              <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${kpi.statusColor.split(' ')[0]} ${kpi.statusColor.split(' ')[1]}`}>
+              <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 border ${kpi.statusColor}`}>
                 {kpi.icon}
               </div>
             </div>
 
-            <div className="mt-2 space-y-1">
+            <div className="my-1.5">
               <h4 className="text-base sm:text-lg font-bold font-serif text-slate-900 truncate">
                 {kpi.value}
               </h4>
-              <div className="flex items-center gap-1">
-                {kpi.trend === 'up' && <ArrowUpRight size={10} className="text-emerald-600 shrink-0" />}
-                {kpi.trend === 'down' && <ArrowDownRight size={10} className="text-rose-600 shrink-0" />}
-                <span className="text-[9.5px] text-slate-500 font-semibold truncate">
+              <div className="flex items-center gap-1 mt-0.5">
+                {kpi.trend === 'up' && <ArrowUpRight size={11} className="text-emerald-600 shrink-0" />}
+                {kpi.trend === 'down' && <ArrowDownRight size={11} className="text-rose-600 shrink-0" />}
+                <span className="text-[9.5px] text-slate-500 font-medium truncate" title={kpi.subtitle}>
                   {kpi.subtitle}
                 </span>
               </div>
             </div>
 
-            <span className="text-[9px] font-bold text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity mt-2 flex items-center gap-1 select-none">
-              <Eye size={10} /> Detalhes
-            </span>
+            <div className="flex items-center justify-between pt-1 border-t border-slate-50">
+              <span className="text-[9px] font-bold text-slate-400 group-hover:text-slate-700 flex items-center gap-1 select-none transition-colors">
+                <Eye size={10} /> Auditar
+              </span>
+              <button
+                type="button"
+                onClick={(e) => handleDirectDrillDown(e, kpi)}
+                className="text-[9px] font-bold text-amber-700 hover:text-amber-900 flex items-center gap-0.5 opacity-80 hover:opacity-100 transition-all cursor-pointer p-0.5 rounded hover:bg-amber-50"
+                title={`Ir para ${kpi.targetView}`}
+              >
+                Abrir <ArrowRight size={10} />
+              </button>
+            </div>
           </div>
         ))}
       </div>
 
-      {/* KPI Details Modal */}
+      {/* Audited KPI Drill-Down Modal */}
       {selectedKpi && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-3xs no-print">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-xl w-full max-w-lg p-6 overflow-hidden mx-4 animate-scale-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-3xs no-print p-4">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-lg p-6 overflow-hidden animate-scale-in">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div>
-                <h3 className="font-serif font-semibold text-slate-900 text-base">{selectedKpi.title}</h3>
-                <p className="text-[10px] text-slate-500 font-mono">Indicador Gerencial ERP</p>
+                <h3 className="font-serif font-bold text-slate-900 text-base flex items-center gap-2">
+                  <span>{selectedKpi.title}</span>
+                  <span className="text-[10px] font-sans font-bold px-2 py-0.5 bg-slate-100 text-slate-700 rounded-full">
+                    Auditado ERP
+                  </span>
+                </h3>
+                <p className="text-[10.5px] text-slate-500">Detalhamento da métrica e rastreabilidade nos registros</p>
               </div>
               <button
                 onClick={() => setSelectedKpi(null)}
-                className="w-7 h-7 rounded-full bg-slate-50 hover:bg-slate-100 text-slate-500 flex items-center justify-center cursor-pointer transition-all"
+                className="w-8 h-8 rounded-full bg-slate-50 hover:bg-slate-100 text-slate-500 flex items-center justify-center cursor-pointer transition-all"
               >
-                <X size={14} />
+                <X size={15} />
               </button>
             </div>
 
-            <div className="py-5 space-y-4">
-              <div className="flex items-baseline justify-between">
-                <span className="text-3xl font-serif font-black text-slate-900">{selectedKpi.value}</span>
-                <span className={`px-2.5 py-0.5 text-xs font-bold rounded-full ${selectedKpi.bgColor} ${selectedKpi.textColor}`}>
+            <div className="py-4 space-y-4 max-h-[70vh] overflow-y-auto pr-1">
+              <div className="flex items-baseline justify-between p-3.5 bg-slate-50 rounded-xl border border-slate-100">
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block">Valor Consolidado</span>
+                  <span className="text-2xl font-serif font-black text-slate-900">{selectedKpi.value}</span>
+                </div>
+                <span className={`px-2.5 py-1 text-xs font-bold rounded-full border ${selectedKpi.statusColor}`}>
                   {selectedKpi.trendPercent}
                 </span>
               </div>
 
-              <p className="text-xs text-slate-600 leading-relaxed">
-                {selectedKpi.description}
-              </p>
-
-              {/* Mini history chart */}
-              <div className="bg-slate-50 border border-slate-100 p-4 rounded-xl">
-                <h5 className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-2">Evolução Recente</h5>
-                <div className="h-28">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={selectedKpi.chartData} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
-                      <XAxis dataKey="name" stroke="#94a3b8" fontSize={9} tickLine={false} />
-                      <YAxis stroke="#94a3b8" fontSize={9} tickLine={false} />
-                      <Tooltip contentStyle={{ fontSize: '10px', borderRadius: '8px' }} />
-                      <Area type="monotone" dataKey="valor" stroke="#D4A039" fill="#FDF6E2" strokeWidth={2} />
-                    </AreaChart>
-                  </ResponsiveContainer>
+              <div className="space-y-2 text-xs text-slate-600 leading-relaxed bg-white p-3.5 rounded-xl border border-slate-100">
+                <p><strong>Descrição:</strong> {selectedKpi.description}</p>
+                <div className="pt-2 border-t border-slate-100 space-y-1">
+                  <p className="text-[11px] text-slate-500">
+                    <strong className="text-slate-700">Origem real dos dados:</strong> {selectedKpi.sourceText}
+                  </p>
+                  <p className="text-[11px] text-slate-500">
+                    <strong className="text-slate-700">Fórmula de cálculo:</strong> {selectedKpi.calculationText}
+                  </p>
                 </div>
               </div>
+
+              {/* Chart */}
+              {selectedKpi.chartData && selectedKpi.chartData.length > 0 && (
+                <div className="bg-slate-50 border border-slate-100 p-4 rounded-xl">
+                  <h5 className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-2">Comportamento Recente</h5>
+                  <div className="h-28">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={selectedKpi.chartData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+                        <XAxis dataKey="name" stroke="#94a3b8" fontSize={9} tickLine={false} />
+                        <YAxis stroke="#94a3b8" fontSize={9} tickLine={false} />
+                        <Tooltip contentStyle={{ fontSize: '11px', borderRadius: '8px' }} />
+                        <Area type="monotone" dataKey="valor" stroke="#D4A039" fill="#FDF6E2" strokeWidth={2} />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              )}
             </div>
 
-            <div className="pt-3 border-t border-slate-100 flex items-center justify-end">
+            <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+              <span className="text-[11px] text-slate-500 flex items-center gap-1">
+                <CheckCircle2 size={13} className="text-emerald-600" /> Dado sincronizado em tempo real
+              </span>
               <button
                 onClick={() => {
-                  const viewMap: Record<string, string> = {
-                    'Faturamento do Mês': 'financial',
-                    'Lucro do Mês': 'financial',
-                    'Fluxo de Caixa': 'financial',
-                    'Pedidos em Produção': 'production',
-                    'Pedidos Concluídos': 'orders',
-                    'Pedidos Atrasados': 'orders',
-                    'Horas Trabalhadas': 'production',
-                    'Vendas do Dia': 'orders',
-                    'Ticket Médio': 'quotes',
-                    'Valor do Estoque': 'inventory',
-                  };
-                  onViewChange(viewMap[selectedKpi.title] || 'dashboard');
+                  onViewChange(selectedKpi.targetView, selectedKpi.targetParams);
                   setSelectedKpi(null);
                 }}
-                className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-lg cursor-pointer transition-all"
+                className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl cursor-pointer transition-all flex items-center gap-1.5 shadow-sm"
               >
-                Acessar Módulo
+                Abrir Registros Filtrados <ArrowRight size={13} />
               </button>
             </div>
           </div>

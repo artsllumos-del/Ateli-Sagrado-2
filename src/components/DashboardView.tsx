@@ -7,7 +7,7 @@ import { toast } from './Toast';
 // Sub-widgets imports
 import { DashboardHeader, BannerConfig, DEFAULT_BANNER } from './dashboard/DashboardHeader';
 import { DashboardAlerts } from './dashboard/DashboardAlerts';
-import { DashboardKpis } from './dashboard/DashboardKpis';
+import { DashboardKpis, DashboardPeriod } from './dashboard/DashboardKpis';
 import { DashboardProduction } from './dashboard/DashboardProduction';
 import { DashboardFinanceSales } from './dashboard/DashboardFinanceSales';
 import { DashboardProductsPlatform } from './dashboard/DashboardProductsPlatform';
@@ -15,7 +15,7 @@ import { DashboardStockGoals } from './dashboard/DashboardStockGoals';
 import { DashboardAgendaActivities, AgendaItem } from './dashboard/DashboardAgendaActivities';
 
 interface DashboardViewProps {
-  onViewChange: (view: string) => void;
+  onViewChange: (view: string, params?: Record<string, any>) => void;
   onQuickAction: (actionType: 'order' | 'client' | 'product' | 'quote') => void;
 }
 
@@ -38,7 +38,7 @@ const DEFAULT_WIDGETS: WidgetItem[] = [
 ];
 
 export const DashboardView: React.FC<DashboardViewProps> = ({ onViewChange, onQuickAction }) => {
-  const { clients, inventory, products, orders, transactions, productionTasks, syncAllData } = useDb();
+  const { clients, inventory, products, orders, quotes, transactions, productionTasks, syncAllData } = useDb();
 
   // Core configurations state
   const [widgets, setWidgets] = useState<WidgetItem[]>(DEFAULT_WIDGETS);
@@ -46,6 +46,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onViewChange, onQu
   const [goals, setGoals] = useState({ faturamento: 3000, lucro: 1500, vendas: 10, producao: 12 });
   const [agendaItems, setAgendaItems] = useState<AgendaItem[]>([]);
   const [pausedTaskIds, setPausedTaskIds] = useState<string[]>([]);
+  const [selectedPeriod, setSelectedPeriod] = useState<DashboardPeriod>('mes');
 
   // UI state
   const [showCustomizeModal, setShowCustomizeModal] = useState(false);
@@ -283,25 +284,54 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onViewChange, onQu
     <div className="space-y-6 animate-slide-in-up">
       
       {/* Synchronization & Customization Top Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 no-print">
-        <div className="flex items-center gap-1.5 text-[10.5px] font-bold text-slate-500 font-mono bg-white border border-slate-100/80 px-3 py-1.5 rounded-full shadow-3xs">
-          <Clock size={12} className={isSyncing ? 'animate-spin text-amber-500' : 'text-slate-400'} />
-          <span>Última sincronização: <strong className="text-slate-700 font-bold">{lastSyncTime}</strong></span>
+      <div className="flex flex-wrap items-center justify-between gap-3 no-print bg-slate-50/60 p-2 rounded-2xl border border-slate-100">
+        {/* Global Period Selector */}
+        <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-slate-200/70 shadow-3xs">
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-2">Período:</span>
+          {(['hoje', '7d', 'mes', 'ano', 'todos'] as DashboardPeriod[]).map((p) => {
+            const labels: Record<DashboardPeriod, string> = {
+              hoje: 'Hoje',
+              '7d': '7 Dias',
+              mes: 'Este Mês',
+              ano: 'Ano Atual',
+              todos: 'Histórico Completo'
+            };
+            const isSelected = selectedPeriod === p;
+            return (
+              <button
+                key={p}
+                type="button"
+                onClick={() => setSelectedPeriod(p)}
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  isSelected
+                    ? 'bg-slate-900 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
+                }`}
+              >
+                {labels[p]}
+              </button>
+            );
+          })}
         </div>
 
         <div className="flex items-center gap-2">
+          <div className="hidden sm:flex items-center gap-1.5 text-[10.5px] font-bold text-slate-500 font-mono bg-white border border-slate-200/70 px-3 py-1.5 rounded-xl shadow-3xs">
+            <Clock size={12} className={isSyncing ? 'animate-spin text-amber-500' : 'text-slate-400'} />
+            <span>Sincronizado: <strong className="text-slate-700 font-bold">{lastSyncTime}</strong></span>
+          </div>
+
           <button
             onClick={handleManualSync}
-            className="px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-3xs"
+            className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-3xs"
           >
             Sincronizar
           </button>
 
           <button
             onClick={() => setShowCustomizeModal(true)}
-            className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-md"
+            className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-md"
           >
-            <Settings2 size={13} /> Personalizar Painel
+            <Settings2 size={13} /> Personalizar
           </button>
         </div>
       </div>
@@ -310,7 +340,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onViewChange, onQu
       <DashboardHeader
         onQuickAction={onQuickAction}
         activeOrders={activeOrders}
-        quotes={orders} // fallback
+        quotes={quotes}
         bannerConfig={bannerConfig}
         setBannerConfig={setBannerConfig}
       />
@@ -327,7 +357,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onViewChange, onQu
                   onViewChange={onViewChange}
                   activeOrders={activeOrders}
                   inventory={activeInventory}
-                  quotes={orders} // fallback
+                  quotes={quotes}
                   productionTasks={productionTasks}
                   pausedTaskIds={pausedTaskIds}
                 />
@@ -338,9 +368,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onViewChange, onQu
                   onViewChange={onViewChange}
                   activeOrders={activeOrders}
                   inventory={activeInventory}
-                  quotes={orders} // fallback
+                  quotes={quotes}
                   transactions={activeTransactions}
                   productionTasks={productionTasks}
+                  period={selectedPeriod}
                 />
               )}
 
@@ -357,7 +388,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onViewChange, onQu
                 <DashboardFinanceSales
                   transactions={activeTransactions}
                   activeOrders={activeOrders}
-                  quotes={orders} // fallback
+                  quotes={quotes}
                 />
               )}
 
@@ -366,6 +397,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onViewChange, onQu
                   activeOrders={activeOrders}
                   products={products}
                   inventory={activeInventory}
+                  transactions={activeTransactions}
+                  onViewChange={onViewChange}
                 />
               )}
 
@@ -378,6 +411,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onViewChange, onQu
                   currentMonthLucro={currentMonthLucro}
                   currentMonthOrdersCount={currentMonthOrdersCount}
                   currentMonthProducaoCount={currentMonthProducaoCount}
+                  onViewChange={onViewChange}
                 />
               )}
 

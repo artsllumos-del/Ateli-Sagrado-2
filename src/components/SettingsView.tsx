@@ -11,7 +11,7 @@ import { UsersPermissionsView } from './UsersPermissionsView';
 import { SubscriptionBillingView } from './subscription/SubscriptionBillingView';
 
 export const SettingsView: React.FC = () => {
-  const { settings, updateSettings, user, users, addUser, updateUser, deleteUser, resetSystem } = useDb();
+  const { settings, updateSettings, user, updateUser, resetSystem } = useDb();
 
   const isAdminRole = (role?: string) => {
     if (!role) return false;
@@ -84,31 +84,6 @@ export const SettingsView: React.FC = () => {
       setProfilePassword(user.password || '');
     }
   }, [user]);
-
-  // --- 6. ADMIN USER MANAGEMENT FORM STATE ---
-  const [editingUser, setEditingUser] = useState<AppUser | null>(null);
-  const [showUserForm, setShowUserForm] = useState(false);
-  const [uUsername, setUUsername] = useState('');
-  const [uName, setUName] = useState('');
-  const [uEmail, setUEmail] = useState('');
-  const [uPassword, setUPassword] = useState('');
-  const [uRole, setURole] = useState<'Administrador' | 'Vendedor' | 'Artesão' | 'Gerente'>('Vendedor');
-  const [uIsActive, setUIsActive] = useState(true);
-  const [uPhoto, setUPhoto] = useState('');
-  // user permissions checkboxes
-  const [perms, setPerms] = useState({
-    dashboard: true,
-    inventory: true,
-    purchases: true,
-    products: true,
-    pricing: true,
-    clients: true,
-    quotes: true,
-    orders: true,
-    production: true,
-    financial: true,
-    settings: false,
-  });
 
   const handleSaveAtelier = (e: React.FormEvent) => {
     e.preventDefault();
@@ -193,107 +168,12 @@ export const SettingsView: React.FC = () => {
     toast.success("Perfil Atualizado!", "Suas informações de operador foram salvas.");
   };
 
-  // --- USER CRUD OPERATIONS ---
-  const handleOpenNewUser = () => {
-    setEditingUser(null);
-    setUUsername('');
-    setUName('');
-    setUEmail('');
-    setUPassword('');
-    setURole('Vendedor');
-    setUIsActive(true);
-    setUPhoto('https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=150&auto=format&fit=crop');
-    setPerms({
-      dashboard: true,
-      inventory: true,
-      purchases: true,
-      products: true,
-      pricing: true,
-      clients: true,
-      quotes: true,
-      orders: true,
-      production: true,
-      financial: false,
-      settings: false,
-    });
-    setShowUserForm(true);
-  };
-
-  const handleOpenEditUser = (u: AppUser) => {
-    setEditingUser(u);
-    setUUsername(u.username);
-    setUName(u.name);
-    setUEmail(u.email);
-    setUPassword(u.password);
-    setURole(u.role as any);
-    setUIsActive(u.isActive);
-    setUPhoto(u.photoUrl || '');
-    setPerms({
-      dashboard: u.permissions?.dashboard !== false,
-      inventory: u.permissions?.inventory !== false,
-      purchases: u.permissions?.purchases !== false,
-      products: u.permissions?.products !== false,
-      pricing: u.permissions?.pricing !== false,
-      clients: u.permissions?.clients !== false,
-      quotes: u.permissions?.quotes !== false,
-      orders: u.permissions?.orders !== false,
-      production: u.permissions?.production !== false,
-      financial: u.permissions?.financial !== false,
-      settings: u.permissions?.settings !== false,
-    });
-    setShowUserForm(true);
-  };
-
-  const handleSaveUser = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!uUsername || !uName || !uEmail || !uPassword) {
-      toast.error("Validação", "Preencha todos os campos obrigatórios do usuário.");
-      return;
-    }
-
-    if (editingUser) {
-      updateUser(editingUser.id, {
-        username: uUsername,
-        name: uName,
-        email: uEmail,
-        password: uPassword,
-        role: uRole,
-        isActive: uIsActive,
-        photoUrl: uPhoto,
-        permissions: perms
-      });
-      toast.success("Usuário Atualizado!", `Os acessos de ${uName} foram redefinidos.`);
-    } else {
-      addUser({
-        username: uUsername,
-        name: uName,
-        email: uEmail,
-        password: uPassword,
-        role: uRole,
-        isActive: uIsActive,
-        photoUrl: uPhoto,
-        permissions: perms
-      });
-      toast.success("Usuário Criado!", `${uName} agora possui credenciais ativas.`);
-    }
-    setShowUserForm(false);
-  };
-
-  const handleDeleteUser = (id: string, name: string) => {
-    if (id === 'user_admin') {
-      toast.error("Acesso Negado", "Não é permitido excluir o usuário Administrador Master do sistema.");
-      return;
-    }
-    deleteUser(id);
-    toast.warning("Usuário Removido", `${name} foi descadastrado.`);
-  };
-
   return (
     <div className="flex flex-col md:flex-row gap-6 select-none font-sans max-w-5xl mx-auto animate-slide-in-up">
       {/* Sidebar Navigation Tabs */}
       <div className="w-full md:w-64 bg-white border border-slate-100 rounded-2xl p-4 space-y-1 shadow-sm shrink-0 h-fit">
         <button
-          onClick={() => { setActiveTab('atelier'); setShowUserForm(false); }}
+          onClick={() => setActiveTab('atelier')}
           className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all text-left ${
             activeTab === 'atelier'
               ? 'bg-amber-500/10 text-amber-700'
@@ -304,7 +184,7 @@ export const SettingsView: React.FC = () => {
         </button>
 
         <button
-          onClick={() => { setActiveTab('financial'); setShowUserForm(false); }}
+          onClick={() => setActiveTab('financial')}
           className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all text-left ${
             activeTab === 'financial'
               ? 'bg-amber-500/10 text-amber-700'
@@ -315,7 +195,7 @@ export const SettingsView: React.FC = () => {
         </button>
 
         <button
-          onClick={() => { setActiveTab('documents'); setShowUserForm(false); }}
+          onClick={() => setActiveTab('documents')}
           className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all text-left ${
             activeTab === 'documents'
               ? 'bg-amber-500/10 text-amber-700'
@@ -326,7 +206,7 @@ export const SettingsView: React.FC = () => {
         </button>
 
         <button
-          onClick={() => { setActiveTab('system'); setShowUserForm(false); }}
+          onClick={() => setActiveTab('system')}
           className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all text-left ${
             activeTab === 'system'
               ? 'bg-amber-500/10 text-amber-700'
@@ -337,7 +217,7 @@ export const SettingsView: React.FC = () => {
         </button>
 
         <button
-          onClick={() => { setActiveTab('profile'); setShowUserForm(false); }}
+          onClick={() => setActiveTab('profile')}
           className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all text-left ${
             activeTab === 'profile'
               ? 'bg-amber-500/10 text-amber-700'
@@ -349,7 +229,7 @@ export const SettingsView: React.FC = () => {
 
         {isAdminRole(user?.role) && (
           <button
-            onClick={() => { setActiveTab('users'); setShowUserForm(false); }}
+            onClick={() => setActiveTab('users')}
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all text-left ${
               activeTab === 'users'
                 ? 'bg-amber-500/10 text-amber-700'
@@ -361,7 +241,7 @@ export const SettingsView: React.FC = () => {
         )}
 
         <button
-          onClick={() => { setActiveTab('subscription'); setShowUserForm(false); }}
+          onClick={() => setActiveTab('subscription')}
           className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all text-left ${
             activeTab === 'subscription'
               ? 'bg-amber-500/10 text-amber-700'

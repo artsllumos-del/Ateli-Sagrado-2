@@ -1,22 +1,36 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useDb } from '../context/DbContext';
 import { FinancialTransaction, TransactionType } from '../types/erp';
 import { 
   TrendingUp, TrendingDown, DollarSign, Plus, Search, Trash2, X, Filter,
   ArrowUpRight, ArrowDownRight, CreditCard, Calendar, BarChart3, Wallet, AlertTriangle,
   FileText, Scan, UploadCloud, Sparkles, RefreshCw, CheckCircle, HelpCircle, Info,
-  Layers, Hammer, Briefcase, ShoppingBag, Percent, Sliders, Play, Settings, RefreshCcw, Check, CheckCircle2, ChevronDown, ChevronUp, Link2
+  Layers, Hammer, Briefcase, ShoppingBag, Percent, Sliders, Play, Settings, RefreshCcw, Check, CheckCircle2, ChevronDown, ChevronUp, Link2,
+  Download, QrCode, Receipt
 } from 'lucide-react';
 import { toast } from './Toast';
 import { 
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, BarChart, Bar, Legend
 } from 'recharts';
 import { motion, AnimatePresence } from 'motion/react';
+import { roundCurrency, roundQty, safeNumber, safeDiv } from '../utils/finance';
+import { PayablesTab } from './financial/PayablesTab';
+import { ReceivablesTab } from './financial/ReceivablesTab';
+import { GatewayTab } from './financial/GatewayTab';
 
 type PaymentMethod = 'pix' | 'credit_card' | 'debit_card' | 'cash' | 'bank_slip';
-type ActiveTab = 'dashboard' | 'dre' | 'simulator' | 'reconciliation';
+type ActiveTab = 'dashboard' | 'payables' | 'receivables' | 'gateway' | 'dre' | 'simulator' | 'reconciliation';
 
-export const FinancialView: React.FC = () => {
+export interface FinancialViewProps {
+  initialFilter?: {
+    tab?: ActiveTab;
+    type?: 'all' | 'income' | 'expense';
+    search?: string;
+    section?: 'revenues' | 'materials' | 'labor' | 'purchases' | 'quotes';
+  };
+}
+
+export const FinancialView: React.FC<FinancialViewProps> = ({ initialFilter }) => {
   const { 
     transactions, 
     addTransaction, 
@@ -30,15 +44,31 @@ export const FinancialView: React.FC = () => {
     products,
     productionTasks,
     settings,
-    clients
+    clients,
+    payables,
+    receivables,
+    paymentCharges,
+    exportFinancialReport
   } = useDb();
 
   // Active view tab
-  const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
+  const [activeTab, setActiveTab] = useState<ActiveTab>(initialFilter?.tab || 'dashboard');
+
+  // Checkout selection drilldown
+  const [selectedReceivableForCheckout, setSelectedReceivableForCheckout] = useState<{
+    id: string;
+    description: string;
+    amount: number;
+    clientName?: string;
+  } | null>(null);
+
+  // Export State
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
   // Component States
-  const [search, setSearch] = useState('');
-  const [selectedType, setSelectedType] = useState<'all' | 'income' | 'expense'>('all');
+  const [search, setSearch] = useState(initialFilter?.search || '');
+  const [selectedType, setSelectedType] = useState<'all' | 'income' | 'expense'>(initialFilter?.type || 'all');
   const [showAddModal, setShowAddModal] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; description: string; amount: number } | null>(null);
 
@@ -50,7 +80,15 @@ export const FinancialView: React.FC = () => {
   const [dragActive, setDragActive] = useState(false);
 
   // Expanded Traceability Panels
-  const [expandedSection, setExpandedSection] = useState<'revenues' | 'materials' | 'labor' | 'purchases' | 'quotes' | null>(null);
+  const [expandedSection, setExpandedSection] = useState<'revenues' | 'materials' | 'labor' | 'purchases' | 'quotes' | null>(initialFilter?.section || null);
+
+  // Sync initialFilter when drill-down navigation occurs
+  useEffect(() => {
+    if (initialFilter?.tab) setActiveTab(initialFilter.tab);
+    if (initialFilter?.type) setSelectedType(initialFilter.type);
+    if (initialFilter?.search !== undefined) setSearch(initialFilter.search);
+    if (initialFilter?.section !== undefined) setExpandedSection(initialFilter.section);
+  }, [initialFilter]);
 
   // Bank Reconciliation States
   const [linkingTransaction, setLinkingTransaction] = useState<FinancialTransaction | null>(null);
@@ -83,36 +121,36 @@ export const FinancialView: React.FC = () => {
   const completedOrders = activeOrders.filter(o => o.status === 'completed');
   const pendingOrders = activeOrders.filter(o => o.status !== 'completed');
 
-  const realizedRevenue = completedOrders.reduce((sum, o) => sum + o.totalValue, 0);
-  const pendingRevenue = pendingOrders.reduce((sum, o) => sum + o.totalValue, 0);
-  const totalOperationalRevenue = realizedRevenue + pendingRevenue;
+  const realizedRevenue = roundCurrency(completedOrders.reduce((sum, o) => sum + (o.totalValue || 0), 0));
+  const pendingRevenue = roundCurrency(pendingOrders.reduce((sum, o) => sum + (o.totalValue || 0), 0));
+  const totalOperationalRevenue = roundCurrency(realizedRevenue + pendingRevenue);
 
   // Helper to calculate the raw material replacement cost of a product composition
   const getProductMaterialCost = (product: any) => {
     if (!product || !product.composition) return 0;
-    return product.composition.reduce((acc: number, comp: any) => {
+    return roundCurrency(product.composition.reduce((acc: number, comp: any) => {
       const mat = inventory.find((m: any) => m.id === comp.materialId);
-      const unitVal = mat ? mat.unitValue : (comp.cost / comp.quantity || 0);
-      return acc + (comp.quantity * unitVal);
-    }, 0);
+      const unitVal = mat ? mat.unitValue : safeDiv(comp.cost, comp.quantity);
+      return acc + (safeNumber(comp.quantity, 0) * safeNumber(unitVal, 0));
+    }, 0));
   };
 
   // 2. Direct Materials Cost (Custo das Mercadorias Vendidas - Insumos)
-  const completedDirectMaterialCost = completedOrders.reduce((sum, o) => {
+  const completedDirectMaterialCost = roundCurrency(completedOrders.reduce((sum, o) => {
     return sum + o.items.reduce((orderSum, item) => {
       const prod = products.find(p => p.id === item.productId);
       const matCost = getProductMaterialCost(prod);
-      return orderSum + (matCost * item.quantity);
+      return orderSum + (matCost * safeNumber(item.quantity, 0));
     }, 0);
-  }, 0);
+  }, 0));
 
-  const pendingDirectMaterialCost = pendingOrders.reduce((sum, o) => {
+  const pendingDirectMaterialCost = roundCurrency(pendingOrders.reduce((sum, o) => {
     return sum + o.items.reduce((orderSum, item) => {
       const prod = products.find(p => p.id === item.productId);
       const matCost = getProductMaterialCost(prod);
-      return orderSum + (matCost * item.quantity);
+      return orderSum + (matCost * safeNumber(item.quantity, 0));
     }, 0);
-  }, 0);
+  }, 0));
 
   // 3. Direct Labor Cost (Horas com base no motor de precificação e vendas efetivamente feitas)
   // Sum of minutes spent based on product composition production times and active sales orders
@@ -120,68 +158,69 @@ export const FinancialView: React.FC = () => {
     return sum + order.items.reduce((itemSum, item) => {
       const prod = products.find(p => p.id === item.productId || p.sku === item.productId);
       const prodTime = prod ? (prod.productionTimeMin || 0) : 0;
-      return itemSum + (item.quantity * prodTime);
+      return itemSum + (safeNumber(item.quantity, 0) * prodTime);
     }, 0);
   }, 0);
-  const hourlyRate = settings?.laborHourlyRate || 25;
-  const realLaborCost = totalMinutesSpent * (hourlyRate / 60);
+  const hourlyRate = safeNumber(settings?.laborHourlyRate, 25);
+  const realLaborCost = roundCurrency(totalMinutesSpent * safeDiv(hourlyRate, 60));
 
   // 4. Indirect Costs applied to completed products
-  const completedIndirectCost = completedOrders.reduce((sum, o) => {
-    return sum + o.items.reduce((itemSum, item) => itemSum + ((settings?.indirectCosts || 10) * item.quantity), 0);
-  }, 0);
+  const indirectRate = safeNumber(settings?.indirectCosts, 10);
+  const completedIndirectCost = roundCurrency(completedOrders.reduce((sum, o) => {
+    return sum + o.items.reduce((itemSum, item) => itemSum + (indirectRate * safeNumber(item.quantity, 0)), 0);
+  }, 0));
 
-  const pendingIndirectCost = pendingOrders.reduce((sum, o) => {
-    return sum + o.items.reduce((itemSum, item) => itemSum + ((settings?.indirectCosts || 10) * item.quantity), 0);
-  }, 0);
+  const pendingIndirectCost = roundCurrency(pendingOrders.reduce((sum, o) => {
+    return sum + o.items.reduce((itemSum, item) => itemSum + (indirectRate * safeNumber(item.quantity, 0)), 0);
+  }, 0));
 
   // Consolidated operational expenses (CMV + Labor + Indirects)
-  const totalRealizedOperationalCosts = completedDirectMaterialCost + realLaborCost + completedIndirectCost;
-  const totalPendingOperationalCosts = pendingDirectMaterialCost + pendingIndirectCost;
+  const totalRealizedOperationalCosts = roundCurrency(completedDirectMaterialCost + realLaborCost + completedIndirectCost);
+  const totalPendingOperationalCosts = roundCurrency(pendingDirectMaterialCost + pendingIndirectCost);
 
   // 5. Total Stock asset valuation (Valor Patrimonial de Estoque)
-  const totalStockAssetValuation = inventory
+  const totalStockAssetValuation = roundCurrency(inventory
     .filter(item => !item.isDeleted && item.status === 'active')
-    .reduce((sum, item) => sum + (item.quantity * item.unitValue), 0);
+    .reduce((sum, item) => sum + (safeNumber(item.quantity, 0) * safeNumber(item.unitValue, 0)), 0));
 
   // 6. Direct Stock Purchases and general administrative expenditures
   const activeTransactions = transactions.filter(t => !t.isDeleted);
   
-  const totalRevenuesBookkeeping = activeTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.value, 0);
-  const totalExpensesBookkeeping = activeTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.value, 0);
+  const totalRevenuesBookkeeping = roundCurrency(activeTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + safeNumber(t.value, 0), 0));
+  const totalExpensesBookkeeping = roundCurrency(activeTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + safeNumber(t.value, 0), 0));
 
-  const stockPurchaseExpenses = activeTransactions
+  const stockPurchaseExpenses = roundCurrency(activeTransactions
     .filter(t => t.type === 'expense' && (t.category.toLowerCase().includes('compra') || t.category.toLowerCase().includes('insumo')))
-    .reduce((sum, t) => sum + t.value, 0);
+    .reduce((sum, t) => sum + safeNumber(t.value, 0), 0));
 
-  const generalExpenses = activeTransactions
+  const generalExpenses = roundCurrency(activeTransactions
     .filter(t => t.type === 'expense' && !(t.category.toLowerCase().includes('compra') || t.category.toLowerCase().includes('insumo')))
-    .reduce((sum, t) => sum + t.value, 0);
+    .reduce((sum, t) => sum + safeNumber(t.value, 0), 0));
 
   // Net realized operating profit
-  const realizedOperatingNetProfit = realizedRevenue - totalRealizedOperationalCosts;
+  const realizedOperatingNetProfit = roundCurrency(realizedRevenue - totalRealizedOperationalCosts);
 
   // 7. Quotes pipeline potential revenue
   const activeQuotes = quotes.filter(q => !q.isDeleted && q.status !== 'rejected' && q.status !== 'converted');
-  const quotesPipelineValue = activeQuotes.reduce((sum, q) => sum + q.total, 0);
+  const quotesPipelineValue = roundCurrency(activeQuotes.reduce((sum, q) => sum + safeNumber(q.total, 0), 0));
 
   // ----------------------------------------------------
   // INTERACTIVE WHAT-IF SIMULATIONS MATH
   // ----------------------------------------------------
-  const simulatedRealizedRevenue = realizedRevenue * (1 + priceAdjustment / 100);
-  const simulatedPendingRevenue = pendingRevenue * (1 + priceAdjustment / 100);
-  const simulatedQuotesRevenue = quotesPipelineValue * (quoteConversionRate / 100) * (1 + priceAdjustment / 100);
-  const simulatedTotalRevenue = simulatedRealizedRevenue + simulatedPendingRevenue + simulatedQuotesRevenue;
+  const simulatedRealizedRevenue = roundCurrency(realizedRevenue * (1 + priceAdjustment / 100));
+  const simulatedPendingRevenue = roundCurrency(pendingRevenue * (1 + priceAdjustment / 100));
+  const simulatedQuotesRevenue = roundCurrency(quotesPipelineValue * (quoteConversionRate / 100) * (1 + priceAdjustment / 100));
+  const simulatedTotalRevenue = roundCurrency(simulatedRealizedRevenue + simulatedPendingRevenue + simulatedQuotesRevenue);
 
-  const simulatedMaterialCost = (completedDirectMaterialCost + pendingDirectMaterialCost) * (1 + materialCostAdjustment / 100);
-  const simulatedLaborCost = realLaborCost * (1 - laborProductivity / 100);
-  const simulatedIndirectCost = completedIndirectCost + pendingIndirectCost;
-  const simulatedTotalOperationalCosts = simulatedMaterialCost + simulatedLaborCost + simulatedIndirectCost;
+  const simulatedMaterialCost = roundCurrency((completedDirectMaterialCost + pendingDirectMaterialCost) * (1 + materialCostAdjustment / 100));
+  const simulatedLaborCost = roundCurrency(realLaborCost * (1 - laborProductivity / 100));
+  const simulatedIndirectCost = roundCurrency(completedIndirectCost + pendingIndirectCost);
+  const simulatedTotalOperationalCosts = roundCurrency(simulatedMaterialCost + simulatedLaborCost + simulatedIndirectCost);
 
-  const simulatedNetProfit = simulatedTotalRevenue - simulatedTotalOperationalCosts;
-  const currentTotalOperationalRevenue = totalOperationalRevenue + (quotesPipelineValue * 0.5); // Baseline has 50% quotes conversion
-  const currentTotalCosts = totalRealizedOperationalCosts + totalPendingOperationalCosts;
-  const currentNetProfit = currentTotalOperationalRevenue - currentTotalCosts;
+  const simulatedNetProfit = roundCurrency(simulatedTotalRevenue - simulatedTotalOperationalCosts);
+  const currentTotalOperationalRevenue = roundCurrency(totalOperationalRevenue + (quotesPipelineValue * 0.5)); // Baseline has 50% quotes conversion
+  const currentTotalCosts = roundCurrency(totalRealizedOperationalCosts + totalPendingOperationalCosts);
+  const currentNetProfit = roundCurrency(currentTotalOperationalRevenue - currentTotalCosts);
 
   // Filter Bookkeeping Transactions list
   const filteredTransactions = activeTransactions.filter(t => {
@@ -213,8 +252,9 @@ export const FinancialView: React.FC = () => {
 
   const handleSaveAdd = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!category || !contactName || value <= 0) {
-      toast.error("Validação", "Preencha todos os dados obrigatórios.");
+    const safeValue = roundCurrency(Math.max(0, safeNumber(value, 0)));
+    if (!category || !contactName || safeValue <= 0) {
+      toast.error("Validação", "Preencha todos os dados obrigatórios e um valor válido.");
       return;
     }
 
@@ -222,13 +262,13 @@ export const FinancialView: React.FC = () => {
       type,
       category,
       contactName,
-      value,
+      value: safeValue,
       date,
       paymentMethod,
       notes
     });
 
-    toast.success("Lançamento Registrado!", `Movimentação de R$ ${value.toFixed(2)} lançada com sucesso.`);
+    toast.success("Lançamento Registrado!", `Movimentação de R$ ${safeValue.toFixed(2)} lançada com sucesso.`);
     setShowAddModal(false);
   };
 
@@ -319,7 +359,7 @@ export const FinancialView: React.FC = () => {
           setValue(Number(res.data.totalAmount) || 0);
           setDate(res.data.date || new Date().toISOString().split('T')[0]);
           setPaymentMethod('pix');
-          setNotes(`Importado por IA OCR. Itens: ${res.data.items?.map((it: any) => `${it.qty}x ${it.desc}`).join(', ') || 'Sem especificações'}`);
+          setNotes(`Importado por IA OCR. Itens: ${res.data.items?.map((it) => `${it.quantity}x ${it.name}`).join(', ') || 'Sem especificações'}`);
           
           setShowScanZone(false);
           setShowAddModal(true);
@@ -329,8 +369,9 @@ export const FinancialView: React.FC = () => {
         setIsScanning(false);
       };
       reader.readAsDataURL(file);
-    } catch (err: any) {
-      toast.error("Falha na Leitura", err.message);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Erro ao processar arquivo';
+      toast.error("Falha na Leitura", msg);
       setIsScanning(false);
     }
   };
@@ -448,65 +489,211 @@ export const FinancialView: React.FC = () => {
     { name: '+6 Meses', Atual: currentNetProfit * 1.30, Simulado: simulatedNetProfit * 1.35 }
   ];
 
+  const nowDayStr = new Date().toISOString().split('T')[0];
+  const pendingPayablesCount = payables.filter(p => p.status !== 'paid').length;
+  const overduePayablesCount = payables.filter(p => p.status !== 'paid' && p.dueDate < nowDayStr).length;
+
+  const pendingReceivablesCount = receivables.filter(r => r.status !== 'received').length;
+  const overdueReceivablesCount = receivables.filter(r => r.status !== 'received' && r.dueDate < nowDayStr).length;
+
+  const handleExport = async (reportType: 'transactions' | 'payables' | 'receivables' | 'cashflow') => {
+    setIsExporting(reportType as any);
+    setShowExportMenu(false);
+    try {
+      const res = await exportFinancialReport(reportType);
+      if (res.success) {
+        toast.success(`Relatório exportado com sucesso: ${res.filename}`);
+      } else {
+        toast.error(res.error || 'Erro ao gerar arquivo de exportação.');
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Falha ao exportar relatório.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   return (
     <div className="space-y-6 animate-slide-in-up">
       
       {/* Brand Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-5">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-150 pb-5">
         <div>
           <h2 className="font-serif font-bold text-2xl text-ink-900 tracking-tight flex items-center gap-2">
             <Wallet className="text-gold-600" size={24} />
-            Núcleo Financeiro Central
+            Núcleo Financeiro & Controladoria
           </h2>
           <p className="text-xs text-ink-600 mt-1">
-            Controle integrado derivado em tempo real de vendas, orçamentos, estoque, compras e chão de fábrica.
+            Gestão integrada de fluxo de caixa, contas a pagar, contas a receber, cobranças online com PIX/Cartão e DRE gerencial.
           </p>
         </div>
-        
-        {/* Navigation Tabs */}
-        <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 shrink-0 flex-wrap gap-1">
-          <button 
-            onClick={() => setActiveTab('dashboard')}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-              activeTab === 'dashboard' ? 'bg-white text-slate-950 shadow-xs' : 'text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            <BarChart3 size={13} />
-            <span>Painel Integrado</span>
-          </button>
-          <button 
-            onClick={() => setActiveTab('dre')}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-              activeTab === 'dre' ? 'bg-white text-slate-950 shadow-xs' : 'text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            <FileText size={13} />
-            <span>DRE Gerencial</span>
-          </button>
-          <button 
-            onClick={() => setActiveTab('simulator')}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-              activeTab === 'simulator' ? 'bg-white text-slate-950 shadow-xs' : 'text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            <Sliders size={13} />
-            <span>Simulador & Projeções</span>
-          </button>
-          <button 
-            onClick={() => setActiveTab('reconciliation')}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-              activeTab === 'reconciliation' ? 'bg-white text-slate-950 shadow-xs' : 'text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            <Scan size={13} />
-            <span>Conciliação & OCR</span>
-            {unreconciledCount > 0 && (
-              <span className="bg-amber-500 text-white font-mono text-[9px] px-1.5 py-0.5 rounded-full">
-                {unreconciledCount}
-              </span>
+
+        {/* Header Action: Export Reports Dropdown */}
+        <div className="relative flex items-center gap-2">
+          <div className="relative">
+            <button
+              type="button"
+              disabled={isExporting}
+              onClick={() => setShowExportMenu(!showExportMenu)}
+              className="px-3.5 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer transition-all active:scale-98 shadow-xs disabled:opacity-50"
+            >
+              <Download size={14} className="text-slate-500" />
+              <span>{isExporting ? 'Gerando Relatório...' : 'Exportar Relatórios'}</span>
+              <ChevronDown size={13} className="text-slate-400" />
+            </button>
+
+            {showExportMenu && (
+              <>
+                <div 
+                  className="fixed inset-0 z-40" 
+                  onClick={() => setShowExportMenu(false)} 
+                />
+                <div className="absolute right-0 mt-2 w-64 bg-white border border-slate-200 rounded-2xl shadow-xl p-1.5 z-50 animate-slide-in-up space-y-1">
+                  <div className="px-3 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                    Formatos Oficiais (CSV / Excel)
+                  </div>
+                  <button
+                    onClick={() => handleExport('cashflow')}
+                    className="w-full text-left px-3 py-2 rounded-xl text-xs font-medium text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer"
+                  >
+                    <BarChart3 size={14} className="text-slate-500" />
+                    <div>
+                      <div className="font-bold">Extrato do Fluxo de Caixa</div>
+                      <div className="text-[10px] text-slate-400">Entradas, saídas e saldos consolidados</div>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => handleExport('payables')}
+                    className="w-full text-left px-3 py-2 rounded-xl text-xs font-medium text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer"
+                  >
+                    <Receipt size={14} className="text-rose-500" />
+                    <div>
+                      <div className="font-bold">Contas a Pagar</div>
+                      <div className="text-[10px] text-slate-400">Fornecedores, parcelas e vencimentos</div>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => handleExport('receivables')}
+                    className="w-full text-left px-3 py-2 rounded-xl text-xs font-medium text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer"
+                  >
+                    <CheckCircle2 size={14} className="text-emerald-500" />
+                    <div>
+                      <div className="font-bold">Contas a Receber</div>
+                      <div className="text-[10px] text-slate-400">Clientes, cobranças e recebimentos</div>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => handleExport('transactions')}
+                    className="w-full text-left px-3 py-2 rounded-xl text-xs font-medium text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer"
+                  >
+                    <FileText size={14} className="text-blue-500" />
+                    <div>
+                      <div className="font-bold">Livro Diário Completo</div>
+                      <div className="text-[10px] text-slate-400">Todos os lançamentos do período</div>
+                    </div>
+                  </button>
+                </div>
+              </>
             )}
-          </button>
+          </div>
         </div>
+      </div>
+
+      {/* Navigation Tabs */}
+      <div className="flex bg-slate-100/90 p-1.5 rounded-2xl border border-slate-200 overflow-x-auto gap-1">
+        <button 
+          onClick={() => setActiveTab('dashboard')}
+          className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
+            activeTab === 'dashboard' ? 'bg-white text-slate-950 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+          }`}
+        >
+          <BarChart3 size={14} />
+          <span>Painel & Caixa</span>
+        </button>
+
+        <button 
+          onClick={() => setActiveTab('payables')}
+          className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
+            activeTab === 'payables' ? 'bg-white text-slate-950 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+          }`}
+        >
+          <Receipt size={14} />
+          <span>Contas a Pagar</span>
+          {pendingPayablesCount > 0 && (
+            <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-mono font-bold ${
+              overduePayablesCount > 0 ? 'bg-rose-500 text-white' : 'bg-slate-200 text-slate-700'
+            }`}>
+              {pendingPayablesCount}
+            </span>
+          )}
+        </button>
+
+        <button 
+          onClick={() => setActiveTab('receivables')}
+          className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
+            activeTab === 'receivables' ? 'bg-white text-slate-950 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+          }`}
+        >
+          <DollarSign size={14} />
+          <span>Contas a Receber</span>
+          {pendingReceivablesCount > 0 && (
+            <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-mono font-bold ${
+              overdueReceivablesCount > 0 ? 'bg-rose-500 text-white' : 'bg-blue-100 text-blue-800'
+            }`}>
+              {pendingReceivablesCount}
+            </span>
+          )}
+        </button>
+
+        <button 
+          onClick={() => setActiveTab('gateway')}
+          className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
+            activeTab === 'gateway' ? 'bg-white text-slate-950 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+          }`}
+        >
+          <QrCode size={14} />
+          <span>Gateway & PIX</span>
+          {paymentCharges.length > 0 && (
+            <span className="px-1.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-gold-100 text-gold-800">
+              {paymentCharges.length}
+            </span>
+          )}
+        </button>
+
+        <button 
+          onClick={() => setActiveTab('dre')}
+          className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
+            activeTab === 'dre' ? 'bg-white text-slate-950 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+          }`}
+        >
+          <FileText size={14} />
+          <span>DRE Gerencial</span>
+        </button>
+
+        <button 
+          onClick={() => setActiveTab('simulator')}
+          className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
+            activeTab === 'simulator' ? 'bg-white text-slate-950 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+          }`}
+        >
+          <Sliders size={14} />
+          <span>Simulador</span>
+        </button>
+
+        <button 
+          onClick={() => setActiveTab('reconciliation')}
+          className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
+            activeTab === 'reconciliation' ? 'bg-white text-slate-950 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+          }`}
+        >
+          <Scan size={14} />
+          <span>Conciliação & OCR</span>
+          {unreconciledCount > 0 && (
+            <span className="bg-amber-500 text-white font-mono text-[9px] px-1.5 py-0.5 rounded-full">
+              {unreconciledCount}
+            </span>
+          )}
+        </button>
       </div>
 
       {/* ----------------------------------------------------
@@ -1015,23 +1202,52 @@ export const FinancialView: React.FC = () => {
       )}
 
       {/* ----------------------------------------------------
+          TAB: CONTAS A PAGAR
+          ---------------------------------------------------- */}
+      {activeTab === 'payables' && <PayablesTab />}
+
+      {/* ----------------------------------------------------
+          TAB: CONTAS A RECEBER
+          ---------------------------------------------------- */}
+      {activeTab === 'receivables' && (
+        <ReceivablesTab 
+          onOpenCheckout={(rec) => {
+            setSelectedReceivableForCheckout({
+              id: rec.id,
+              description: rec.description,
+              amount: rec.amount - (rec.receivedAmount || 0),
+              clientName: rec.clientName
+            });
+            setActiveTab('gateway');
+          }}
+        />
+      )}
+
+      {/* ----------------------------------------------------
+          TAB: GATEWAY & PIX ONLINE
+          ---------------------------------------------------- */}
+      {activeTab === 'gateway' && (
+        <GatewayTab initialReceivableToCharge={selectedReceivableForCheckout} />
+      )}
+
+      {/* ----------------------------------------------------
           TAB 2: DRE GERENCIAL (DEMONSTRATIVO DO RESULTADO)
           ---------------------------------------------------- */}
       {activeTab === 'dre' && (() => {
-        const grossRevenueTotal = totalOperationalRevenue + totalRevenuesBookkeeping;
-        const estimatedTaxes = grossRevenueTotal * 0.035;
-        const netRevenue = grossRevenueTotal - estimatedTaxes;
+        const grossRevenueTotal = roundCurrency(totalOperationalRevenue + totalRevenuesBookkeeping);
+        const estimatedTaxes = roundCurrency(grossRevenueTotal * 0.035);
+        const netRevenue = roundCurrency(grossRevenueTotal - estimatedTaxes);
 
-        const lossCostTotal = (completedDirectMaterialCost + pendingDirectMaterialCost) * 0.05;
-        const totalCMV = completedDirectMaterialCost + pendingDirectMaterialCost + lossCostTotal;
+        const lossCostTotal = roundCurrency((completedDirectMaterialCost + pendingDirectMaterialCost) * 0.05);
+        const totalCMV = roundCurrency(completedDirectMaterialCost + pendingDirectMaterialCost + lossCostTotal);
         const totalLaborCostDRE = realLaborCost;
 
-        const grossProfitDRE = netRevenue - totalCMV - totalLaborCostDRE;
-        const totalIndirectCostsDRE = completedIndirectCost + pendingIndirectCost;
+        const grossProfitDRE = roundCurrency(netRevenue - totalCMV - totalLaborCostDRE);
+        const totalIndirectCostsDRE = roundCurrency(completedIndirectCost + pendingIndirectCost);
         const totalOperatingExpensesDRE = generalExpenses;
 
-        const netOperatingProfitDRE = grossProfitDRE - totalIndirectCostsDRE - totalOperatingExpensesDRE;
-        const netMarginDRE = grossRevenueTotal > 0 ? (netOperatingProfitDRE / grossRevenueTotal) * 100 : 0;
+        const netOperatingProfitDRE = roundCurrency(grossProfitDRE - totalIndirectCostsDRE - totalOperatingExpensesDRE);
+        const netMarginDRE = safeDiv(netOperatingProfitDRE, grossRevenueTotal) * 100;
 
         return (
           <div className="space-y-6">

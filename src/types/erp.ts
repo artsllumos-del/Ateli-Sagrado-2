@@ -170,7 +170,7 @@ export interface Quote {
  snapshot?: DocumentSnapshot;
 }
 
-export type OrderStatus = 'received' | 'approved' | 'production' | 'finishing' | 'packing' | 'ready' | 'completed';
+export type OrderStatus = 'received' | 'approved' | 'production' | 'finishing' | 'packing' | 'ready' | 'completed' | 'cancelled';
 
 export interface OrderItem {
  productId: string;
@@ -230,6 +230,95 @@ export interface ProductionTask {
 
 export type TransactionType = 'income' | 'expense';
 
+export type FinancialStatus = 'pending' | 'paid' | 'partially_paid' | 'overdue' | 'cancelled';
+export type ReceivableStatus = 'pending' | 'received' | 'partially_received' | 'overdue' | 'cancelled';
+
+export interface AccountPayable {
+  id: string;
+  tenantId?: string;
+  description: string;
+  supplierName: string;
+  supplierId?: string;
+  category: string;
+  issueDate: string;
+  dueDate: string;
+  amount: number;
+  paidAmount: number;
+  installmentNumber: number;
+  totalInstallments: number;
+  status: FinancialStatus;
+  barcode?: string;
+  pixKey?: string;
+  paymentDate?: string;
+  paymentMethod?: string;
+  notes?: string;
+  reconciled?: boolean;
+  createdAt: string;
+}
+
+export interface AccountReceivable {
+  id: string;
+  tenantId?: string;
+  description: string;
+  clientName: string;
+  clientId?: string;
+  orderId?: string;
+  orderNumber?: string;
+  category: string;
+  issueDate: string;
+  dueDate: string;
+  amount: number;
+  receivedAmount: number;
+  installmentNumber: number;
+  totalInstallments: number;
+  status: ReceivableStatus;
+  paymentMethod?: string;
+  receiptDate?: string;
+  paymentLink?: string;
+  pixQrCode?: string;
+  pixCopyPaste?: string;
+  barcode?: string;
+  notes?: string;
+  reconciled?: boolean;
+  createdAt: string;
+}
+
+export interface OnlinePaymentCharge {
+  id: string;
+  tenantId?: string;
+  receivableId?: string;
+  orderId?: string;
+  customerName: string;
+  customerDocument?: string;
+  amount: number;
+  method: 'pix' | 'credit_card' | 'bank_slip';
+  status: 'pending' | 'paid' | 'failed' | 'refunded' | 'cancelled';
+  pixQrCodeBase64?: string;
+  pixCopyPaste?: string;
+  bankSlipBarcode?: string;
+  bankSlipUrl?: string;
+  creditCardBrand?: string;
+  creditCardLast4?: string;
+  installments?: number;
+  gatewayName: 'asaas' | 'mercadopago' | 'pix_bacen';
+  idempotencyKey: string;
+  paidAt?: string;
+  refundedAt?: string;
+  refundReason?: string;
+  webhookReceivedAt?: string;
+  createdAt: string;
+}
+
+export interface OnlinePaymentConfig {
+  enabled: boolean;
+  gateway: 'asaas' | 'mercadopago' | 'pix_bacen';
+  apiKey?: string;
+  webhookSecret?: string;
+  pixKey: string;
+  autoReconcile: boolean;
+  sandbox: boolean;
+}
+
 export interface FinancialTransaction {
  id: string;
  tenantId?: string;
@@ -244,8 +333,11 @@ export interface FinancialTransaction {
  createdAt: string;
  reconciled?: boolean;
  reconciledToId?: string;
- reconciledToType?: 'order' | 'purchase' | 'manual';
+ reconciledToType?: 'order' | 'purchase' | 'payable' | 'receivable' | 'manual';
  reconciledToNumber?: string;
+ payableId?: string;
+ receivableId?: string;
+ chargeId?: string;
 }
 
 export interface SystemSettings {
@@ -376,5 +468,21 @@ export interface AuditLog {
   user: string;
   action: string;
   module: string; // e.g. 'agenda', 'clients', 'orders', 'financial', etc.
+}
+
+export interface ReceiptOcrItem {
+  name: string;
+  quantity: number;
+  unit: string;
+  unitPrice: number;
+  totalPrice: number;
+}
+
+export interface ReceiptOcrData {
+  vendorName: string;
+  date: string;
+  totalAmount: number;
+  category: 'materiais' | 'embalagens' | 'ferramentas' | 'indireto' | string;
+  items: ReceiptOcrItem[];
 }
 

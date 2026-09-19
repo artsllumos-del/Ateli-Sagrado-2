@@ -62,7 +62,15 @@ import {
 } from "recharts";
 import { toast } from "./Toast";
 
-export const InventoryView: React.FC = () => {
+export interface InventoryViewProps {
+  initialFilter?: {
+    status?: string;
+    category?: string;
+    search?: string;
+  };
+}
+
+export const InventoryView: React.FC<InventoryViewProps> = ({ initialFilter }) => {
   const {
     inventory,
     addInventoryItem,
@@ -78,9 +86,17 @@ export const InventoryView: React.FC = () => {
   } = useDb();
 
   // Component States
-  const [search, setSearch] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("all");
-  const [selectedStatus, setSelectedStatus] = useState("all");
+  const [search, setSearch] = useState(initialFilter?.search || "");
+  const [selectedCategory, setSelectedCategory] = useState(initialFilter?.category || "all");
+  const [selectedStatus, setSelectedStatus] = useState(initialFilter?.status || "all");
+
+  // Sync initialFilter when provided by drill-down navigation
+  useEffect(() => {
+    if (initialFilter?.status) setSelectedStatus(initialFilter.status);
+    if (initialFilter?.category) setSelectedCategory(initialFilter.category);
+    if (initialFilter?.search !== undefined) setSearch(initialFilter.search);
+  }, [initialFilter]);
+
   const [viewMode, setViewMode] = useState<"table" | "cards" | "catalog">("table");
   const [commercialMode, setCommercialMode] = useState(false);
   const [showStockInCatalog, setShowStockInCatalog] = useState(false);
@@ -688,7 +704,11 @@ export const InventoryView: React.FC = () => {
     const matchesCategory =
       selectedCategory === "all" || item.category === selectedCategory;
     const matchesStatus =
-      selectedStatus === "all" || item.status === selectedStatus;
+      selectedStatus === "all" ? true :
+      selectedStatus === "low_stock" ? (item.quantity > 0 && item.quantity <= item.minQuantity) :
+      selectedStatus === "out_of_stock" ? (item.quantity === 0) :
+      selectedStatus === "critical" ? (item.quantity <= item.minQuantity) :
+      item.status === selectedStatus;
     return matchesSearch && matchesCategory && matchesStatus;
   });
 
@@ -1392,6 +1412,9 @@ export const InventoryView: React.FC = () => {
                 className="bg-transparent text-xs text-ink-600 focus:outline-none font-medium pr-1 cursor-pointer"
               >
                 <option value="all">Todos os Status</option>
+                <option value="low_stock">⚠️ Abaixo do Mínimo</option>
+                <option value="out_of_stock">⛔ Estoque Zerado</option>
+                <option value="critical">🚨 Alerta Geral (Crítico/Mínimo)</option>
                 <option value="active">Ativo</option>
                 <option value="inactive">Inativo</option>
               </select>

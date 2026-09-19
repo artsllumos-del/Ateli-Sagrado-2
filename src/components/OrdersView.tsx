@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useDb } from '../context/DbContext';
 import { Order, OrderStatus, OrderItem } from '../types/erp';
 import { 
@@ -9,47 +9,35 @@ import { toast } from './Toast';
 import { Pagination } from './Pagination';
 import { jsPDF } from 'jspdf';
 import { getPdfThemeColors } from '../utils/theme';
+import { loadLogoBase64 } from '../utils/pdf';
+import { calculateOrderTotals, calculateItemTotal, roundCurrency } from '../utils/finance';
 
-const loadLogoBase64 = (logoUrl: string): Promise<string> => {
-  return new Promise((resolve) => {
-    if (!logoUrl || logoUrl.trim() === '' || logoUrl === '📿') {
-      resolve('data:image/png;base64,iVBOR0KGgoAAAANSUhEUgAAAAEAAAABCAAAAAA6fptVAAAACklEQVR42mP8DwABAQEAWk1vMwAAAABJRU5ErkJggg==');
-      return;
-    }
-    const img = new Image();
-    img.crossOrigin = 'Anonymous';
-    img.onload = function() {
-      try {
-        const canvas = document.createElement('canvas');
-        canvas.width = img.naturalWidth || img.width;
-        canvas.height = img.naturalHeight || img.height;
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          ctx.drawImage(img, 0, 0);
-          resolve(canvas.toDataURL('image/png'));
-          return;
-        }
-      } catch (e) {
-        console.warn("Canvas conversion failed, using direct source", e);
-      }
-      resolve(logoUrl);
-    };
-    img.onerror = function() {
-      resolve('data:image/png;base64,iVBOR0KGgoAAAANSUhEUgAAAAEAAAABCAAAAAA6fptVAAAACklEQVR42mP8DwABAQEAWk1vMwAAAABJRU5ErkJggg==');
-    };
-    img.src = logoUrl;
-  });
-};
+export interface OrdersViewProps {
+  initialFilter?: {
+    status?: string;
+    search?: string;
+  };
+}
 
-export const OrdersView: React.FC = () => {
+export const OrdersView: React.FC<OrdersViewProps> = ({ initialFilter }) => {
   const { orders, clients, products, addOrder, updateOrder, deleteOrder, cancelOrder, settings } = useDb();
 
   // Screen State: 'list' | 'add' | 'edit' | 'detail' | 'print' | 'share'
   const [activeScreen, setActiveScreen] = useState<'list' | 'add' | 'edit' | 'detail' | 'print' | 'share'>('list');
 
   // Filters state (Preserved automatically during screen navigation because component doesn't unmount)
-  const [search, setSearch] = useState('');
-  const [selectedStatus, setSelectedStatus] = useState<string>('all');
+  const [search, setSearch] = useState(initialFilter?.search || '');
+  const [selectedStatus, setSelectedStatus] = useState<string>(initialFilter?.status || 'all');
+
+  // Sync when initialFilter arrives from drill-down navigation
+  useEffect(() => {
+    if (initialFilter?.status) {
+      setSelectedStatus(initialFilter.status);
+    }
+    if (initialFilter?.search !== undefined) {
+      setSearch(initialFilter.search);
+    }
+  }, [initialFilter]);
 
   // Selected Order context
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
@@ -298,11 +286,18 @@ export const OrdersView: React.FC = () => {
   const [ordersPerPage, setOrdersPerPage] = useState(6);
 
   // Filter orders
+  const todayDateStr = new Date().toISOString().split('T')[0];
   const filteredOrders = activeOrders.filter(o => {
     const matchesSearch = 
       o.clientName.toLowerCase().includes(search.toLowerCase()) || 
       o.orderNumber.toLowerCase().includes(search.toLowerCase());
-    const matchesStatus = selectedStatus === 'all' || o.status === selectedStatus;
+    
+    const isOrderDelayed = !['completed', 'shipped', 'delivered', 'cancelled'].includes(o.status) && Boolean(o.dueDate && o.dueDate < todayDateStr);
+    const matchesStatus = 
+      selectedStatus === 'all' ? true :
+      selectedStatus === 'delayed' ? isOrderDelayed :
+      o.status === selectedStatus;
+
     return matchesSearch && matchesStatus;
   });
 
@@ -311,7 +306,7 @@ export const OrdersView: React.FC = () => {
     ordersPage * ordersPerPage
   );
 
-  const subtotalValue = items.reduce((sum, item) => sum + item.total, 0);
+  const subtotalValue = calculateOrderTotals({ items }).total;
 
   // Navigations & Page transitions
   const handleOpenAdd = () => {
@@ -346,16 +341,20 @@ export const OrdersView: React.FC = () => {
       return;
     }
 
+    const safeQty = Math.max(1, Math.floor(selectedQty || 1));
+    const safePrice = roundCurrency(Math.max(0, prod.sellingPrice || 0));
+    const itemTotal = calculateItemTotal(safeQty, safePrice);
+
     const newItem: OrderItem = {
       productId: selectedProdId,
       productName: prod.name,
-      quantity: selectedQty,
-      price: prod.sellingPrice,
-      total: selectedQty * prod.sellingPrice
+      quantity: safeQty,
+      price: safePrice,
+      total: itemTotal
     };
 
     setItems([...items, newItem]);
-    toast.success("Item Vinculado", `${prod.name} x ${selectedQty}`);
+    toast.success("Item Vinculado", `${prod.name} x ${safeQty}`);
   };
 
   const handleRemoveItem = (prodId: string) => {
@@ -370,6 +369,10 @@ export const OrdersView: React.FC = () => {
     }
     if (items.length === 0) {
       toast.error("Validação", "O pedido precisa de pelo menos 1 item.");
+      return;
+    }
+    if (subtotalValue <= 0) {
+      toast.error("Validação", "O valor total do pedido deve ser maior que zero.");
       return;
     }
 
@@ -405,6 +408,14 @@ export const OrdersView: React.FC = () => {
   const handleSaveEdit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedOrder) return;
+    if (items.length === 0) {
+      toast.error("Validação", "O pedido precisa de pelo menos 1 item.");
+      return;
+    }
+    if (subtotalValue <= 0) {
+      toast.error("Validação", "O valor total do pedido deve ser maior que zero.");
+      return;
+    }
 
     const client = clients.find(c => c.id === clientId);
     updateOrder(selectedOrder.id, {
@@ -439,7 +450,8 @@ export const OrdersView: React.FC = () => {
       finishing: 'Em Acabamento',
       packing: 'Embalagem',
       ready: 'Pronto p/ Entrega',
-      completed: 'Concluído'
+      completed: 'Concluído',
+      cancelled: 'Cancelado'
     };
     return labels[s] || s;
   };
@@ -504,9 +516,10 @@ export const OrdersView: React.FC = () => {
               <select
                 value={selectedStatus}
                 onChange={(e) => { setSelectedStatus(e.target.value); setOrdersPage(1); }}
-                className="px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 bg-slate-50 text-slate-700 focus:outline-none cursor-pointer"
+                className="px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 bg-slate-50 text-slate-700 focus:outline-none cursor-pointer font-medium"
               >
                 <option value="all">Todos os Status</option>
+                <option value="delayed">⚠️ Atrasados (Vencidos)</option>
                 <option value="received">Recebido</option>
                 <option value="approved">Aprovado / Separação</option>
                 <option value="production">Em Produção</option>

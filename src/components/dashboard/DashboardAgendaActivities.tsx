@@ -32,8 +32,8 @@ interface DashboardAgendaActivitiesProps {
   // Kept for backward compatibility with parent props
   activeOrders?: Order[];
   transactions?: FinancialTransaction[];
-  agendaItems?: any[];
-  setAgendaItems?: any;
+  agendaItems?: AgendaItem[];
+  setAgendaItems?: React.Dispatch<React.SetStateAction<AgendaItem[]>>;
 }
 
 export const DashboardAgendaActivities: React.FC<DashboardAgendaActivitiesProps> = ({

@@ -6,13 +6,23 @@ import {
   ArrowRight, DollarSign, Calendar, Search, Filter, Plus, FileText, AlertTriangle, X 
 } from 'lucide-react';
 import { toast } from './Toast';
+import { InventoryItem } from '../types/erp';
+import { calculatePurchaseNeed, roundCurrency, roundQty, safeNumber } from '../utils/finance';
+
+export interface PurchaseNeed {
+  item: InventoryItem;
+  required: number;
+  available: number;
+  shortfall: number;
+  totalCost: number;
+}
 
 export const PurchasesView: React.FC = () => {
   const { inventory, products, orders, productionTasks, adjustStock } = useDb();
   
   const [search, setSearch] = useState('');
   const [selectedSupplier, setSelectedSupplier] = useState('all');
-  const [showPurchaseModal, setShowPurchaseModal] = useState<any | null>(null);
+  const [showPurchaseModal, setShowPurchaseModal] = useState<PurchaseNeed | null>(null);
   const [purchaseQty, setPurchaseQty] = useState<number>(0);
   const [purchaseNotes, setPurchaseNotes] = useState('');
 
@@ -62,10 +72,15 @@ export const PurchasesView: React.FC = () => {
   const purchaseNeeds = inventory
     .filter(item => !item.isDeleted)
     .map(item => {
-      const required = Number((materialRequired[item.id] || 0).toFixed(2));
-      const available = item.quantity;
-      const shortfall = Number(Math.max(0, required - available).toFixed(2));
-      const totalCost = Number((shortfall * item.unitValue).toFixed(2));
+      const required = roundQty(materialRequired[item.id] || 0);
+      const available = roundQty(item.available !== undefined ? item.available : (item.quantity - (item.reserved || 0)));
+      
+      const { shortfall, totalCost } = calculatePurchaseNeed(
+        available,
+        item.minQuantity,
+        required,
+        item.unitValue
+      );
       
       return {
         item,
@@ -88,24 +103,25 @@ export const PurchasesView: React.FC = () => {
   
   // Overall metrics
   const totalItemsToBuy = actualMissingNeeds.length;
-  const totalEstimatedCost = Number(actualMissingNeeds.reduce((acc, curr) => acc + curr.totalCost, 0).toFixed(2));
+  const totalEstimatedCost = roundCurrency(actualMissingNeeds.reduce((acc, curr) => acc + curr.totalCost, 0));
   
   // List of unique suppliers for filtering
   const suppliers = Array.from(new Set(inventory.filter(i => !i.isDeleted).map(i => i.supplier).filter(Boolean)));
 
-  const handleOpenPurchase = (need: any) => {
+  const handleOpenPurchase = (need: PurchaseNeed) => {
     setShowPurchaseModal(need);
     setPurchaseQty(need.shortfall > 0 ? need.shortfall : 1);
     setPurchaseNotes(`Compra de reabastecimento via painel de compras necessárias.`);
   };
 
   const handleConfirmPurchase = () => {
-    if (!showPurchaseModal || purchaseQty <= 0) return;
+    const safeQty = roundQty(Math.max(0, safeNumber(purchaseQty, 0)));
+    if (!showPurchaseModal || safeQty <= 0) return;
     
     // Add stock (triggers expense in adjustStock)
     adjustStock(
       showPurchaseModal.item.id, 
-      purchaseQty, 
+      safeQty, 
       purchaseNotes, 
       'Compra de Insumo', 
       showPurchaseModal.item.supplier || 'Fornecedor'
@@ -113,7 +129,7 @@ export const PurchasesView: React.FC = () => {
     
     toast.success(
       "Compra Registrada!", 
-      `Foram adicionadas ${purchaseQty} ${showPurchaseModal.item.unit} de ${showPurchaseModal.item.name}. Despesa lançada no financeiro.`
+      `Foram adicionadas ${safeQty} ${showPurchaseModal.item.unit} de ${showPurchaseModal.item.name}. Despesa lançada no financeiro.`
     );
     
     setShowPurchaseModal(null);

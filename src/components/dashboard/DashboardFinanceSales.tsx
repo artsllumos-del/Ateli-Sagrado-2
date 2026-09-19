@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area, BarChart, Bar, Cell, Legend } from 'recharts';
 import { DollarSign, Clock, CheckCircle, TrendingUp, ShoppingCart, Percent, Calendar } from 'lucide-react';
 import { FinancialTransaction, Order, Quote } from '../../types/erp';
+import { roundCurrency, safeNumber, safeDiv } from '../../utils/finance';
 
 interface DashboardFinanceSalesProps {
   transactions: FinancialTransaction[];
@@ -46,11 +47,13 @@ export const DashboardFinanceSales: React.FC<DashboardFinanceSalesProps> = ({
     let despesa = 0;
 
     filteredTransactions.forEach(t => {
-      if (t.type === 'income') receita += t.value;
-      else despesa += t.value;
+      if (t.type === 'income') receita += safeNumber(t.value, 0);
+      else despesa += safeNumber(t.value, 0);
     });
 
-    const saldo = receita - despesa;
+    receita = roundCurrency(receita);
+    despesa = roundCurrency(despesa);
+    const saldo = roundCurrency(receita - despesa);
 
     return { receita, despesa, saldo };
   }, [filteredTransactions]);
@@ -144,7 +147,7 @@ export const DashboardFinanceSales: React.FC<DashboardFinanceSalesProps> = ({
   const quoteConversion = useMemo(() => {
     const totalQuotes = quotes.filter(q => !q.isDeleted).length;
     const convertedQuotes = quotes.filter(q => !q.isDeleted && q.status === 'converted').length;
-    return totalQuotes > 0 ? Math.round((convertedQuotes / totalQuotes) * 100) : 0;
+    return Math.round(safeDiv(convertedQuotes, totalQuotes) * 100);
   }, [quotes]);
 
   // Latest receipts and payments

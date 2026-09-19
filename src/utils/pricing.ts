@@ -82,9 +82,9 @@ export function calculateProductCostBreakdown(
   // 5. Total Base Production Cost (Custo Total Real)
   const totalBaseCost = materialsCost + lossCost + laborCost + indirectCostsTotal;
 
-  // 6. Target Margin %
+  // 6. Target Margin % / Markup
   const targetMarginPercent = product.targetMarginPercent !== undefined ? product.targetMarginPercent : defaultMargin;
-  const marginFrac = Math.min(0.95, Math.max(0, targetMarginPercent / 100));
+  const targetMarginFrac = Math.max(0, targetMarginPercent / 100);
 
   // 7. Payment Methods Tax profiles
   const methodProfiles = [
@@ -102,12 +102,21 @@ export function calculateProductCostBreakdown(
     const feePercent = savedVar ? savedVar.feePercent : m.defaultFee;
     const feeFrac = feePercent / 100;
 
-    const taxCost = totalBaseCost * feeFrac;
-    const totalCostWithTax = totalBaseCost + taxCost;
+    // Calculate suggested price safely distinguishing margin on revenue vs markup on cost
+    let suggestedPrice = 0;
+    if (feeFrac + targetMarginFrac < 0.85) {
+      // Margin on selling price: Price = Cost / (1 - (Fee + Margin))
+      suggestedPrice = totalBaseCost / (1 - (feeFrac + targetMarginFrac));
+    } else {
+      // High target treated safely as Markup on cost: Price = (Cost * (1 + Markup)) / (1 - Fee)
+      const markupMultiplier = 1 + targetMarginFrac;
+      suggestedPrice = (totalBaseCost * markupMultiplier) / Math.max(0.2, (1 - feeFrac));
+    }
 
-    // Suggested price for this payment method to preserve target margin:
-    let suggestedPrice = marginFrac >= 0.95 ? totalCostWithTax * 10 : totalCostWithTax / (1 - marginFrac);
-    if (isNaN(suggestedPrice) || suggestedPrice <= 0) suggestedPrice = totalCostWithTax * 1.5;
+    if (isNaN(suggestedPrice) || suggestedPrice <= 0) {
+      suggestedPrice = totalBaseCost * 1.5;
+    }
+    suggestedPrice = Number(suggestedPrice.toFixed(2));
 
     // Applied price for this payment method
     let appliedPrice = savedVar ? savedVar.price : 0;
@@ -115,16 +124,18 @@ export function calculateProductCostBreakdown(
       if (m.id === 'pix' && basePrice > 0) {
         appliedPrice = basePrice;
       } else if (basePrice > 0) {
-        // Automatically adjust price according to payment method tax so profit margin stays protected!
-        // Price = basePrice / (1 - feeFrac)
-        appliedPrice = basePrice / (1 - Math.min(0.8, feeFrac));
+        // Protect margin against intermediary gateway fee: Price = basePrice / (1 - feeFrac)
+        appliedPrice = Number((basePrice / Math.max(0.2, (1 - feeFrac))).toFixed(2));
       } else {
         appliedPrice = suggestedPrice;
       }
     }
 
-    const netProfit = appliedPrice - totalCostWithTax;
-    const marginPercent = appliedPrice > 0 ? (netProfit / appliedPrice) * 100 : 0;
+    // Intermediary fee is assessed on the gross selling price charged to customer
+    const taxCost = Number((appliedPrice * feeFrac).toFixed(2));
+    const totalCostWithTax = Number((totalBaseCost + taxCost).toFixed(2));
+    const netProfit = Number((appliedPrice - totalCostWithTax).toFixed(2));
+    const marginPercent = appliedPrice > 0 ? Number(((netProfit / appliedPrice) * 100).toFixed(1)) : 0;
 
     return {
       methodId: m.id,

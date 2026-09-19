@@ -192,6 +192,29 @@ export class LocalAuthRepository implements IAuthRepository {
 
     this.syncAsUser(updatedUser);
 
+    // Call server auth to synchronize JWT for protected API calls
+    try {
+      const serverRes = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          emailOrUsername: user.email,
+          password: password || '123456'
+        })
+      });
+      if (serverRes.ok) {
+        const json = await serverRes.json();
+        if (json.accessToken) {
+          localStorage.setItem('as_jwt', json.accessToken);
+          if (json.refreshToken) {
+            localStorage.setItem('as_refresh_token', json.refreshToken);
+          }
+        }
+      }
+    } catch (e) {
+      // Offline preview mode fallback
+    }
+
     return {
       success: true,
       user: updatedUser,
@@ -386,7 +409,18 @@ export class LocalAuthRepository implements IAuthRepository {
   }
 
   async logout(sessionId?: string): Promise<{ success: boolean }> {
+    const token = localStorage.getItem('as_jwt');
+    if (token) {
+      try {
+        await fetch('/api/auth/logout', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+      } catch (e) {}
+    }
     localStorage.removeItem('as_user');
+    localStorage.removeItem('as_jwt');
+    localStorage.removeItem('as_refresh_token');
     if (sessionId) {
       await this.sessionRepo.revokeSession(sessionId);
     } else {

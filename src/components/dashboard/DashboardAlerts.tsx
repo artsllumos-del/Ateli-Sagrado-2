@@ -3,7 +3,7 @@ import { AlertTriangle, Hammer, Package, FileText, ArrowRight } from 'lucide-rea
 import { Order, InventoryItem, Quote, ProductionTask } from '../../types/erp';
 
 interface DashboardAlertsProps {
-  onViewChange: (view: string) => void;
+  onViewChange: (view: string, params?: Record<string, any>) => void;
   activeOrders: Order[];
   inventory: InventoryItem[];
   quotes: Quote[];
@@ -40,7 +40,22 @@ export const DashboardAlerts: React.FC<DashboardAlertsProps> = ({
   const pendingQuotes = quotes.filter(q => q.status === 'pending');
 
   // Let's bundle alerts in an orderly array
-  const alertsList = [];
+  interface AlertItem {
+    id: string;
+    type: string;
+    title: string;
+    message: string;
+    priority: 'high' | 'medium' | 'low';
+    icon: React.ReactNode;
+    bgColor: string;
+    borderColor: string;
+    textColor: string;
+    actionText: string;
+    targetView: string;
+    targetParams?: Record<string, any>;
+  }
+
+  const alertsList: AlertItem[] = [];
 
   // Delayed orders
   if (delayedOrders.length > 0) {
@@ -54,8 +69,9 @@ export const DashboardAlerts: React.FC<DashboardAlertsProps> = ({
       bgColor: 'bg-rose-50/80',
       borderColor: 'border-rose-150',
       textColor: 'text-rose-900',
-      actionText: 'Resolver no Chão de Fábrica',
-      targetView: 'production'
+      actionText: 'Ver Pedidos Atrasados',
+      targetView: 'orders',
+      targetParams: { status: 'delayed' }
     });
   }
 
@@ -105,8 +121,9 @@ export const DashboardAlerts: React.FC<DashboardAlertsProps> = ({
       bgColor: 'bg-rose-50/80',
       borderColor: 'border-rose-150',
       textColor: 'text-rose-900',
-      actionText: 'Reabastecer Estoque',
-      targetView: 'inventory'
+      actionText: 'Ver Insumos Zerados',
+      targetView: 'inventory',
+      targetParams: { status: 'out_of_stock' }
     });
   }
 
@@ -122,8 +139,9 @@ export const DashboardAlerts: React.FC<DashboardAlertsProps> = ({
       bgColor: 'bg-amber-50/50',
       borderColor: 'border-amber-150',
       textColor: 'text-amber-900',
-      actionText: 'Visualizar Estoque',
-      targetView: 'inventory'
+      actionText: 'Ver Insumos Abaixo do Mínimo',
+      targetView: 'inventory',
+      targetParams: { status: 'low_stock' }
     });
   }
 
@@ -183,7 +201,7 @@ export const DashboardAlerts: React.FC<DashboardAlertsProps> = ({
               </div>
 
               <button
-                onClick={() => onViewChange(alert.targetView)}
+                onClick={() => onViewChange(alert.targetView, alert.targetParams)}
                 className="mt-1 inline-flex items-center gap-1 text-[10.5px] font-bold text-slate-800 hover:text-amber-700 transition-colors cursor-pointer self-start group"
               >
                 {alert.actionText}

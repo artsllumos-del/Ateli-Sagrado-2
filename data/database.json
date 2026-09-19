@@ -1,0 +1,791 @@
+{
+  "tenants": [
+    {
+      "id": "tenant_atelie_sagrado",
+      "name": "Ateliê Sagrado (Matriz)",
+      "slug": "matriz",
+      "document": "12.345.678/0001-90",
+      "razaoSocial": "Ateliê Sagrado Arte Sacra LTDA",
+      "nomeFantasia": "Ateliê Sagrado - Matriz",
+      "email": "contato@ateliesagrado.com.br",
+      "phone": "(11) 98765-4321",
+      "address": "Rua das Flores, 120 - Centro, São Paulo/SP",
+      "primaryColor": "#D4AF37",
+      "planId": "professional",
+      "status": "active",
+      "ownerId": "u1",
+      "createdAt": "2026-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "tenant_sao_bento",
+      "name": "Unidade São Bento",
+      "slug": "sao-bento",
+      "document": "12.345.678/0002-71",
+      "razaoSocial": "Ateliê Sagrado Arte Sacra LTDA - Filial 01",
+      "nomeFantasia": "Ateliê Sagrado - São Bento",
+      "email": "saobento@ateliesagrado.com.br",
+      "phone": "(11) 97654-3210",
+      "address": "Av. São Bento, 450 - Centro, São Paulo/SP",
+      "primaryColor": "#3B82F6",
+      "planId": "starter",
+      "status": "active",
+      "ownerId": "u1",
+      "createdAt": "2026-02-15T00:00:00.000Z"
+    },
+    {
+      "id": "tenant_luz_divina",
+      "name": "Ateliê Luz Divina",
+      "slug": "luz-divina",
+      "document": "98.765.432/0001-10",
+      "razaoSocial": "Luz Divina Artesanatos ME",
+      "nomeFantasia": "Luz Divina",
+      "email": "contato@luzdivina.com",
+      "phone": "(21) 98888-7777",
+      "address": "Rua do Rosário, 88 - Centro, Rio de Janeiro/RJ",
+      "primaryColor": "#10B981",
+      "planId": "enterprise",
+      "status": "active",
+      "ownerId": "u1",
+      "createdAt": "2026-03-01T00:00:00.000Z"
+    }
+  ],
+  "users": [
+    {
+      "id": "u1",
+      "username": "admin",
+      "name": "Admin do Ateliê",
+      "email": "admin@atelie.com",
+      "password": "e916cc314109c3e8db01b3bfb0bb6b92646aab4b5fabd29b13c0db2dd697a859",
+      "role": "ADMIN",
+      "tenantId": "tenant_atelie_sagrado",
+      "photo": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=150&auto=format&fit=crop",
+      "preferences": {
+        "theme": "light",
+        "language": "pt-BR"
+      },
+      "createdAt": "2026-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "u_rosana",
+      "username": "rosana",
+      "name": "Rosana Santos",
+      "email": "rosana@atelie.com",
+      "password": "e916cc314109c3e8db01b3bfb0bb6b92646aab4b5fabd29b13c0db2dd697a859",
+      "role": "VENDEDOR",
+      "tenantId": "tenant_atelie_sagrado",
+      "photo": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=150&auto=format&fit=crop",
+      "preferences": {
+        "theme": "light",
+        "language": "pt-BR"
+      },
+      "createdAt": "2026-01-10T00:00:00.000Z"
+    },
+    {
+      "id": "u_lucas",
+      "username": "lucas",
+      "name": "Lucas Silva",
+      "email": "lucas@atelie.com",
+      "password": "e916cc314109c3e8db01b3bfb0bb6b92646aab4b5fabd29b13c0db2dd697a859",
+      "role": "PRODUÇÃO",
+      "tenantId": "tenant_atelie_sagrado",
+      "photo": "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?q=80&w=150&auto=format&fit=crop",
+      "preferences": {
+        "theme": "light",
+        "language": "pt-BR"
+      },
+      "createdAt": "2026-01-15T00:00:00.000Z"
+    },
+    {
+      "id": "u_marcos",
+      "username": "marcos",
+      "name": "Marcos Lima",
+      "email": "marcos@atelie.com",
+      "password": "e916cc314109c3e8db01b3bfb0bb6b92646aab4b5fabd29b13c0db2dd697a859",
+      "role": "ESTOQUISTA",
+      "tenantId": "tenant_atelie_sagrado",
+      "photo": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=150&auto=format&fit=crop",
+      "preferences": {
+        "theme": "light",
+        "language": "pt-BR"
+      },
+      "createdAt": "2026-01-20T00:00:00.000Z"
+    },
+    {
+      "id": "u_admin_luz",
+      "username": "adminluz",
+      "name": "Administrador (Studio Luz Divina)",
+      "email": "admin@luzdivina.com",
+      "password": "e916cc314109c3e8db01b3bfb0bb6b92646aab4b5fabd29b13c0db2dd697a859",
+      "role": "ADMIN",
+      "tenantId": "tenant_luz_divina",
+      "photo": "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?q=80&w=150&auto=format&fit=crop",
+      "preferences": {
+        "theme": "light",
+        "language": "pt-BR"
+      },
+      "createdAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "id": "u_carlos_luz",
+      "username": "carlosluz",
+      "name": "Carlos Mendonça",
+      "email": "carlos@luzdivina.com",
+      "password": "e916cc314109c3e8db01b3bfb0bb6b92646aab4b5fabd29b13c0db2dd697a859",
+      "role": "VENDEDOR",
+      "tenantId": "tenant_luz_divina",
+      "photo": "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=150&auto=format&fit=crop",
+      "preferences": {
+        "theme": "light",
+        "language": "pt-BR"
+      },
+      "createdAt": "2026-02-10T00:00:00.000Z"
+    },
+    {
+      "id": "u_mariana_luz",
+      "username": "marianaluz",
+      "name": "Mariana Costa",
+      "email": "mariana@luzdivina.com",
+      "password": "e916cc314109c3e8db01b3bfb0bb6b92646aab4b5fabd29b13c0db2dd697a859",
+      "role": "PRODUÇÃO",
+      "tenantId": "tenant_luz_divina",
+      "photo": "https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=150&auto=format&fit=crop",
+      "preferences": {
+        "theme": "light",
+        "language": "pt-BR"
+      },
+      "createdAt": "2026-02-15T00:00:00.000Z"
+    }
+  ],
+  "clients": [
+    {
+      "id": "c1",
+      "type": "PF",
+      "name": "Ana Maria de Sousa",
+      "cpf": "56633f586a3376bd6e0743b0620b126c:50686fa9577c07a34a87c0acee34ceb1",
+      "email": "anamaria@gmail.com",
+      "phone": "979e0bc943f1843dc3dd13309af766eb:e5c2b172b3931f4296543545dced9690",
+      "whatsapp": "(11) 99111-2222",
+      "cep": "04012-010",
+      "street": "Rua Domingos de Morais",
+      "number": "500",
+      "complement": "Apto 42",
+      "neighborhood": "Vila Mariana",
+      "city": "São Paulo",
+      "state": "SP",
+      "createdAt": "2026-05-10T10:00:00Z",
+      "tenantId": "tenant_atelie_sagrado"
+    },
+    {
+      "id": "c2",
+      "type": "PJ",
+      "name": "Paróquia Nossa Senhora da Paz",
+      "nomeFantasia": "Paróquia NS Paz",
+      "cnpj": "9765910d0feaa587008654d19040d8ff:58f0458769cbe9ac8e4db7d0b777c822353784ae3d85795fd2099b7c76a9e5f0",
+      "responsavel": "Padre Julio Lancellotti",
+      "email": "contato@nspaz.org.br",
+      "phone": "017f404ec8bb9a452bc25e3a062a68d6:929ff3d78ff4840904af02f3bf4fb54a",
+      "whatsapp": "(11) 98222-3333",
+      "cep": "01519-000",
+      "street": "Rua do Glicério",
+      "number": "225",
+      "neighborhood": "Liberdade",
+      "city": "São Paulo",
+      "state": "SP",
+      "createdAt": "2026-05-15T14:30:00Z",
+      "tenantId": "tenant_atelie_sagrado"
+    },
+    {
+      "id": "c3",
+      "type": "PF",
+      "name": "Carlos Eduardo Santos",
+      "cpf": "a22c1f7ad81909f731252456212913ab:3f0ebe8216a013eb57e3dcbb12a47867",
+      "email": "carlosedu@hotmail.com",
+      "phone": "830e2ca02c29dec7fa69959eea6f7f69:940e8091a7fadc5c49a257fee0bebcba",
+      "whatsapp": "(21) 97100-5050",
+      "cep": "22020-001",
+      "street": "Avenida Atlântica",
+      "number": "1702",
+      "neighborhood": "Copacabana",
+      "city": "Rio de Janeiro",
+      "state": "RJ",
+      "createdAt": "2026-05-20T11:15:00Z",
+      "tenantId": "tenant_atelie_sagrado"
+    },
+    {
+      "id": "c_luz_1",
+      "tenantId": "tenant_luz_divina",
+      "type": "PJ",
+      "name": "Basílica de Nossa Senhora da Penha",
+      "nomeFantasia": "Basílica da Penha",
+      "email": "contato@basilicadapenha.org.br",
+      "whatsapp": "(21) 98765-4321",
+      "cep": "21070-000",
+      "street": "Largo da Penha",
+      "number": "19",
+      "neighborhood": "Penha",
+      "city": "Rio de Janeiro",
+      "state": "RJ",
+      "createdAt": "2026-06-01T10:00:00Z"
+    }
+  ],
+  "inventory": [
+    {
+      "id": "m1",
+      "name": "Pérola de Água Doce Branca (8mm)",
+      "category": "Contas e Pérolas",
+      "code": "PER-001",
+      "description": "Pérolas naturais cultivadas em água doce, furo passante de 0.8mm.",
+      "supplier": "Beads Importadora",
+      "unit": "pacote (100 un)",
+      "weightG": 120,
+      "quantity": 4,
+      "minQuantity": 5,
+      "unitValue": 45,
+      "calcMethod": "fixed",
+      "notes": "Material de altíssima qualidade para terços de noivas.",
+      "status": "active",
+      "createdAt": "2026-05-01T09:00:00Z",
+      "tenantId": "tenant_atelie_sagrado"
+    },
+    {
+      "id": "m2",
+      "name": "Crucifixo Clássico Folheado a Ouro",
+      "category": "Metais e Entremeios",
+      "code": "CRU-002",
+      "description": "Crucifixo decorado com detalhes barrocos, banho de 5 milésimos de ouro.",
+      "supplier": "Metais Sacros Ltda",
+      "unit": "unidade",
+      "weightG": 15,
+      "quantity": 12,
+      "minQuantity": 15,
+      "unitValue": 18.5,
+      "calcMethod": "fixed",
+      "notes": "Crucifixo para terços grandes e luxuosos.",
+      "status": "active",
+      "createdAt": "2026-05-01T09:15:00Z",
+      "tenantId": "tenant_atelie_sagrado"
+    },
+    {
+      "id": "m3",
+      "name": "Entremeio de Nossa Senhora das Graças Ouro Velho",
+      "category": "Metais e Entremeios",
+      "code": "ENT-012",
+      "description": "Entremeio resinado com imagem colorida de NS das Graças, banho ouro velho.",
+      "supplier": "Metais Sacros Ltda",
+      "unit": "unidade",
+      "weightG": 8,
+      "quantity": 35,
+      "minQuantity": 10,
+      "unitValue": 6.2,
+      "calcMethod": "fixed",
+      "notes": "Muito procurado para terços marianos comuns.",
+      "status": "active",
+      "createdAt": "2026-05-01T09:20:00Z",
+      "tenantId": "tenant_atelie_sagrado"
+    },
+    {
+      "id": "m_luz_1",
+      "tenantId": "tenant_luz_divina",
+      "name": "Fita de Seda Púrpura Imperial (25mm)",
+      "category": "Fitas e Cordões",
+      "code": "FIT-PUR-01",
+      "supplier": "Sedas do Brasil",
+      "unit": "metro",
+      "quantity": 120,
+      "minQuantity": 20,
+      "unitValue": 8.5,
+      "createdAt": "2026-06-01T10:00:00Z"
+    }
+  ],
+  "products": [
+    {
+      "id": "p1",
+      "name": "Terço de Noiva Imperial - Pérola",
+      "category": "Terços de Noiva",
+      "sku": "TER-N-001",
+      "description": "Terço de luxo montado à mão com pérolas de água doce naturais.",
+      "image": "https://images.unsplash.com/photo-1544816155-12df9643f363?q=80&w=300&auto=format&fit=crop",
+      "productionTimeMin": 120,
+      "finalWeightG": 110,
+      "sellingPrice": 320,
+      "composition": [
+        {
+          "materialId": "m1",
+          "quantity": 0.5,
+          "cost": 22.5
+        },
+        {
+          "materialId": "m2",
+          "quantity": 1,
+          "cost": 18.5
+        }
+      ],
+      "status": "active",
+      "createdAt": "2026-05-25T11:00:00Z",
+      "tenantId": "tenant_atelie_sagrado"
+    },
+    {
+      "id": "p_luz_1",
+      "tenantId": "tenant_luz_divina",
+      "name": "Estola Sacerdotal Dourada Bordada",
+      "category": "Vestes Litúrgicas",
+      "sku": "EST-DOU-01",
+      "sellingPrice": 480,
+      "status": "active",
+      "composition": [],
+      "createdAt": "2026-06-01T10:00:00Z"
+    }
+  ],
+  "quotes": [
+    {
+      "id": "q1",
+      "clientId": "c1",
+      "clientName": "Ana Maria de Sousa",
+      "items": [
+        {
+          "productId": "p1",
+          "productName": "Terço de Noiva Imperial - Pérola",
+          "quantity": 1,
+          "unitPrice": 320,
+          "total": 320
+        }
+      ],
+      "subtotal": 320,
+      "discount": 20,
+      "shipping": 15,
+      "total": 315,
+      "status": "analysis",
+      "date": "2026-06-20",
+      "createdAt": "2026-06-20T10:00:00Z",
+      "tenantId": "tenant_atelie_sagrado"
+    }
+  ],
+  "orders": [
+    {
+      "id": "o1",
+      "orderNumber": "00101",
+      "clientId": "c2",
+      "clientName": "Paróquia Nossa Senhora da Paz",
+      "items": [
+        {
+          "productId": "p1",
+          "productName": "Terço de Noiva Imperial - Pérola",
+          "quantity": 2,
+          "price": 320,
+          "total": 640
+        }
+      ],
+      "totalValue": 640,
+      "date": "2026-06-15",
+      "dueDate": "2026-06-30",
+      "status": "production",
+      "productionProgress": 40,
+      "timeline": [
+        {
+          "id": "e1",
+          "date": "2026-06-15T15:00:00Z",
+          "description": "Pedido recebido e confirmado financeiramente",
+          "user": "vendedor@atelie.com"
+        },
+        {
+          "id": "e2",
+          "date": "2026-06-16T09:30:00Z",
+          "description": "Iniciado planejamento da produção das pérolas",
+          "user": "producao@atelie.com"
+        }
+      ],
+      "createdAt": "2026-06-15T14:45:00Z",
+      "tenantId": "tenant_atelie_sagrado"
+    }
+  ],
+  "productionTasks": [
+    {
+      "id": "t1",
+      "orderId": "o1",
+      "orderNumber": "00101",
+      "productId": "p1",
+      "productName": "Terço de Noiva Imperial - Pérola",
+      "status": "producing",
+      "responsible": "Operador de Produção",
+      "startDate": "2026-06-16T09:30:00Z",
+      "endDate": null,
+      "timeSpentMinutes": 45,
+      "totalEstimatedMinutes": 240,
+      "createdAt": "2026-06-15T14:45:00Z",
+      "tenantId": "tenant_atelie_sagrado"
+    }
+  ],
+  "transactions": [
+    {
+      "id": "tr_wh_chg_1789763921691_bb6l",
+      "tenantId": "tenant_atelie_sagrado",
+      "type": "income",
+      "category": "Recebimento Gateway Online",
+      "contactName": "Paróquia Nossa Senhora da Paz",
+      "value": 320,
+      "date": "2026-09-18",
+      "paymentMethod": "pix",
+      "notes": "Confirmação automática via Webhook (pix_bacen) - Cobrança #chg_1789763921691_bb6l",
+      "chargeId": "chg_1789763921691_bb6l",
+      "reconciled": true,
+      "reconciledToId": "chg_1789763921691_bb6l",
+      "reconciledToType": "receivable",
+      "reconciledToNumber": "chg_1789763921691_bb6l",
+      "createdAt": "2026-09-18T20:38:41.699Z"
+    },
+    {
+      "id": "tr_pay_pay1_1789763921677",
+      "tenantId": "tenant_atelie_sagrado",
+      "type": "expense",
+      "category": "Compra de Materiais",
+      "contactName": "Metais Sacros Brasil",
+      "value": 450,
+      "date": "2026-09-18",
+      "paymentMethod": "pix",
+      "notes": "Baixa de título #Fornecedor de Metais e Cruzes (1/2) - Liquidação",
+      "payableId": "pay1",
+      "reconciled": true,
+      "reconciledToId": "pay1",
+      "reconciledToType": "payable",
+      "reconciledToNumber": "Fornecedor de Metais e Cruzes (1/2)",
+      "createdAt": "2026-09-18T20:38:41.677Z"
+    },
+    {
+      "id": "tr1",
+      "type": "income",
+      "category": "Venda de Terço",
+      "contactName": "Paróquia Nossa Senhora da Paz",
+      "value": 640,
+      "date": "2026-06-15",
+      "paymentMethod": "pix",
+      "notes": "Referente ao pedido #00101",
+      "createdAt": "2026-06-15T15:00:00Z",
+      "tenantId": "tenant_atelie_sagrado"
+    },
+    {
+      "id": "tr2",
+      "type": "expense",
+      "category": "Compra de Materiais",
+      "contactName": "Beads Importadora",
+      "value": 180,
+      "date": "2026-06-10",
+      "paymentMethod": "credit_card",
+      "notes": "Aquisição de 4 lotes de pérolas naturais",
+      "createdAt": "2026-06-10T11:00:00Z",
+      "tenantId": "tenant_atelie_sagrado"
+    },
+    {
+      "id": "tr_luz_1",
+      "tenantId": "tenant_luz_divina",
+      "type": "income",
+      "category": "Venda de Vestes",
+      "contactName": "Basílica de Nossa Senhora da Penha",
+      "value": 960,
+      "date": "2026-06-15",
+      "paymentMethod": "pix",
+      "notes": "Pedido #00201",
+      "createdAt": "2026-06-15T15:00:00Z"
+    }
+  ],
+  "settings": {
+    "companyName": "Ateliê Sagrado",
+    "logo": "📿",
+    "cnpj": "12.345.678/0001-90",
+    "phone": "(11) 98765-4321",
+    "address": "Rua das Rosas, 108, Bairro das Graças - São Paulo/SP",
+    "defaultMarginPercent": 120,
+    "indirectCosts": 5.5,
+    "laborHourlyRate": 25,
+    "theme": "light",
+    "language": "pt-BR",
+    "notificationsEnabled": true
+  },
+  "notifications": [
+    {
+      "id": "n1",
+      "title": "Estoque em Nível Alerta",
+      "message": "O item 'Pérola de Água Doce Branca (8mm)' está com 4 unidades (mínimo: 5 unidades).",
+      "type": "low_stock",
+      "date": "2026-06-25T12:00:00Z",
+      "read": false,
+      "tenantId": "tenant_atelie_sagrado"
+    }
+  ],
+  "auditLogs": [
+    {
+      "id": "l17897639216996f0i",
+      "user": "Webhook Gateway",
+      "action": "Pagamento Confirmado",
+      "timestamp": "2026-09-18T20:38:41.699Z",
+      "details": "Cobrança chg_1789763921691_bb6l de R$ 320 liquidada com sucesso via webhook"
+    },
+    {
+      "id": "l17897639216915tir",
+      "user": "admin@atelie.com",
+      "action": "Cobrança Gerada",
+      "timestamp": "2026-09-18T20:38:41.691Z",
+      "details": "Cobrança chg_1789763921691_bb6l de R$ 320.00 para Paróquia Nossa Senhora da Paz"
+    },
+    {
+      "id": "l1789763921677l8xw",
+      "user": "admin@atelie.com",
+      "action": "Baixa de Conta a Pagar",
+      "timestamp": "2026-09-18T20:38:41.677Z",
+      "details": "Liquidado R$ 450.00 referente a Fornecedor de Metais e Cruzes (1/2)"
+    },
+    {
+      "id": "l1789763921648dtfi",
+      "user": "admin@atelie.com",
+      "action": "Login efetuado",
+      "timestamp": "2026-09-18T20:38:41.648Z",
+      "details": "Acesso ao sistema como ADMIN na organização tenant_atelie_sagrado"
+    },
+    {
+      "id": "l1789763786089hk9z",
+      "user": "admin@atelie.com",
+      "action": "Login efetuado",
+      "timestamp": "2026-09-18T20:36:26.089Z",
+      "details": "Acesso ao sistema como ADMIN na organização tenant_atelie_sagrado"
+    },
+    {
+      "id": "l1789763631687fcn0",
+      "user": "admin@atelie.com",
+      "action": "Recuperação Solicitada",
+      "timestamp": "2026-09-18T20:33:51.687Z",
+      "details": "Código de recuperação de senha gerado com validade de 15 minutos."
+    },
+    {
+      "id": "l1789763583399yeze",
+      "user": "admin@atelie.com",
+      "action": "Logout efetuado",
+      "timestamp": "2026-09-18T20:33:03.399Z",
+      "details": "Encerramento formal de sessão."
+    },
+    {
+      "id": "l1789763583382qag1",
+      "user": "admin@atelie.com",
+      "action": "Recuperação Solicitada",
+      "timestamp": "2026-09-18T20:33:03.382Z",
+      "details": "Código de recuperação de senha gerado com validade de 15 minutos."
+    },
+    {
+      "id": "l17897635833527j5q",
+      "user": "rosana@atelie.com",
+      "action": "Login efetuado",
+      "timestamp": "2026-09-18T20:33:03.352Z",
+      "details": "Acesso ao sistema como VENDEDOR na organização tenant_atelie_sagrado"
+    },
+    {
+      "id": "l17897635833440d2v",
+      "user": "admin@atelie.com",
+      "action": "Login efetuado",
+      "timestamp": "2026-09-18T20:33:03.344Z",
+      "details": "Acesso ao sistema como ADMIN na organização tenant_atelie_sagrado"
+    },
+    {
+      "id": "l1789763575928iikx",
+      "user": "admin@atelie.com",
+      "action": "Login efetuado",
+      "timestamp": "2026-09-18T20:32:55.928Z",
+      "details": "Acesso ao sistema como ADMIN na organização tenant_atelie_sagrado"
+    },
+    {
+      "id": "l1",
+      "user": "admin@atelie.com",
+      "action": "Banco de dados inicializado",
+      "timestamp": "2026-09-18T20:16:48.207Z",
+      "details": "Ateliê Sagrado ERP inicializado com dados sementes."
+    }
+  ],
+  "passwordResetTokens": [
+    {
+      "email": "admin@atelie.com",
+      "userId": "u1",
+      "token": "REC-AF46BB",
+      "expiresAt": 1789764531686,
+      "used": false
+    }
+  ],
+  "payables": [
+    {
+      "id": "pay1",
+      "tenantId": "tenant_atelie_sagrado",
+      "description": "Fornecedor de Metais e Cruzes (1/2)",
+      "supplierName": "Metais Sacros Brasil",
+      "category": "Compra de Materiais",
+      "issueDate": "2026-06-01",
+      "dueDate": "2026-06-20",
+      "amount": 450,
+      "paidAmount": 450,
+      "installmentNumber": 1,
+      "totalInstallments": 2,
+      "status": "paid",
+      "barcode": "34191.79001 01043.510047 91020.150008 8 99800000045000",
+      "pixKey": "financeiro@metaissacros.com.br",
+      "notes": "Fatura de insumos de crucifixos em ouro velho",
+      "createdAt": "2026-06-01T10:00:00Z",
+      "paymentDate": "2026-09-18",
+      "paymentMethod": "pix"
+    },
+    {
+      "id": "pay2",
+      "tenantId": "tenant_atelie_sagrado",
+      "description": "Fornecedor de Metais e Cruzes (2/2)",
+      "supplierName": "Metais Sacros Brasil",
+      "category": "Compra de Materiais",
+      "issueDate": "2026-06-01",
+      "dueDate": "2026-07-20",
+      "amount": 450,
+      "paidAmount": 0,
+      "installmentNumber": 2,
+      "totalInstallments": 2,
+      "status": "pending",
+      "barcode": "34191.79001 01043.510047 91020.150008 8 99800000045000",
+      "pixKey": "financeiro@metaissacros.com.br",
+      "notes": "Segunda parcela de crucifixos",
+      "createdAt": "2026-06-01T10:00:00Z"
+    },
+    {
+      "id": "pay3",
+      "tenantId": "tenant_atelie_sagrado",
+      "description": "Aluguel e Condomínio do Ateliê",
+      "supplierName": "Imobiliária São José",
+      "category": "Custos Fixos",
+      "issueDate": "2026-06-01",
+      "dueDate": "2026-06-10",
+      "amount": 1200,
+      "paidAmount": 1200,
+      "installmentNumber": 1,
+      "totalInstallments": 1,
+      "status": "paid",
+      "paymentDate": "2026-06-09",
+      "paymentMethod": "pix",
+      "notes": "Aluguel mensal quitado via PIX",
+      "createdAt": "2026-06-01T08:00:00Z"
+    },
+    {
+      "id": "pay_luz_1",
+      "tenantId": "tenant_luz_divina",
+      "description": "Fornecedor de Cera de Abelha",
+      "supplierName": "Apiários da Serra",
+      "category": "Compra de Materiais",
+      "issueDate": "2026-06-05",
+      "dueDate": "2026-06-25",
+      "amount": 320,
+      "paidAmount": 0,
+      "installmentNumber": 1,
+      "totalInstallments": 1,
+      "status": "pending",
+      "pixKey": "apiario@serra.com.br",
+      "createdAt": "2026-06-05T09:00:00Z"
+    }
+  ],
+  "receivables": [
+    {
+      "id": "rec1",
+      "tenantId": "tenant_atelie_sagrado",
+      "description": "Pedido #00101 - Terço Imperial (1/2)",
+      "clientName": "Paróquia Nossa Senhora da Paz",
+      "clientId": "c2",
+      "orderId": "o1",
+      "orderNumber": "00101",
+      "category": "Venda de Terço",
+      "issueDate": "2026-06-15",
+      "dueDate": "2026-06-15",
+      "amount": 320,
+      "receivedAmount": 320,
+      "installmentNumber": 1,
+      "totalInstallments": 2,
+      "status": "received",
+      "receiptDate": "2026-06-15",
+      "paymentMethod": "pix",
+      "notes": "Entrada do pedido recebida via PIX",
+      "createdAt": "2026-06-15T14:45:00Z"
+    },
+    {
+      "id": "rec2",
+      "tenantId": "tenant_atelie_sagrado",
+      "description": "Pedido #00101 - Terço Imperial (2/2)",
+      "clientName": "Paróquia Nossa Senhora da Paz",
+      "clientId": "c2",
+      "orderId": "o1",
+      "orderNumber": "00101",
+      "category": "Venda de Terço",
+      "issueDate": "2026-06-15",
+      "dueDate": "2026-06-30",
+      "amount": 320,
+      "receivedAmount": 320,
+      "installmentNumber": 2,
+      "totalInstallments": 2,
+      "status": "received",
+      "paymentLink": "https://pay.ateliesagrado.com/c/rec2",
+      "pixCopyPaste": "00020126580014br.gov.bcb.pix0136pix@ateliesagrado.com.br52040000530398654006320.005802BR5921Atelie Sagrado LTDA6009Sao Paulo62190515chg_1789763921691_bb6l6304E1F2",
+      "notes": "Saldo restante contra entrega do produto",
+      "createdAt": "2026-06-15T14:45:00Z",
+      "gatewayChargeId": "chg_1789763921691_bb6l",
+      "paymentMethod": "pix",
+      "receiptDate": "2026-09-18"
+    },
+    {
+      "id": "rec3",
+      "tenantId": "tenant_atelie_sagrado",
+      "description": "Restauração de Crucifixo de Madeira",
+      "clientName": "Ana Maria de Sousa",
+      "clientId": "c1",
+      "category": "Restauração",
+      "issueDate": "2026-05-20",
+      "dueDate": "2026-06-05",
+      "amount": 280,
+      "receivedAmount": 0,
+      "installmentNumber": 1,
+      "totalInstallments": 1,
+      "status": "overdue",
+      "paymentLink": "https://pay.ateliesagrado.com/c/rec3",
+      "notes": "Cobrança vencida em atraso",
+      "createdAt": "2026-05-20T11:00:00Z"
+    },
+    {
+      "id": "rec_luz_1",
+      "tenantId": "tenant_luz_divina",
+      "description": "Vela Votiva Decorada",
+      "clientName": "Igreja de São Bento",
+      "category": "Velas",
+      "issueDate": "2026-06-10",
+      "dueDate": "2026-06-25",
+      "amount": 190,
+      "receivedAmount": 190,
+      "installmentNumber": 1,
+      "totalInstallments": 1,
+      "status": "received",
+      "receiptDate": "2026-06-12",
+      "paymentMethod": "pix",
+      "createdAt": "2026-06-10T09:00:00Z"
+    }
+  ],
+  "paymentCharges": [
+    {
+      "id": "chg_1789763921691_bb6l",
+      "tenantId": "tenant_atelie_sagrado",
+      "receivableId": "rec2",
+      "customerName": "Paróquia Nossa Senhora da Paz",
+      "customerDocument": "",
+      "amount": 320,
+      "method": "pix",
+      "status": "paid",
+      "pixCopyPaste": "00020126580014br.gov.bcb.pix0136pix@ateliesagrado.com.br52040000530398654006320.005802BR5921Atelie Sagrado LTDA6009Sao Paulo62190515chg_1789763921691_bb6l6304E1F2",
+      "installments": 1,
+      "gatewayName": "pix_bacen",
+      "idempotencyKey": "idemp_chg_1789763921691_bb6l",
+      "createdAt": "2026-09-18T20:38:41.691Z",
+      "webhookReceivedAt": "2026-09-18T20:38:41.699Z",
+      "paidAt": "2026-09-18T20:38:41.699Z"
+    }
+  ],
+  "paymentConfig": {
+    "enabled": false,
+    "gateway": "pix_bacen",
+    "pixKey": "pix@ateliesagrado.com.br",
+    "autoReconcile": true,
+    "sandbox": true
+  }
+}

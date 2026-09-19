@@ -15,6 +15,7 @@ interface DashboardStockGoalsProps {
   currentMonthLucro: number;
   currentMonthOrdersCount: number;
   currentMonthProducaoCount: number;
+  onViewChange?: (view: string, params?: Record<string, any>) => void;
 }
 
 export const DashboardStockGoals: React.FC<DashboardStockGoalsProps> = ({
@@ -25,6 +26,7 @@ export const DashboardStockGoals: React.FC<DashboardStockGoalsProps> = ({
   currentMonthLucro,
   currentMonthOrdersCount,
   currentMonthProducaoCount,
+  onViewChange,
 }) => {
   // 1. Stock calculations
   const totalStockVal = inventory
@@ -68,21 +70,33 @@ export const DashboardStockGoals: React.FC<DashboardStockGoalsProps> = ({
         </div>
 
         <div className="grid grid-cols-3 gap-3">
-          <div className="bg-slate-50 p-3 rounded-xl text-center border border-slate-100/60">
+          <div 
+            onClick={() => onViewChange?.('inventory')}
+            className={`bg-slate-50 p-3 rounded-xl text-center border border-slate-100/60 transition-all ${onViewChange ? 'cursor-pointer hover:bg-slate-100/70 hover:border-slate-300' : ''}`}
+            title="Clique para ver o estoque completo"
+          >
             <span className="block text-[9px] uppercase font-bold text-slate-400">Total Imobilizado</span>
             <span className="text-sm font-bold text-slate-800 font-mono mt-0.5 block">
               R$ {totalStockVal.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}
             </span>
           </div>
 
-          <div className="bg-rose-50/50 p-3 rounded-xl text-center border border-rose-100/60">
+          <div 
+            onClick={() => onViewChange?.('inventory', { status: 'out_of_stock' })}
+            className={`bg-rose-50/50 p-3 rounded-xl text-center border border-rose-100/60 transition-all ${onViewChange ? 'cursor-pointer hover:bg-rose-100/60 hover:border-rose-300' : ''}`}
+            title="Clique para filtrar itens zerados"
+          >
             <span className="block text-[9px] uppercase font-bold text-rose-500">Zerados / Críticos</span>
             <span className="text-sm font-bold text-rose-700 font-mono mt-0.5 block">
               {criticalItems.length}
             </span>
           </div>
 
-          <div className="bg-amber-50/50 p-3 rounded-xl text-center border border-amber-100/60">
+          <div 
+            onClick={() => onViewChange?.('inventory', { status: 'low_stock' })}
+            className={`bg-amber-50/50 p-3 rounded-xl text-center border border-amber-100/60 transition-all ${onViewChange ? 'cursor-pointer hover:bg-amber-100/60 hover:border-amber-300' : ''}`}
+            title="Clique para filtrar itens abaixo do mínimo"
+          >
             <span className="block text-[9px] uppercase font-bold text-amber-600">Abaixo do Mínimo</span>
             <span className="text-sm font-bold text-amber-700 font-mono mt-0.5 block">
               {lowStockItems.length}
@@ -91,13 +105,28 @@ export const DashboardStockGoals: React.FC<DashboardStockGoalsProps> = ({
         </div>
 
         <div className="space-y-2.5">
-          <h4 className="font-bold text-[10px] uppercase text-slate-450 tracking-wider flex items-center gap-1.5">
-            <AlertTriangle size={13} className="text-amber-500" /> Alerta de Reposição Urgente
-          </h4>
+          <div className="flex items-center justify-between">
+            <h4 className="font-bold text-[10px] uppercase text-slate-450 tracking-wider flex items-center gap-1.5">
+              <AlertTriangle size={13} className="text-amber-500" /> Alerta de Reposição Urgente
+            </h4>
+            {onViewChange && (
+              <button
+                onClick={() => onViewChange('inventory', { status: 'critical' })}
+                className="text-[10px] font-bold text-amber-800 hover:underline cursor-pointer"
+              >
+                Ver todos
+              </button>
+            )}
+          </div>
 
           <div className="space-y-2 max-h-[140px] overflow-y-auto">
             {criticalItems.slice(0, 3).map(i => (
-              <div key={i.id} className="flex justify-between items-center bg-rose-50/20 border border-rose-100/40 px-3 py-2 rounded-lg text-[11px]">
+              <div 
+                key={i.id} 
+                onClick={() => onViewChange?.('inventory', { search: i.name })}
+                className={`flex justify-between items-center bg-rose-50/20 border border-rose-100/40 px-3 py-2 rounded-lg text-[11px] ${onViewChange ? 'cursor-pointer hover:bg-rose-50/60' : ''}`}
+                title={`Buscar ${i.name} no estoque`}
+              >
                 <span className="text-slate-850 font-semibold">{i.name}</span>
                 <span className="text-rose-600 font-mono font-black uppercase text-[9px] bg-rose-50 px-2 py-0.5 rounded border border-rose-100">
                   Sem Estoque (0 {i.unit})
@@ -106,7 +135,12 @@ export const DashboardStockGoals: React.FC<DashboardStockGoalsProps> = ({
             ))}
 
             {lowStockItems.slice(0, 3).map(i => (
-              <div key={i.id} className="flex justify-between items-center bg-amber-50/10 border border-amber-100/40 px-3 py-2 rounded-lg text-[11px]">
+              <div 
+                key={i.id} 
+                onClick={() => onViewChange?.('inventory', { search: i.name })}
+                className={`flex justify-between items-center bg-amber-50/10 border border-amber-100/40 px-3 py-2 rounded-lg text-[11px] ${onViewChange ? 'cursor-pointer hover:bg-amber-50/60' : ''}`}
+                title={`Buscar ${i.name} no estoque`}
+              >
                 <span className="text-slate-850 font-semibold">{i.name}</span>
                 <span className="text-amber-700 font-mono font-black text-[9px] bg-amber-50 px-2 py-0.5 rounded border border-amber-100">
                   {i.quantity} {i.unit} (Mín: {i.minQuantity})

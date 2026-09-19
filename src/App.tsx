@@ -20,6 +20,7 @@ import { SubscriptionBillingView } from './components/subscription/SubscriptionB
 import { AccountSecurityView } from './components/account/AccountSecurityView';
 import { UserProfileView } from './components/account/UserProfileView';
 import { TenantsManagementView } from './components/tenants/TenantsManagementView';
+import { AccessDeniedView } from './components/AccessDeniedView';
 import { motion, AnimatePresence } from 'motion/react';
 import { ToastContainer, toast } from './components/Toast';
 
@@ -30,11 +31,34 @@ const AppContent: React.FC = () => {
   const { user: authUser, loading: authLoading } = useAuth();
   const [currentView, setCurrentView] = useState('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [viewParams, setViewParams] = useState<Record<string, any>>({});
 
   const user = authUser || dbUser;
 
   const isFirstSetup = settings?.firstSetup;
   const activeView = isFirstSetup ? 'settings' : currentView;
+
+  // View permission guard
+  const canAccessView = (viewId: string): boolean => {
+    if (!user) return false;
+    if (['dashboard', 'profile', 'account_security'].includes(viewId)) return true;
+    
+    const roleStr = (user.role || (user as any).roleLabel || '').toLowerCase();
+    if (roleStr.includes('admin') || roleStr.includes('master') || (user as any).isOwner) return true;
+
+    if (user.permissions && typeof (user.permissions as any)[viewId] === 'boolean') {
+      return !!(user.permissions as any)[viewId];
+    }
+    return true;
+  };
+
+  // Handle Navigation with optional filter parameters (Drill-down support)
+  const handleNavigate = (view: string, params?: Record<string, any>) => {
+    if (params) {
+      setViewParams(prev => ({ ...prev, [view]: params }));
+    }
+    setCurrentView(view);
+  };
 
   // Show loading indicator while verifying session
   if (authLoading) {
@@ -57,66 +81,76 @@ const AppContent: React.FC = () => {
     );
   }
 
- // Handle Quick Action Trigger
- const handleQuickAction = (actionType: 'order' | 'client' | 'product' | 'quote') => {
- switch (actionType) {
- case 'order':
- setCurrentView('orders');
- toast.info("Ações Rápidas", "Redirecionado para Pedidos. Clique em 'Novo Pedido' para iniciar.");
- break;
- case 'client':
- setCurrentView('clients');
- toast.info("Ações Rápidas", "Redirecionado para Clientes. Clique em 'Novo Cliente' para registrar.");
- break;
- case 'product':
- setCurrentView('products');
- toast.info("Ações Rápidas", "Redirecionado para Produtos. Adicione um novo produto com fórmula.");
- break;
- case 'quote':
- setCurrentView('quotes');
- toast.info("Ações Rápidas", "Redirecionado para Orçamentos. Clique em 'Novo Orçamento' para simular.");
- break;
- }
- };
+  // Handle Quick Action Trigger
+  const handleQuickAction = (actionType: 'order' | 'client' | 'product' | 'quote') => {
+    switch (actionType) {
+      case 'order':
+        setCurrentView('orders');
+        toast.info("Ações Rápidas", "Redirecionado para Pedidos. Clique em 'Novo Pedido' para iniciar.");
+        break;
+      case 'client':
+        setCurrentView('clients');
+        toast.info("Ações Rápidas", "Redirecionado para Clientes. Clique em 'Novo Cliente' para registrar.");
+        break;
+      case 'product':
+        setCurrentView('products');
+        toast.info("Ações Rápidas", "Redirecionado para Produtos. Adicione um novo produto com fórmula.");
+        break;
+      case 'quote':
+        setCurrentView('quotes');
+        toast.info("Ações Rápidas", "Redirecionado para Orçamentos. Clique em 'Novo Orçamento' para simular.");
+        break;
+    }
+  };
 
- // Render correct view based on navigation menu item selection
- const renderMainContent = () => {
- switch (activeView) {
- case 'dashboard':
- return <DashboardView onViewChange={setCurrentView} onQuickAction={handleQuickAction} />;
- case 'inventory':
- return <InventoryView />;
- case 'purchases':
- return <PurchasesView />;
- case 'products':
- return <ProductsView />;
- case 'pricing':
- return <PricingView />;
- case 'clients':
- return <ClientsView />;
- case 'quotes':
- return <QuotesView />;
- case 'orders':
- return <OrdersView />;
- case 'production':
- return <ProductionView />;
- case 'financial':
- return <FinancialView />;
- case 'tenants':
- return <TenantsManagementView />;
- case 'subscription':
- return <SubscriptionBillingView />;
- case 'users':
- return <UsersPermissionsView />;
- case 'profile':
- case 'account_security':
- return <UserProfileView />;
- case 'settings':
- return <SettingsView />;
- default:
- return <DashboardView onViewChange={setCurrentView} onQuickAction={handleQuickAction} />;
- }
- };
+  // Render correct view based on navigation menu item selection with permission check
+  const renderMainContent = () => {
+    if (!canAccessView(activeView)) {
+      return (
+        <AccessDeniedView 
+          moduleName={activeView}
+          userRole={user.role || (user as any).roleLabel || 'Operador'}
+          onGoBack={() => setCurrentView('dashboard')}
+        />
+      );
+    }
+
+    switch (activeView) {
+      case 'dashboard':
+        return <DashboardView onViewChange={handleNavigate} onQuickAction={handleQuickAction} />;
+      case 'inventory':
+        return <InventoryView initialFilter={viewParams.inventory} />;
+      case 'purchases':
+        return <PurchasesView initialFilter={viewParams.purchases} />;
+      case 'products':
+        return <ProductsView />;
+      case 'pricing':
+        return <PricingView />;
+      case 'clients':
+        return <ClientsView />;
+      case 'quotes':
+        return <QuotesView />;
+      case 'orders':
+        return <OrdersView initialFilter={viewParams.orders} />;
+      case 'production':
+        return <ProductionView />;
+      case 'financial':
+        return <FinancialView initialFilter={viewParams.financial} />;
+      case 'tenants':
+        return <TenantsManagementView />;
+      case 'subscription':
+        return <SubscriptionBillingView />;
+      case 'users':
+        return <UsersPermissionsView />;
+      case 'profile':
+      case 'account_security':
+        return <UserProfileView />;
+      case 'settings':
+        return <SettingsView />;
+      default:
+        return <DashboardView onViewChange={handleNavigate} onQuickAction={handleQuickAction} />;
+    }
+  };
 
  return (
  <div className="min-h-screen bg-bg-app text-ink-900 flex">
