@@ -89,13 +89,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, isO
       <aside 
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
-        className={`fixed inset-y-0 left-0 bg-white border-r border-[rgba(42,36,32,0.08)] z-40 transition-all duration-300 ease-in-out transform print:hidden ${
-          isOpen ? 'translate-x-0 w-68 z-50' : '-translate-x-full lg:translate-x-0'
-        } ${isHovered ? 'w-68 shadow-xl z-50' : 'lg:w-20 w-68'} flex flex-col h-full max-h-full overflow-hidden`}
+        className={`fixed inset-y-0 left-0 bg-white border-r border-slate-200/80 z-40 transition-all duration-250 ease-in-out transform print:hidden ${
+          isOpen ? 'translate-x-0 w-64 z-50 shadow-2xl' : '-translate-x-full lg:translate-x-0'
+        } ${isHovered ? 'w-64 shadow-xl z-50' : 'lg:w-20 w-64'} flex flex-col h-full max-h-full overflow-hidden`}
       >
         
         {/* Header Block */}
-        <div className="shrink-0 h-16 flex items-center justify-between px-4 border-b border-[rgba(42,36,32,0.06)] overflow-hidden">
+        <div className="shrink-0 h-16 flex items-center justify-between px-4 border-b border-slate-100 overflow-hidden">
           <div className="flex items-center gap-3 min-w-0">
             <div className="w-10 h-10 shrink-0 flex items-center justify-center">
               {settings.logo ? (
@@ -119,11 +119,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, isO
                 </div>
               )}
             </div>
-            <div className={`transition-all duration-300 flex-1 min-w-0 ${isExpanded ? 'opacity-100' : 'lg:opacity-0 lg:w-0 lg:pointer-events-none'}`}>
+            <div className={`transition-all duration-250 flex-1 min-w-0 ${isExpanded ? 'opacity-100' : 'lg:opacity-0 lg:w-0 lg:pointer-events-none'}`}>
               <h1 className="font-serif font-bold text-sm text-slate-900 tracking-wide truncate">
                 {settings.companyName || 'Ateliê Sagrado'}
               </h1>
-              <span className="text-[10px] text-amber-600 font-medium tracking-wider uppercase font-mono block">
+              <span className="text-[10px] text-amber-600 font-semibold tracking-wider uppercase font-mono block">
                 ERP Artesanal
               </span>
             </div>
@@ -131,7 +131,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, isO
           {isOpen && (
             <button 
               onClick={onClose}
-              className="p-1.5 rounded-lg hover:bg-[#FAF7F2] lg:hidden text-ink-300 hover:text-ink-600 shrink-0"
+              className="p-1.5 rounded-xl hover:bg-slate-100 lg:hidden text-slate-400 hover:text-slate-700 shrink-0 cursor-pointer"
+              aria-label="Fechar menu"
             >
               <X size={18} />
             </button>
@@ -139,7 +140,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, isO
         </div>
         
         {/* Navigation Links */}
-        <nav className="flex-1 overflow-y-auto p-3 space-y-1 min-h-0">
+        <nav className="flex-1 overflow-y-auto p-2.5 space-y-1 min-h-0">
           {filteredMenuItems.map((item) => {
             const Icon = item.icon;
             const isActive = currentView === item.id;
@@ -148,15 +149,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, isO
                 key={item.id}
                 id={`nav-item-${item.id}`}
                 onClick={() => handleNav(item.id)}
-                className={`w-full flex items-center rounded-[10px] text-xs transition-all duration-150 cursor-pointer overflow-hidden ${
+                className={`w-full flex items-center rounded-xl text-xs transition-all duration-150 cursor-pointer select-none overflow-hidden min-h-[40px] ${
                   isActive 
-                    ? 'bg-[#FAF3E7] text-ink-900 font-semibold border-l-4 border-gold-500 ring-1 ring-gold-500/10 shadow-xs' 
-                    : 'text-ink-600 hover:text-ink-900 hover:bg-[#FAF7F2]'
-                } ${isExpanded ? 'px-3 py-2.5 gap-3 justify-start' : 'lg:p-2.5 lg:justify-center'}`}
+                    ? 'bg-amber-500/10 text-amber-950 font-bold border border-amber-500/20 shadow-2xs' 
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70 border border-transparent'
+                } ${isExpanded ? 'px-3 py-2.5 gap-3 justify-start' : 'lg:p-2 lg:justify-center'}`}
                 title={!isExpanded ? item.label : undefined}
               >
-                <Icon size={16} className={`shrink-0 ${isActive ? 'text-gold-600' : 'text-ink-300'}`} />
-                <span className={`font-sans transition-all duration-300 truncate ${isExpanded ? 'opacity-100 block' : 'lg:opacity-0 lg:hidden lg:w-0'}`}>
+                <Icon size={17} className={`shrink-0 ${isActive ? 'text-amber-600' : 'text-slate-400'}`} />
+                <span className={`font-sans transition-all duration-250 truncate ${isExpanded ? 'opacity-100 block' : 'lg:opacity-0 lg:hidden lg:w-0'}`}>
                   {item.label}
                 </span>
               </button>

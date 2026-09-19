@@ -23,6 +23,7 @@ import { Order, InventoryItem, Quote, FinancialTransaction, ProductionTask } fro
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { useDb } from '../../context/DbContext';
 import { roundCurrency, safeNumber, safeDiv } from '../../utils/finance';
+import { Modal, Button, Badge } from '../ui';
 
 export type DashboardPeriod = 'hoje' | '7d' | 'mes' | 'ano' | 'todos';
 
@@ -553,26 +554,26 @@ export const DashboardKpis: React.FC<DashboardKpisProps> = ({
   return (
     <div className="space-y-4">
       {/* Category Tabs / Operational Filter Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-2.5 rounded-xl border border-slate-100 shadow-3xs">
-        <div className="flex items-center gap-1">
+      <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-2 sm:p-2.5 rounded-2xl border border-slate-200/80 shadow-xs">
+        <div className="flex items-center gap-1.5 overflow-x-auto max-w-full pb-1 sm:pb-0 scrollbar-none">
           <button
             type="button"
             onClick={() => setKpiCategoryFilter('all')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
               kpiCategoryFilter === 'all'
-                ? 'bg-slate-900 text-white shadow-3xs'
-                : 'text-slate-600 hover:bg-slate-100'
+                ? 'bg-slate-900 text-white shadow-xs'
+                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
             }`}
           >
-            <Layers size={13} /> Todos os Indicadores ({kpis.length})
+            <Layers size={13} /> Todos ({kpis.length})
           </button>
           <button
             type="button"
             onClick={() => setKpiCategoryFilter('financeiro')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
               kpiCategoryFilter === 'financeiro'
-                ? 'bg-emerald-800 text-white shadow-3xs'
-                : 'text-slate-600 hover:bg-slate-100'
+                ? 'bg-emerald-800 text-white shadow-xs'
+                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
             }`}
           >
             <DollarSign size={13} /> Financeiro & Tesouraria
@@ -580,28 +581,28 @@ export const DashboardKpis: React.FC<DashboardKpisProps> = ({
           <button
             type="button"
             onClick={() => setKpiCategoryFilter('operacional')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
               kpiCategoryFilter === 'operacional'
-                ? 'bg-amber-800 text-white shadow-3xs'
-                : 'text-slate-600 hover:bg-slate-100'
+                ? 'bg-amber-800 text-white shadow-xs'
+                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
             }`}
           >
             <Hammer size={13} /> Operação & Estoque
           </button>
         </div>
 
-        <div className="text-[11px] font-mono text-slate-500 font-medium px-2">
-          Base de dados: <strong className="text-slate-800 font-semibold">{periodLabel}</strong>
+        <div className="text-[11px] font-mono text-slate-500 font-medium px-2 shrink-0">
+          Base: <strong className="text-slate-800 font-semibold">{periodLabel}</strong>
         </div>
       </div>
 
       {/* KPI Cards Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3.5">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 sm:gap-3.5">
         {filteredKpis.map((kpi) => (
           <div
             key={kpi.id}
             onClick={() => handleKpiCardClick(kpi)}
-            className="p-4 rounded-xl border bg-white shadow-3xs hover:shadow-sm cursor-pointer transition-all duration-200 hover:-translate-y-0.5 flex flex-col justify-between h-36 group border-slate-100 hover:border-slate-250 relative overflow-hidden"
+            className="erp-card erp-card-hover p-3.5 sm:p-4 cursor-pointer flex flex-col justify-between h-36 group relative overflow-hidden"
           >
             <div className="flex items-start justify-between gap-1">
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider line-clamp-1">
@@ -625,14 +626,14 @@ export const DashboardKpis: React.FC<DashboardKpisProps> = ({
               </div>
             </div>
 
-            <div className="flex items-center justify-between pt-1 border-t border-slate-50">
+            <div className="flex items-center justify-between pt-1 border-t border-slate-100">
               <span className="text-[9px] font-bold text-slate-400 group-hover:text-slate-700 flex items-center gap-1 select-none transition-colors">
                 <Eye size={10} /> Auditar
               </span>
               <button
                 type="button"
                 onClick={(e) => handleDirectDrillDown(e, kpi)}
-                className="text-[9px] font-bold text-amber-700 hover:text-amber-900 flex items-center gap-0.5 opacity-80 hover:opacity-100 transition-all cursor-pointer p-0.5 rounded hover:bg-amber-50"
+                className="text-[9px] font-bold text-amber-800 hover:text-amber-950 flex items-center gap-0.5 opacity-80 hover:opacity-100 transition-all cursor-pointer p-0.5 rounded hover:bg-amber-50"
                 title={`Ir para ${kpi.targetView}`}
               >
                 Abrir <ArrowRight size={10} />
@@ -643,85 +644,83 @@ export const DashboardKpis: React.FC<DashboardKpisProps> = ({
       </div>
 
       {/* Audited KPI Drill-Down Modal */}
-      {selectedKpi && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-3xs no-print p-4">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-lg p-6 overflow-hidden animate-scale-in">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <div>
-                <h3 className="font-serif font-bold text-slate-900 text-base flex items-center gap-2">
-                  <span>{selectedKpi.title}</span>
-                  <span className="text-[10px] font-sans font-bold px-2 py-0.5 bg-slate-100 text-slate-700 rounded-full">
-                    Auditado ERP
-                  </span>
-                </h3>
-                <p className="text-[10.5px] text-slate-500">Detalhamento da métrica e rastreabilidade nos registros</p>
-              </div>
-              <button
-                onClick={() => setSelectedKpi(null)}
-                className="w-8 h-8 rounded-full bg-slate-50 hover:bg-slate-100 text-slate-500 flex items-center justify-center cursor-pointer transition-all"
-              >
-                <X size={15} />
-              </button>
+      <Modal
+        isOpen={!!selectedKpi}
+        onClose={() => setSelectedKpi(null)}
+        title={
+          selectedKpi ? (
+            <div className="flex items-center gap-2">
+              <span>{selectedKpi.title}</span>
+              <Badge variant="neutral" size="sm">Auditado ERP</Badge>
             </div>
-
-            <div className="py-4 space-y-4 max-h-[70vh] overflow-y-auto pr-1">
-              <div className="flex items-baseline justify-between p-3.5 bg-slate-50 rounded-xl border border-slate-100">
-                <div>
-                  <span className="text-[10px] uppercase font-bold text-slate-400 block">Valor Consolidado</span>
-                  <span className="text-2xl font-serif font-black text-slate-900">{selectedKpi.value}</span>
-                </div>
-                <span className={`px-2.5 py-1 text-xs font-bold rounded-full border ${selectedKpi.statusColor}`}>
-                  {selectedKpi.trendPercent}
-                </span>
-              </div>
-
-              <div className="space-y-2 text-xs text-slate-600 leading-relaxed bg-white p-3.5 rounded-xl border border-slate-100">
-                <p><strong>Descrição:</strong> {selectedKpi.description}</p>
-                <div className="pt-2 border-t border-slate-100 space-y-1">
-                  <p className="text-[11px] text-slate-500">
-                    <strong className="text-slate-700">Origem real dos dados:</strong> {selectedKpi.sourceText}
-                  </p>
-                  <p className="text-[11px] text-slate-500">
-                    <strong className="text-slate-700">Fórmula de cálculo:</strong> {selectedKpi.calculationText}
-                  </p>
-                </div>
-              </div>
-
-              {/* Chart */}
-              {selectedKpi.chartData && selectedKpi.chartData.length > 0 && (
-                <div className="bg-slate-50 border border-slate-100 p-4 rounded-xl">
-                  <h5 className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-2">Comportamento Recente</h5>
-                  <div className="h-28">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={selectedKpi.chartData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
-                        <XAxis dataKey="name" stroke="#94a3b8" fontSize={9} tickLine={false} />
-                        <YAxis stroke="#94a3b8" fontSize={9} tickLine={false} />
-                        <Tooltip contentStyle={{ fontSize: '11px', borderRadius: '8px' }} />
-                        <Area type="monotone" dataKey="valor" stroke="#D4A039" fill="#FDF6E2" strokeWidth={2} />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+          ) : ''
+        }
+        subtitle="Detalhamento da métrica e rastreabilidade nos registros"
+        size="md"
+        footer={
+          selectedKpi ? (
+            <div className="flex items-center justify-between w-full">
               <span className="text-[11px] text-slate-500 flex items-center gap-1">
-                <CheckCircle2 size={13} className="text-emerald-600" /> Dado sincronizado em tempo real
+                <CheckCircle2 size={13} className="text-emerald-600" /> Sincronizado em tempo real
               </span>
-              <button
+              <Button
+                variant="primary"
+                size="sm"
+                rightIcon={<ArrowRight size={13} />}
                 onClick={() => {
                   onViewChange(selectedKpi.targetView, selectedKpi.targetParams);
                   setSelectedKpi(null);
                 }}
-                className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl cursor-pointer transition-all flex items-center gap-1.5 shadow-sm"
               >
-                Abrir Registros Filtrados <ArrowRight size={13} />
-              </button>
+                Abrir Registros Filtrados
+              </Button>
             </div>
+          ) : undefined
+        }
+      >
+        {selectedKpi && (
+          <div className="space-y-4 text-xs">
+            <div className="flex items-baseline justify-between p-3.5 bg-slate-50 rounded-xl border border-slate-200/80">
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block">Valor Consolidado</span>
+                <span className="text-2xl font-serif font-black text-slate-900">{selectedKpi.value}</span>
+              </div>
+              <span className={`px-2.5 py-1 text-xs font-bold rounded-full border ${selectedKpi.statusColor}`}>
+                {selectedKpi.trendPercent}
+              </span>
+            </div>
+
+            <div className="space-y-2 text-xs text-slate-600 leading-relaxed bg-white p-3.5 rounded-xl border border-slate-200/80">
+              <p><strong className="text-slate-900">Descrição:</strong> {selectedKpi.description}</p>
+              <div className="pt-2 border-t border-slate-100 space-y-1">
+                <p className="text-[11px] text-slate-500">
+                  <strong className="text-slate-700">Origem real dos dados:</strong> {selectedKpi.sourceText}
+                </p>
+                <p className="text-[11px] text-slate-500">
+                  <strong className="text-slate-700">Fórmula de cálculo:</strong> {selectedKpi.calculationText}
+                </p>
+              </div>
+            </div>
+
+            {/* Chart */}
+            {selectedKpi.chartData && selectedKpi.chartData.length > 0 && (
+              <div className="bg-slate-50 border border-slate-200/80 p-4 rounded-xl">
+                <h5 className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-2">Comportamento Recente</h5>
+                <div className="h-28">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={selectedKpi.chartData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+                      <XAxis dataKey="name" stroke="#94a3b8" fontSize={9} tickLine={false} />
+                      <YAxis stroke="#94a3b8" fontSize={9} tickLine={false} />
+                      <Tooltip contentStyle={{ fontSize: '11px', borderRadius: '8px', border: '1px solid #e2e8f0' }} />
+                      <Area type="monotone" dataKey="valor" stroke="#D4A039" fill="#FDF6E2" strokeWidth={2} />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            )}
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
     </div>
   );
 };

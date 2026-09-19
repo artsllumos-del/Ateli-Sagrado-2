@@ -61,6 +61,7 @@ import {
   Line,
 } from "recharts";
 import { toast } from "./Toast";
+import { Badge, EmptyState } from "./ui";
 
 export interface InventoryViewProps {
   initialFilter?: {
@@ -1239,8 +1240,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ initialFilter }) =
       {/* Resumo Consolidado do Estoque */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Card Valor Total */}
-        <div className="lg:col-span-1 bg-white p-6 rounded-[24px] shadow-sm relative overflow-hidden border border-slate-100 hover:border-amber-250 hover:shadow-md transition-all duration-300">
-          <div className="absolute right-[-20px] top-[-20px] w-40 h-40 bg-amber-500/5 rounded-full blur-2xl pointer-events-none animate-pulse"></div>
+        <div className="lg:col-span-1 bg-white p-5 sm:p-6 rounded-2xl shadow-xs relative overflow-hidden border border-slate-200/80 hover:border-slate-300 transition-all duration-300">
           <div className="relative z-10 flex flex-col justify-between h-full min-h-[140px]">
             <div>
               <div className="flex items-center gap-2 text-amber-600">
@@ -1248,43 +1248,43 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ initialFilter }) =
                 <span className="text-[10px] font-bold uppercase tracking-widest font-mono">Valorização Patrimonial</span>
               </div>
               <h3 className="text-xs text-slate-500 mt-2 font-medium">Valor Total do Estoque</h3>
-              <p className="text-3xl font-serif font-black text-slate-900 tracking-tight mt-1">
+              <p className="text-2xl sm:text-3xl font-serif font-black text-slate-900 tracking-tight mt-1">
                 R$ {valorTotalGeralEstoque.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </p>
             </div>
-            <div className="pt-4 border-t border-slate-100 text-[10.5px] text-slate-450 flex justify-between items-center">
+            <div className="pt-4 border-t border-slate-100 text-[11px] text-slate-500 flex justify-between items-center">
               <span>Atualizado em tempo real</span>
-              <span className="bg-amber-50 text-amber-700 border border-amber-200/50 font-bold px-2 py-0.5 rounded-full text-[9px] uppercase tracking-wide">Ateliê Sagrado</span>
+              <span className="bg-amber-50 text-amber-800 border border-amber-200/60 font-semibold px-2.5 py-0.5 rounded-full text-[10px] uppercase tracking-wide">Ateliê Sagrado</span>
             </div>
           </div>
         </div>
 
         {/* Distribuição por Categoria (Quantidade e Valor) */}
-        <div className="lg:col-span-2 bg-white border border-[rgba(42,36,32,0.06)] p-6 rounded-[24px] shadow-xs">
+        <div className="lg:col-span-2 bg-white border border-slate-200/80 p-5 sm:p-6 rounded-2xl shadow-xs">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-xs font-bold text-ink-900 uppercase tracking-wider flex items-center gap-2">
-              <BarChart2 size={14} className="text-gold-600" />
+            <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+              <BarChart2 size={14} className="text-amber-600" />
               Consolidado por Categoria
             </h3>
-            <span className="text-[10px] font-semibold text-slate-400 bg-slate-50 px-2 py-0.5 rounded-full">
+            <span className="text-[10px] font-semibold text-slate-500 bg-slate-50 border border-slate-200/60 px-2.5 py-0.5 rounded-full">
               {stockByCategory.length} categorias ativas
             </span>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[160px] overflow-y-auto pr-2 custom-scrollbar">
-            {stockByCategory.map((cat, idx) => {
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[160px] overflow-y-auto pr-1">
+            {stockByCategory.map((cat) => {
               const percentage = valorTotalGeralEstoque > 0 ? (cat.value / valorTotalGeralEstoque) * 100 : 0;
               return (
-                <div key={cat.category} className="p-3 bg-slate-50/60 rounded-xl border border-slate-100 flex flex-col justify-between hover:bg-slate-50 transition-colors">
+                <div key={cat.category} className="p-3 bg-slate-50/70 rounded-xl border border-slate-200/60 flex flex-col justify-between hover:bg-slate-50 transition-colors">
                   <div className="flex justify-between items-start gap-2">
-                    <span className="text-xs font-bold text-slate-700 truncate" title={cat.category}>
+                    <span className="text-xs font-semibold text-slate-800 truncate" title={cat.category}>
                       {cat.category}
                     </span>
-                    <span className="text-[10px] font-mono font-bold text-gold-600 bg-gold-50 px-1.5 py-0.5 rounded">
+                    <span className="text-[10px] font-mono font-bold text-amber-700 bg-amber-50 border border-amber-200/60 px-1.5 py-0.5 rounded-md">
                       {percentage.toFixed(1)}%
                     </span>
                   </div>
-                  <div className="grid grid-cols-2 gap-2 mt-2 pt-2 border-t border-slate-100/60 text-[11px]">
+                  <div className="grid grid-cols-2 gap-2 mt-2 pt-2 border-t border-slate-200/60 text-[11px]">
                     <div>
                       <span className="text-slate-400 block text-[9px] uppercase font-semibold">Qtd Total</span>
                       <span className="font-semibold text-slate-800 font-mono">
@@ -1311,75 +1311,75 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ initialFilter }) =
       </div>
 
       {/* Header Summary Cards / Indicators */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
-        <div className="bg-white border border-[rgba(42,36,32,0.06)] p-5 rounded-[20px] shadow-xs flex items-center justify-between">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+        <div className="bg-white border border-slate-200/80 p-4 sm:p-5 rounded-2xl shadow-xs flex items-center justify-between">
           <div>
-            <span className="text-[10px] font-bold text-ink-600 uppercase tracking-wider block">
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
               Total de Insumos
             </span>
-            <span className="text-2xl sm:text-3xl font-bold font-serif text-ink-900 mt-1 block">
+            <span className="text-2xl sm:text-3xl font-bold font-serif text-slate-900 mt-1 block">
               {totalItems}
             </span>
           </div>
-          <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-500">
+          <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600">
             <Package size={20} />
           </div>
         </div>
 
-        <div className="bg-white border border-[rgba(42,36,32,0.06)] p-5 rounded-[20px] shadow-xs flex items-center justify-between">
+        <div className="bg-white border border-slate-200/80 p-4 sm:p-5 rounded-2xl shadow-xs flex items-center justify-between">
           <div>
-            <span className="text-[10px] font-bold text-ink-600 uppercase tracking-wider block">
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
               Estoque Saudável
             </span>
-            <span className="text-2xl sm:text-3xl font-bold font-serif text-emerald-600 mt-1 block">
+            <span className="text-2xl sm:text-3xl font-bold font-serif text-emerald-700 mt-1 block">
               {normalStock}
             </span>
           </div>
-          <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600">
+          <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-700">
             <Check size={20} />
           </div>
         </div>
 
-        <div className="bg-white border border-[rgba(42,36,32,0.06)] p-5 rounded-[20px] shadow-xs flex items-center justify-between">
+        <div className="bg-white border border-slate-200/80 p-4 sm:p-5 rounded-2xl shadow-xs flex items-center justify-between">
           <div>
-            <span className="text-[10px] font-bold text-ink-600 uppercase tracking-wider block">
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
               Estoque Baixo
             </span>
-            <span className="text-2xl sm:text-3xl font-bold font-serif text-warning-500 mt-1 block">
+            <span className="text-2xl sm:text-3xl font-bold font-serif text-amber-700 mt-1 block">
               {lowStock}
             </span>
           </div>
-          <div className="w-10 h-10 rounded-xl bg-warning-bg flex items-center justify-center text-warning-500">
+          <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-700">
             <AlertTriangle size={20} />
           </div>
         </div>
 
-        <div className="bg-white border border-[rgba(42,36,32,0.06)] p-5 rounded-[20px] shadow-xs flex items-center justify-between">
+        <div className="bg-white border border-slate-200/80 p-4 sm:p-5 rounded-2xl shadow-xs flex items-center justify-between">
           <div>
-            <span className="text-[10px] font-bold text-ink-600 uppercase tracking-wider block">
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
               Itens Esgotados
             </span>
-            <span className="text-2xl sm:text-3xl font-bold font-serif text-rose-600 mt-1 block">
+            <span className="text-2xl sm:text-3xl font-bold font-serif text-rose-700 mt-1 block">
               {outOfStock}
             </span>
           </div>
-          <div className="w-10 h-10 rounded-xl bg-rose-50 flex items-center justify-center text-rose-600">
+          <div className="w-10 h-10 rounded-xl bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-700">
             <AlertTriangle size={20} />
           </div>
         </div>
       </div>
 
       {/* Filters & Control Row */}
-      <div className="bg-white border border-[rgba(42,36,32,0.06)] p-5 rounded-[20px] shadow-xs space-y-4">
-        <div className="flex flex-col sm:flex-row gap-3.5 items-center justify-between">
+      <div className="bg-white border border-slate-200/80 p-4 sm:p-5 rounded-2xl shadow-xs space-y-4">
+        <div className="flex flex-col lg:flex-row gap-3.5 items-stretch lg:items-center justify-between">
           {/* Search Input */}
-          <div className="relative w-full sm:max-w-xs">
+          <div className="relative w-full lg:max-w-xs">
             <input
               type="text"
               placeholder="Buscar insumos por nome, código..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 text-xs rounded-full border border-slate-200 bg-slate-50/50 text-ink-900 focus:outline-none focus:ring-2 focus:ring-gold-500/20 focus:border-gold-500 transition-all placeholder-slate-400"
+              className="w-full pl-9 pr-4 py-2 text-xs rounded-xl border border-slate-200 bg-slate-50/60 text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 focus:bg-white transition-all placeholder-slate-400"
             />
             <Search
               size={14}
@@ -1387,14 +1387,14 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ initialFilter }) =
             />
           </div>
 
-          {/* Category and Status Dropdowns */}
-          <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto justify-end">
-            <div className="flex items-center gap-1 bg-slate-50/80 px-2.5 py-1 rounded-full border border-slate-200">
+          {/* Category and Status Dropdowns and Actions */}
+          <div className="flex flex-wrap items-center gap-2.5 w-full lg:w-auto justify-start lg:justify-end">
+            <div className="flex items-center gap-1.5 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200">
               <Filter size={12} className="text-slate-400" />
               <select
                 value={selectedCategory}
                 onChange={(e) => setSelectedCategory(e.target.value)}
-                className="bg-transparent text-xs text-ink-600 focus:outline-none font-medium pr-1 cursor-pointer"
+                className="bg-transparent text-xs text-slate-700 focus:outline-none font-medium pr-1 cursor-pointer"
               >
                 <option value="all">Todas as Categorias</option>
                 {categories.map((cat) => (
@@ -1405,11 +1405,11 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ initialFilter }) =
               </select>
             </div>
 
-            <div className="flex items-center gap-1 bg-slate-50/80 px-2.5 py-1 rounded-full border border-slate-200">
+            <div className="flex items-center gap-1.5 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200">
               <select
                 value={selectedStatus}
                 onChange={(e) => setSelectedStatus(e.target.value)}
-                className="bg-transparent text-xs text-ink-600 focus:outline-none font-medium pr-1 cursor-pointer"
+                className="bg-transparent text-xs text-slate-700 focus:outline-none font-medium pr-1 cursor-pointer"
               >
                 <option value="all">Todos os Status</option>
                 <option value="low_stock">⚠️ Abaixo do Mínimo</option>
@@ -1421,11 +1421,11 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ initialFilter }) =
             </div>
 
             {/* Grid / Table View Toggles */}
-            <div className="flex items-center border border-slate-200 rounded-lg p-1 bg-slate-50">
+            <div className="flex items-center border border-slate-200 rounded-xl p-1 bg-slate-100">
               <button
                 type="button"
                 onClick={() => setViewMode("table")}
-                className={`p-1.5 rounded-md transition-colors cursor-pointer ${viewMode === "table" ? "bg-white text-ink-900 shadow-xs" : "text-slate-400 hover:text-ink-600"}`}
+                className={`p-1.5 rounded-lg transition-colors cursor-pointer ${viewMode === "table" ? "bg-white text-slate-900 shadow-xs" : "text-slate-500 hover:text-slate-700"}`}
                 title="Visualização em Tabela"
               >
                 <List size={14} />
@@ -1433,7 +1433,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ initialFilter }) =
               <button
                 type="button"
                 onClick={() => setViewMode("cards")}
-                className={`p-1.5 rounded-md transition-colors cursor-pointer ${viewMode === "cards" ? "bg-white text-ink-900 shadow-xs" : "text-slate-400 hover:text-ink-600"}`}
+                className={`p-1.5 rounded-lg transition-colors cursor-pointer ${viewMode === "cards" ? "bg-white text-slate-900 shadow-xs" : "text-slate-500 hover:text-slate-700"}`}
                 title="Visualização em Cards"
               >
                 <Grid size={14} />
@@ -1441,7 +1441,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ initialFilter }) =
               <button
                 type="button"
                 onClick={() => setViewMode("catalog")}
-                className={`p-1.5 rounded-md transition-colors cursor-pointer ${viewMode === "catalog" ? "bg-white text-ink-900 shadow-xs" : "text-slate-400 hover:text-ink-600"}`}
+                className={`p-1.5 rounded-lg transition-colors cursor-pointer ${viewMode === "catalog" ? "bg-white text-slate-900 shadow-xs" : "text-slate-500 hover:text-slate-700"}`}
                 title="Visualização em Catálogo"
               >
                 <BookOpen size={14} />
@@ -1452,7 +1452,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ initialFilter }) =
             <button
               type="button"
               onClick={() => setCommercialMode(!commercialMode)}
-              className={`px-3.5 py-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs ${commercialMode ? "bg-emerald-50 border-emerald-300 text-emerald-700 font-bold" : "bg-slate-50 border-slate-200 text-slate-500 hover:text-ink-600"}`}
+              className={`px-3 py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs ${commercialMode ? "bg-emerald-50 border-emerald-300 text-emerald-800 font-bold" : "bg-slate-50 border-slate-200 text-slate-600 hover:text-slate-900"}`}
               title="Apresentação para clientes: oculta preços e custos internos"
             >
               {commercialMode ? <EyeOff size={13} /> : <Eye size={13} />}
@@ -1468,21 +1468,21 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ initialFilter }) =
                 setPdfIncludeUnitPrice(!commercialMode);
                 setShowExportPdfModal(true);
               }}
-              className="px-3.5 py-1.5 rounded-lg border border-amber-300 bg-gradient-to-r from-amber-50 to-amber-100/60 hover:from-amber-100 hover:to-amber-200/80 text-amber-900 font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
+              className="px-3 py-1.5 rounded-xl border border-amber-300/80 bg-amber-50 hover:bg-amber-100 text-amber-900 font-semibold text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
               title="Exportar relatório ou catálogo de insumos em formato PDF"
             >
               <Download size={13} className="text-amber-700" />
               <span>Download PDF</span>
             </button>
 
-            {/* Option to show stock in Catalog, visible only when viewMode is catalog */}
+            {/* Option to show stock in Catalog */}
             {viewMode === "catalog" && (
-              <label className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 cursor-pointer select-none">
+              <label className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl text-xs font-medium text-slate-600 cursor-pointer select-none">
                 <input
                   type="checkbox"
                   checked={showStockInCatalog}
                   onChange={(e) => setShowStockInCatalog(e.target.checked)}
-                  className="rounded border-slate-300 text-gold-600 focus:ring-gold-500 cursor-pointer"
+                  className="rounded border-slate-300 text-amber-600 focus:ring-amber-500 cursor-pointer"
                 />
                 <span>Exibir Estoque</span>
               </label>
@@ -1492,9 +1492,9 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ initialFilter }) =
             <button
               onClick={() => {
                 setIsSelectionMode(!isSelectionMode);
-                setSelectedItemIds([]); // Clear selection when toggling
+                setSelectedItemIds([]);
               }}
-              className={`px-4 py-2 rounded-full border text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm ${isSelectionMode ? "bg-gold-500/10 border-gold-500 text-gold-700 font-bold" : "bg-slate-50 border-slate-200 text-slate-500 hover:text-ink-600"}`}
+              className={`px-3.5 py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs ${isSelectionMode ? "bg-amber-50 border-amber-300 text-amber-800 font-bold" : "bg-slate-50 border-slate-200 text-slate-600 hover:text-slate-900"}`}
               title="Selecionar múltiplos itens da lista"
             >
               <CheckSquare size={13} />
@@ -1504,7 +1504,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ initialFilter }) =
             {/* Add New Button */}
             <button
               onClick={handleOpenAdd}
-              className="px-4 py-2 bg-gradient-to-br from-ink-900 to-slate-800 text-white hover:opacity-95 font-medium text-xs rounded-full flex items-center gap-1.5 transition-all shadow-md cursor-pointer"
+              className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs rounded-xl flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
             >
               <Plus size={14} />
               Novo Insumo
@@ -1547,9 +1547,9 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ initialFilter }) =
       )}
 
       {isSelectionMode && (
-        <div className="bg-amber-50/15 border border-amber-200/50 p-4 rounded-[20px] flex flex-col sm:flex-row items-center justify-between gap-4 animate-slide-in-up">
+        <div className="bg-amber-50/60 border border-amber-200/80 p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 animate-slide-in-up">
           <div className="flex items-center gap-3">
-            <span className="w-6 h-6 rounded-full bg-gold-500 text-white flex items-center justify-center text-[11px] font-mono font-bold shadow-xs">
+            <span className="w-6 h-6 rounded-full bg-amber-600 text-white flex items-center justify-center text-[11px] font-mono font-bold shadow-xs">
               {selectedItemIds.length}
             </span>
             <div>
@@ -1584,7 +1584,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ initialFilter }) =
                   );
                 }
               }}
-              className="px-3.5 py-1.5 border border-slate-200 hover:bg-slate-50 rounded-xl text-xs font-semibold text-slate-600 transition-colors cursor-pointer bg-white"
+              className="px-3 py-1.5 border border-slate-200 hover:bg-slate-50 rounded-xl text-xs font-semibold text-slate-600 transition-colors cursor-pointer bg-white"
             >
               {filteredItems.length > 0 &&
               filteredItems.every((item) => selectedItemIds.includes(item.id))
@@ -1610,7 +1610,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ initialFilter }) =
                 });
                 setShowBatchAdjustModal(true);
               }}
-              className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-sm cursor-pointer flex items-center gap-1.5"
+              className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-xs cursor-pointer flex items-center gap-1.5"
             >
               <Package size={13} />
               Movimentar Estoque em Lote
@@ -1620,7 +1620,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ initialFilter }) =
               type="button"
               disabled={selectedItemIds.length === 0}
               onClick={() => setShowBatchDeleteModal(true)}
-              className="px-3.5 py-1.5 bg-rose-500 hover:bg-rose-600 text-white rounded-xl text-xs font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-sm cursor-pointer flex items-center gap-1.5"
+              className="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-xs cursor-pointer flex items-center gap-1.5"
             >
               <Trash2 size={13} />
               Excluir em Lote
@@ -1631,11 +1631,11 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ initialFilter }) =
 
       {/* Main Inventory Listing Block */}
       {viewMode === "table" ? (
-        <div className="bg-white border border-[rgba(42,36,32,0.06)] rounded-[20px] shadow-xs overflow-hidden">
+        <div className="bg-white border border-slate-200/80 rounded-2xl shadow-xs overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[800px] text-left text-xs">
               <thead>
-                <tr className="border-b border-slate-100 text-ink-600 font-bold uppercase tracking-wider bg-bg-app">
+                <tr className="border-b border-slate-200/80 text-slate-600 font-semibold uppercase tracking-wider bg-slate-50/70">
                   {isSelectionMode && (
                     <th className="px-5 py-3.5 font-semibold text-[10px] w-12 text-center">
                       Sel
@@ -1697,13 +1697,13 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ initialFilter }) =
                       className={`transition-colors duration-150 ${
                         isSelectionMode
                           ? selectedItemIds.includes(item.id)
-                            ? "bg-gold-500/5 hover:bg-gold-500/10 border-l-2 border-gold-500 cursor-pointer"
-                            : "hover:bg-[#FAF7F2]/40 cursor-pointer"
-                          : "hover:bg-[#FAF7F2]/40"
+                            ? "bg-amber-500/5 hover:bg-amber-500/10 border-l-2 border-amber-500 cursor-pointer"
+                            : "hover:bg-slate-50/60 cursor-pointer"
+                          : "hover:bg-slate-50/60"
                       }`}
                     >
                       {isSelectionMode && (
-                        <td className="px-5 py-4 text-center w-12">
+                        <td className="px-5 py-3.5 text-center w-12">
                           <input
                             type="checkbox"
                             checked={selectedItemIds.includes(item.id)}
@@ -1721,17 +1721,17 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ initialFilter }) =
                                 );
                               }
                             }}
-                            className="rounded border-slate-300 text-gold-600 focus:ring-gold-500 cursor-pointer"
+                            className="rounded border-slate-300 text-amber-600 focus:ring-amber-500 cursor-pointer"
                           />
                         </td>
                       )}
-                      <td className="px-5 py-4 font-mono font-bold text-slate-400">
+                      <td className="px-5 py-3.5 font-mono font-semibold text-slate-500 text-xs">
                         {item.code}
                       </td>
-                      <td className="px-5 py-4">
+                      <td className="px-5 py-3.5">
                         <div>
-                          <p className="font-bold text-ink-900">{item.name}</p>
-                          <p className="text-[10px] text-slate-500 mt-1 font-medium">
+                          <p className="font-semibold text-slate-900">{item.name}</p>
+                          <p className="text-[10.5px] text-slate-400 mt-0.5 font-normal">
                             Controle em {item.unit}{" "}
                             {item.weightG > 0
                               ? `| ${item.weightG}g por un`
@@ -1739,13 +1739,13 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ initialFilter }) =
                           </p>
                         </div>
                       </td>
-                      <td className="px-5 py-4 font-semibold text-slate-600">
+                      <td className="px-5 py-3.5 font-medium text-slate-600">
                         {item.category}
                       </td>
-                      <td className="px-5 py-4 text-slate-500 font-medium">
+                      <td className="px-5 py-3.5 text-slate-500">
                         {item.supplier || "-"}
                       </td>
-                      <td className="px-5 py-4 font-bold font-mono text-ink-900">
+                      <td className="px-5 py-3.5 font-mono font-semibold text-slate-900">
                         {commercialMode ? (
                           <span className="text-slate-400 font-sans text-xs font-normal">Sob consulta</span>
                         ) : (
@@ -1758,23 +1758,23 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ initialFilter }) =
                           </>
                         )}
                       </td>
-                      <td className="px-5 py-4">
+                      <td className="px-5 py-3.5">
                         <div className="flex flex-col gap-1">
                           <div className="flex items-center gap-1.5">
                             <span
-                              className={`px-2.5 py-1 rounded-full text-xs font-bold font-mono ${
+                              className={`px-2 py-0.5 rounded-full text-xs font-bold font-mono ${
                                 isCritical
-                                  ? "bg-rose-50 text-rose-600 border border-rose-100"
+                                  ? "bg-rose-50 text-rose-700 border border-rose-200/60"
                                   : isLow
-                                    ? "bg-warning-bg text-warning-500 border border-warning-bg"
-                                    : "bg-slate-50 text-slate-700 border border-slate-100"
+                                    ? "bg-amber-50 text-amber-700 border border-amber-200/60"
+                                    : "bg-slate-100 text-slate-700 border border-slate-200/60"
                               }`}
                             >
                               {item.quantity} {item.unit}
                             </span>
                             {(isCritical || isLow) && (
                               <span
-                                className={`text-[10px] font-bold ${isCritical ? "text-rose-500" : "text-warning-500"}`}
+                                className={`text-[10px] font-bold ${isCritical ? "text-rose-600" : "text-amber-600"}`}
                               >
                                 {isCritical ? "ESGOTADO" : "BAIXO"}
                               </span>
@@ -1797,44 +1797,44 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ initialFilter }) =
                           )}
                         </div>
                       </td>
-                      <td className="px-5 py-4">
+                      <td className="px-5 py-3.5">
                         <span
-                          className={`px-2.5 py-1 rounded-full text-[9px] font-bold ${
+                          className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
                             item.status === "active"
-                              ? "bg-emerald-50 text-emerald-600 border border-emerald-100"
-                              : "bg-slate-50 text-slate-400 border border-slate-100"
+                              ? "bg-emerald-50 text-emerald-700 border border-emerald-200/60"
+                              : "bg-slate-100 text-slate-500 border border-slate-200/60"
                           }`}
                         >
                           {item.status === "active" ? "ATIVO" : "INATIVO"}
                         </span>
                       </td>
-                      <td className="px-5 py-4 text-right">
-                        <div className="flex justify-end gap-2">
+                      <td className="px-5 py-3.5 text-right">
+                        <div className="flex justify-end gap-1.5">
                           <button
                             onClick={() => handleOpenDetails(item)}
                             title="Informações e Histórico"
-                            className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-amber-600 cursor-pointer transition-all duration-150"
+                            className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-amber-700 cursor-pointer transition-all duration-150"
                           >
                             <BarChart2 size={13} />
                           </button>
                           <button
                             onClick={() => handleOpenAdjust(item)}
                             title="Entrada / Saída de Estoque"
-                            className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-gold-600 cursor-pointer transition-all duration-150"
+                            className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-amber-700 cursor-pointer transition-all duration-150"
                           >
                             <ArrowUpDown size={13} />
                           </button>
                           <button
                             onClick={() => handleOpenEdit(item)}
                             title="Editar Insumo"
-                            className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-indigo-600 cursor-pointer transition-all duration-150"
+                            className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-slate-900 cursor-pointer transition-all duration-150"
                           >
                             <Edit3 size={13} />
                           </button>
                           <button
                             onClick={() => handleDelete(item.id, item.name)}
                             title="Excluir"
-                            className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-rose-50 hover:text-rose-600 cursor-pointer transition-all duration-150"
+                            className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 cursor-pointer transition-all duration-150"
                           >
                             <Trash2 size={13} />
                           </button>
@@ -1845,9 +1845,11 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ initialFilter }) =
                 })}
                 {filteredItems.length === 0 && (
                   <tr>
-                    <td colSpan={8} className="p-12 text-center text-slate-400">
-                      Nenhum item encontrado para as configurações de filtro
-                      atuais.
+                    <td colSpan={isSelectionMode ? 9 : 8} className="p-8">
+                      <EmptyState
+                        title="Nenhum insumo encontrado"
+                        description="Tente ajustar a busca ou os filtros de categoria e status para encontrar o item desejado."
+                      />
                     </td>
                   </tr>
                 )}
@@ -1856,7 +1858,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ initialFilter }) =
           </div>
         </div>
       ) : viewMode === "cards" ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {filteredItems.map((item) => {
             const isLow =
               item.quantity <= item.minQuantity && item.quantity > 0;
@@ -1883,15 +1885,15 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ initialFilter }) =
                      }
                    }
                  }}
-                 className={`bg-white border rounded-[20px] p-6 shadow-xs hover:shadow-md transition-all flex flex-col justify-between hover:-translate-y-0.5 duration-200 cursor-pointer ${
+                 className={`bg-white border rounded-2xl p-5 shadow-xs hover:shadow-md transition-all flex flex-col justify-between hover:-translate-y-0.5 duration-200 cursor-pointer ${
                    isSelectionMode && selectedItemIds.includes(item.id)
-                     ? "ring-2 ring-gold-500 bg-gold-500/5"
+                     ? "ring-2 ring-amber-500 bg-amber-500/5"
                      :
                   isCritical
-                    ? "border-rose-200"
+                    ? "border-rose-200/90"
                     : isLow
-                      ? "border-amber-200"
-                      : "border-[rgba(42,36,32,0.06)]"
+                      ? "border-amber-200/90"
+                      : "border-slate-200/80"
                 }`}
               >
                 <div>
@@ -1910,22 +1912,22 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ initialFilter }) =
                               );
                             }
                           }}
-                          className="rounded border-slate-300 text-gold-600 focus:ring-gold-500 cursor-pointer"
+                          className="rounded border-slate-300 text-amber-600 focus:ring-amber-500 cursor-pointer"
                         />
-                        <span className="text-[10px] font-mono font-bold text-slate-400">
+                        <span className="text-[10px] font-mono font-semibold text-slate-400">
                           {item.code}
                         </span>
                       </div>
                     ) : (
-                      <span className="text-[10px] font-mono font-bold text-slate-400">
+                      <span className="text-[10px] font-mono font-semibold text-slate-400">
                         {item.code}
                       </span>
                     )}
                     <span
-                      className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold ${
+                      className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
                         item.status === "active"
-                          ? "bg-emerald-50 text-emerald-600 border border-emerald-100"
-                          : "bg-slate-50 text-slate-400 border border-slate-100"
+                          ? "bg-emerald-50 text-emerald-700 border border-emerald-200/60"
+                          : "bg-slate-100 text-slate-500 border border-slate-200/60"
                       }`}
                     >
                       {item.status === "active" ? "ATIVO" : "INATIVO"}
@@ -1943,19 +1945,19 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ initialFilter }) =
                     </div>
                   )}
 
-                  <h3 className="font-serif font-semibold text-base text-ink-900 mt-3 truncate">
+                  <h3 className="font-serif font-semibold text-base text-slate-900 mt-3 truncate">
                     {item.name}
                   </h3>
-                  <p className="text-[10px] text-ink-600 font-bold uppercase tracking-wider mt-1">
+                  <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider mt-0.5">
                     {item.category}
                   </p>
 
-                  <div className="grid grid-cols-2 gap-3 mt-4 pt-4 border-t border-slate-100 text-xs">
+                  <div className="grid grid-cols-2 gap-3 mt-3 pt-3 border-t border-slate-100 text-xs">
                     <div>
                       <p className="text-slate-400 font-medium">
                         Controle / Peso
                       </p>
-                      <p className="font-bold text-slate-700 mt-0.5">
+                      <p className="font-semibold text-slate-700 mt-0.5">
                         {item.unit}{" "}
                         {item.weightG > 0 ? `| ${item.weightG}g` : ""}
                       </p>
@@ -1964,7 +1966,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ initialFilter }) =
                       <p className="text-slate-400 font-medium">
                         Preço Unitário
                       </p>
-                      <p className="font-bold text-slate-700 mt-0.5">
+                      <p className="font-semibold text-slate-900 mt-0.5 font-mono">
                         {commercialMode ? (
                           <span className="text-slate-400 font-sans text-xs font-normal">Sob consulta</span>
                         ) : (
@@ -1981,39 +1983,41 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ initialFilter }) =
                   </div>
 
                   {item.notes && (
-                    <p className="text-[11px] text-slate-500 italic mt-3 bg-slate-50 p-2.5 rounded-lg line-clamp-2">
+                    <p className="text-[11px] text-slate-500 italic mt-3 bg-slate-50 p-2.5 rounded-xl border border-slate-100 line-clamp-2">
                       "{item.notes}"
                     </p>
                   )}
                 </div>
 
-                <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between">
+                <div className="mt-5 pt-3.5 border-t border-slate-100 flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span
-                      className={`w-2.5 h-2.5 rounded-full ${isCritical ? "bg-rose-500 animate-pulse" : isLow ? "bg-warning-500" : "bg-emerald-500"}`}
+                      className={`w-2 h-2 rounded-full ${isCritical ? "bg-rose-500 animate-pulse" : isLow ? "bg-amber-500" : "bg-emerald-500"}`}
                     />
-                    <span className="text-xs font-mono font-bold text-slate-800">
+                    <span className="text-xs font-mono font-semibold text-slate-700">
                       Qtd: {item.quantity} {item.unit}
                     </span>
                   </div>
 
-                  <div className="flex gap-2">
+                  <div className="flex gap-1.5">
                     <button
                       onClick={() => handleOpenDetails(item)}
                       title="Informações e Histórico"
-                      className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600 hover:text-amber-600 cursor-pointer"
+                      className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-500 hover:text-amber-700 cursor-pointer transition-colors"
                     >
                       <BarChart2 size={13} />
                     </button>
                     <button
                       onClick={() => handleOpenAdjust(item)}
-                      className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600 hover:text-gold-600 cursor-pointer"
+                      title="Movimentar Estoque"
+                      className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-500 hover:text-amber-700 cursor-pointer transition-colors"
                     >
                       <ArrowUpDown size={13} />
                     </button>
                     <button
                       onClick={() => handleOpenEdit(item)}
-                      className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600 hover:text-indigo-600 cursor-pointer"
+                      title="Editar Insumo"
+                      className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-500 hover:text-slate-900 cursor-pointer transition-colors"
                     >
                       <Edit3 size={13} />
                     </button>
@@ -2022,9 +2026,17 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ initialFilter }) =
               </div>
             );
           })}
+          {filteredItems.length === 0 && (
+            <div className="col-span-full p-8 bg-white border border-slate-200/80 rounded-2xl">
+              <EmptyState
+                title="Nenhum insumo encontrado"
+                description="Tente ajustar a busca ou os filtros de categoria e status para encontrar o item desejado."
+              />
+            </div>
+          )}
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
           {filteredItems.map((item) => {
             const isAvailable = item.quantity > 0;
             const isLow = item.quantity <= item.minQuantity && item.quantity > 0;
@@ -2047,7 +2059,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ initialFilter }) =
             return (
               <div
                 key={item.id}
-                className="bg-white border border-[rgba(42,36,32,0.06)] rounded-2xl overflow-hidden shadow-xs hover:shadow-md transition-all flex flex-col justify-between hover:-translate-y-0.5 duration-200"
+                className="bg-white border border-slate-200/80 rounded-2xl overflow-hidden shadow-xs hover:shadow-md transition-all flex flex-col justify-between hover:-translate-y-0.5 duration-200"
               >
                 <div>
                   {/* Image/Photo Block */}
@@ -2067,16 +2079,16 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ initialFilter }) =
                     )}
 
                     {/* Category Badge - top left */}
-                    <span className="absolute top-3 left-3 px-2 py-1 bg-white/95 backdrop-blur-xs text-[9px] font-bold text-ink-900 rounded-md shadow-xs border border-slate-150 uppercase tracking-wider">
+                    <span className="absolute top-3 left-3 px-2 py-0.5 bg-white/95 backdrop-blur-xs text-[9px] font-semibold text-slate-800 rounded-md shadow-xs border border-slate-200 uppercase tracking-wider">
                       {item.category}
                     </span>
 
                     {/* Status/Availability Badge - top right */}
                     <span
-                      className={`absolute top-3 right-3 px-2.5 py-1 rounded-full text-[9px] font-bold shadow-xs border backdrop-blur-xs ${
+                      className={`absolute top-3 right-3 px-2.5 py-0.5 rounded-full text-[9px] font-semibold shadow-xs border backdrop-blur-xs ${
                         isAvailable
-                          ? "bg-emerald-500 text-white border-emerald-400"
-                          : "bg-rose-500 text-white border-rose-400"
+                          ? "bg-emerald-600 text-white border-emerald-500"
+                          : "bg-rose-600 text-white border-rose-500"
                       }`}
                     >
                       {isAvailable ? "Disponível" : "Esgotado"}
@@ -2085,7 +2097,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ initialFilter }) =
 
                   {/* Body Info */}
                   <div className="p-4">
-                    <h3 className="font-serif font-semibold text-sm text-ink-900 line-clamp-2 min-h-[40px] leading-tight">
+                    <h3 className="font-serif font-semibold text-sm text-slate-900 line-clamp-2 min-h-[40px] leading-tight">
                       {item.name}
                     </h3>
                     
@@ -2095,12 +2107,12 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ initialFilter }) =
                       </p>
                     )}
 
-                    <div className="mt-4 space-y-2.5 pt-3.5 border-t border-slate-100 text-xs">
+                    <div className="mt-4 space-y-2 pt-3 border-t border-slate-100 text-xs">
                       {/* Show stock count if either commercialMode is off, OR the optional showStockInCatalog is active */}
                       {(!commercialMode || showStockInCatalog) && (
                         <div className="flex items-center justify-between text-[11px]">
                           <span className="text-slate-400 font-medium">Estoque:</span>
-                          <span className={`font-mono font-bold ${isLow ? "text-amber-600" : isAvailable ? "text-slate-800" : "text-rose-500"}`}>
+                          <span className={`font-mono font-semibold ${isLow ? "text-amber-600" : isAvailable ? "text-slate-800" : "text-rose-600"}`}>
                             {item.quantity} {item.unit}
                           </span>
                         </div>
@@ -2110,7 +2122,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ initialFilter }) =
                       {!commercialMode ? (
                         <div className="flex items-center justify-between text-[11px]">
                           <span className="text-slate-400 font-medium">Valor Unitário:</span>
-                          <span className="font-bold text-slate-800">
+                          <span className="font-semibold text-slate-900 font-mono">
                             R$ {item.unitValue.toLocaleString("pt-BR", {
                               minimumFractionDigits: 2,
                               maximumFractionDigits: 4,
@@ -2120,7 +2132,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ initialFilter }) =
                       ) : (
                         <div className="flex items-center justify-between text-[11px] bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-100">
                           <span className="text-slate-400 font-medium text-[10px]">Preço Comercial:</span>
-                          <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider flex items-center gap-1">
+                          <span className="text-[10px] font-semibold text-emerald-700 uppercase tracking-wider flex items-center gap-1">
                             Sob Consulta
                           </span>
                         </div>
@@ -2135,7 +2147,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ initialFilter }) =
                     <button
                       onClick={() => handleOpenDetails(item)}
                       title="Ver Informações"
-                      className="flex-1 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600 hover:text-amber-600 cursor-pointer text-[11px] font-semibold flex items-center justify-center gap-1 transition-colors"
+                      className="flex-1 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-600 hover:text-amber-700 cursor-pointer text-[11px] font-semibold flex items-center justify-center gap-1 transition-colors"
                     >
                       <Info size={12} />
                       Detalhes
@@ -2147,14 +2159,14 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ initialFilter }) =
                         <button
                           onClick={() => handleOpenAdjust(item)}
                           title="Movimentar Estoque"
-                          className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600 hover:text-gold-600 cursor-pointer transition-colors"
+                          className="p-1.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-500 hover:text-amber-700 cursor-pointer transition-colors"
                         >
                           <ArrowUpDown size={12} />
                         </button>
                         <button
                           onClick={() => handleOpenEdit(item)}
                           title="Editar Insumo"
-                          className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600 hover:text-indigo-600 cursor-pointer transition-colors"
+                          className="p-1.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-500 hover:text-slate-900 cursor-pointer transition-colors"
                         >
                           <Edit3 size={12} />
                         </button>
@@ -2166,8 +2178,11 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ initialFilter }) =
             );
           })}
           {filteredItems.length === 0 && (
-            <div className="col-span-full p-12 text-center text-slate-400 bg-white border border-dashed border-slate-200 rounded-2xl">
-              Nenhum item encontrado para as configurações de filtro atuais.
+            <div className="col-span-full p-8 bg-white border border-slate-200/80 rounded-2xl">
+              <EmptyState
+                title="Nenhum insumo encontrado"
+                description="Tente ajustar a busca ou os filtros de categoria e status para encontrar o item desejado."
+              />
             </div>
           )}
         </div>

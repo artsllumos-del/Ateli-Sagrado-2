@@ -111,10 +111,10 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   return (
     <div className="space-y-4 no-print">
       {/* 1. Smart Header / Cabeçalho Inteligente */}
-      <div className="bg-white border border-slate-100 p-6 rounded-2xl shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-white border border-slate-200/80 p-5 sm:p-6 rounded-2xl shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="space-y-1.5">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-amber-600 bg-amber-50 px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-bold text-amber-800 bg-amber-50 border border-amber-200/60 px-2.5 py-0.5 rounded-full uppercase tracking-wider">
               {getGreeting()}
             </span>
             <span className="text-[11px] font-mono text-slate-400">
@@ -129,13 +129,13 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                   type="text"
                   value={companyNameInput}
                   onChange={(e) => setCompanyNameInput(e.target.value)}
-                  className="px-2.5 py-1 text-sm font-serif font-semibold border border-slate-200 rounded-lg text-slate-900 bg-slate-50 focus:ring-2 focus:ring-amber-500/20"
+                  className="px-2.5 py-1 text-sm font-serif font-semibold border border-slate-300 rounded-xl text-slate-900 bg-slate-50 focus:ring-2 focus:ring-amber-500/20"
                   autoFocus
                   onKeyDown={(e) => { if (e.key === 'Enter') handleSaveCompanyName(); }}
                 />
                 <button
                   onClick={handleSaveCompanyName}
-                  className="p-1.5 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100 transition-colors"
+                  className="p-1.5 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100 transition-colors cursor-pointer"
                 >
                   <Check size={14} />
                 </button>
@@ -147,7 +147,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                 </h1>
                 <button
                   onClick={() => setIsEditingName(true)}
-                  className="p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded transition-colors"
+                  className="p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
                   title="Editar nome do ateliê"
                 >
                   <Edit2 size={13} />
@@ -157,17 +157,17 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
           </div>
 
           <p className="text-xs text-slate-500 font-medium">
-            Atividades de hoje: <strong className="text-amber-700 font-semibold">{inProductionCount}</strong> pedidos em produção • <strong className="text-amber-700 font-semibold">{deliveriesTodayCount}</strong> entregas programadas para hoje.
+            Atividades de hoje: <strong className="text-amber-800 font-semibold">{inProductionCount}</strong> pedidos em produção • <strong className="text-amber-800 font-semibold">{deliveriesTodayCount}</strong> entregas programadas para hoje.
           </p>
         </div>
 
         {/* Quick Access stats row */}
-        <div className="flex items-center gap-3">
-          <div className="px-4 py-2 bg-slate-50 border border-slate-100 rounded-xl text-center min-w-[100px]">
+        <div className="grid grid-cols-2 sm:flex items-center gap-3 w-full sm:w-auto">
+          <div className="px-4 py-2 bg-slate-50 border border-slate-200/80 rounded-xl text-center flex-1 sm:min-w-[100px]">
             <span className="block text-[10px] uppercase tracking-wider font-bold text-slate-400">Na Produção</span>
             <span className="text-lg font-mono font-black text-slate-800">{inProductionCount}</span>
           </div>
-          <div className="px-4 py-2 bg-slate-50 border border-slate-100 rounded-xl text-center min-w-[100px]">
+          <div className="px-4 py-2 bg-slate-50 border border-slate-200/80 rounded-xl text-center flex-1 sm:min-w-[100px]">
             <span className="block text-[10px] uppercase tracking-wider font-bold text-slate-400">Para Hoje</span>
             <span className="text-lg font-mono font-black text-slate-800">{deliveriesTodayCount}</span>
           </div>

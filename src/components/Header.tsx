@@ -80,30 +80,31 @@ interface HeaderProps {
  };
 
  return (
-  <header className="h-16 border-b border-[rgba(42,36,32,0.06)] bg-[#FFFDF9] px-6 flex items-center justify-between sticky top-0 z-30 print:hidden">
+  <header className="h-16 border-b border-[rgba(42,36,32,0.06)] bg-[#FFFDF9] px-3 sm:px-6 flex items-center justify-between sticky top-0 z-30 print:hidden">
   
    {/* Left Area: Hamburger and Ateliê Brand Badge */}
-   <div className="flex items-center gap-3">
+   <div className="flex items-center gap-2 sm:gap-3 min-w-0">
     <button 
      onClick={onMenuToggle}
-     className="p-2 -ml-2 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-700 lg:hidden cursor-pointer"
+     className="p-2 -ml-1 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-700 lg:hidden cursor-pointer shrink-0"
+     aria-label="Abrir menu"
     >
      <Menu size={20} />
     </button>
 
     {/* Dedicated Ateliê Brand Badge */}
-    <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs font-bold text-amber-950 shadow-2xs">
+    <div className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs font-bold text-amber-950 shadow-2xs shrink-0">
      <div 
       className="w-2.5 h-2.5 rounded-full ring-2 ring-white shrink-0" 
       style={{ backgroundColor: currentTenant?.primaryColor || '#D4AF37' }}
      />
-     <span className="truncate max-w-[140px] sm:max-w-[200px]">
+     <span className="truncate max-w-[110px] sm:max-w-[180px]">
       {currentTenant?.name || settings.companyName || 'Ateliê Sagrado'}
      </span>
     </div>
 
-    <ChevronRight size={14} className="hidden sm:inline text-slate-300" />
-    <span className="text-ink-900 font-serif italic font-semibold truncate max-w-[110px] sm:max-w-none text-xs">
+    <ChevronRight size={14} className="hidden sm:inline text-slate-300 shrink-0" />
+    <span className="text-ink-900 font-serif italic font-semibold truncate hidden sm:inline text-xs">
      {viewLabels[currentView] || currentView}
     </span>
    </div>
@@ -128,42 +129,43 @@ interface HeaderProps {
     <div className="relative">
      <button
       onClick={() => setShowQuickMenu(!showQuickMenu)}
-      className="flex items-center gap-1 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full bg-ink-900 text-white hover:bg-slate-800 text-xs font-medium transition-all shadow-sm cursor-pointer"
+      className="flex items-center gap-1.5 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl bg-ink-900 text-white hover:bg-slate-800 active:bg-slate-950 text-xs font-semibold transition-all shadow-xs cursor-pointer select-none active:scale-[0.98]"
      >
-      <span className="sm:hidden font-bold text-[13px]">+ Novo</span>
-      <span className="hidden sm:inline">+ Ações Rápidas</span>
+      <span className="text-amber-400 font-bold text-sm leading-none">+</span>
+      <span className="hidden sm:inline">Ações Rápidas</span>
+      <span className="sm:hidden font-medium">Novo</span>
      </button>
 
      {showQuickMenu && (
       <>
        <div className="fixed inset-0 z-40" onClick={() => setShowQuickMenu(false)} />
-       <div className="absolute right-0 mt-2 w-52 bg-white border border-[rgba(42,36,32,0.06)] rounded-xl shadow-lg p-2 z-50 animate-slide-in-up">
+       <div className="absolute right-0 mt-2 w-52 bg-white border border-slate-200/90 rounded-2xl shadow-xl p-1.5 z-50 animate-slide-in-up">
         <button
          onClick={() => { onQuickAction('order'); setShowQuickMenu(false); }}
-         className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 rounded-lg text-left cursor-pointer"
+         className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-slate-900 rounded-xl text-left cursor-pointer transition-colors"
         >
-         <ShoppingCart size={14} className="text-slate-400" />
+         <ShoppingCart size={15} className="text-amber-600" />
          Novo Pedido
         </button>
         <button
          onClick={() => { onQuickAction('client'); setShowQuickMenu(false); }}
-         className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 rounded-lg text-left cursor-pointer"
+         className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-slate-900 rounded-xl text-left cursor-pointer transition-colors"
         >
-         <UserPlus size={14} className="text-slate-400" />
+         <UserPlus size={15} className="text-sky-600" />
          Novo Cliente
         </button>
         <button
          onClick={() => { onQuickAction('product'); setShowQuickMenu(false); }}
-         className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 rounded-lg text-left cursor-pointer"
+         className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-slate-900 rounded-xl text-left cursor-pointer transition-colors"
         >
-         <Sparkles size={14} className="text-slate-400" />
+         <Sparkles size={15} className="text-amber-600" />
          Novo Produto
         </button>
         <button
          onClick={() => { onQuickAction('quote'); setShowQuickMenu(false); }}
-         className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 rounded-lg text-left cursor-pointer"
+         className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-slate-900 rounded-xl text-left cursor-pointer transition-colors"
         >
-         <FileText size={14} className="text-slate-400" />
+         <FileText size={15} className="text-emerald-600" />
          Novo Orçamento
         </button>
        </div>
@@ -175,7 +177,8 @@ interface HeaderProps {
     <div className="relative">
      <button
       onClick={() => setShowNotifications(!showNotifications)}
-      className="p-2 rounded-xl border border-slate-200/80 hover:bg-slate-50/50 text-slate-600 transition-colors cursor-pointer relative"
+      className="p-2 rounded-xl border border-slate-200/80 hover:bg-slate-50 text-slate-600 transition-colors cursor-pointer relative"
+      aria-label="Ver notificações"
      >
       <Bell size={18} />
       {notifications.some(n => !n.read) && (
@@ -186,7 +189,7 @@ interface HeaderProps {
      {showNotifications && (
       <>
        <div className="fixed inset-0 z-40" onClick={() => setShowNotifications(false)} />
-       <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white border border-[rgba(42,36,32,0.06)] rounded-2xl shadow-xl p-4 z-50 animate-slide-in-up">
+       <div className="fixed sm:absolute top-16 sm:top-auto left-3 sm:left-auto right-3 sm:right-0 mt-2 sm:w-96 max-w-[calc(100vw-24px)] bg-white border border-slate-200/90 rounded-2xl shadow-2xl p-4 z-50 animate-slide-in-up">
         <div className="flex items-center justify-between mb-3">
          <h3 className="font-bold text-xs text-slate-800 uppercase tracking-wider">
           Notificações do Ateliê

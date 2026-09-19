@@ -3,6 +3,7 @@
   "appId": "1:407230672607:web:76c0caf3d6b88cdec6036a",
   "apiKey": "AIzaSyAorYyLOpGndZGUYUpm1qI5_eN2bGPSXWc",
   "authDomain": "dogwood-matrix-809p9.firebaseapp.com",
+  "firestoreDatabaseId": "ai-studio-atelisagradoerp-065c97e2-90cb-494d-98e9-f6e8e9f69c2b",
   "storageBucket": "dogwood-matrix-809p9.firebasestorage.app",
   "messagingSenderId": "407230672607",
   "measurementId": "",

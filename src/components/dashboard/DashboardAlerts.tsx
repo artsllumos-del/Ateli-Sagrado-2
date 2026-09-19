@@ -1,6 +1,7 @@
 import React from 'react';
-import { AlertTriangle, Hammer, Package, FileText, ArrowRight } from 'lucide-react';
+import { AlertTriangle, Hammer, Package, FileText, ArrowRight, CheckCircle2 } from 'lucide-react';
 import { Order, InventoryItem, Quote, ProductionTask } from '../../types/erp';
+import { Badge, EmptyState } from '../ui';
 
 interface DashboardAlertsProps {
   onViewChange: (view: string, params?: Record<string, any>) => void;
@@ -163,9 +164,9 @@ export const DashboardAlerts: React.FC<DashboardAlertsProps> = ({
   }
 
   return (
-    <div className="bg-white border border-slate-100 p-6 rounded-2xl shadow-xs space-y-4 no-print">
+    <div className="bg-white border border-slate-200/80 p-5 sm:p-6 rounded-2xl shadow-xs space-y-4 no-print">
       <div className="flex items-center gap-2">
-        <AlertTriangle size={18} className="text-rose-500" />
+        <AlertTriangle size={18} className="text-amber-600" />
         <div>
           <h3 className="font-serif font-semibold text-base text-slate-900">Alertas Inteligentes</h3>
           <p className="text-[11px] text-slate-500">Ações prioritárias e críticas identificadas no sistema</p>
@@ -173,36 +174,38 @@ export const DashboardAlerts: React.FC<DashboardAlertsProps> = ({
       </div>
 
       {alertsList.length === 0 ? (
-        <div className="p-8 text-center bg-emerald-50/40 border border-emerald-100 rounded-xl text-emerald-800 text-xs font-medium">
-          🎉 Excelente! Nenhum alerta pendente ou inconformidade em estoque ou produção no momento.
-        </div>
+        <EmptyState
+          title="Tudo em conformidade"
+          description="Nenhum alerta pendente ou inconformidade em estoque ou produção no momento."
+        />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
           {alertsList.map((alert) => (
             <div
               key={alert.id}
-              className={`p-4.5 rounded-xl border ${alert.bgColor} ${alert.borderColor} flex flex-col justify-between gap-3 text-xs`}
+              className={`p-4 rounded-xl border ${alert.bgColor} ${alert.borderColor} flex flex-col justify-between gap-3 text-xs`}
             >
               <div className="space-y-1.5">
                 <div className="flex items-center gap-2">
                   {alert.icon}
                   <span className={`font-bold ${alert.textColor}`}>{alert.title}</span>
-                  <span className={`ml-auto text-[9px] font-bold px-1.5 py-0.5 rounded uppercase ${
-                    alert.priority === 'high' ? 'bg-rose-100 text-rose-800' :
-                    alert.priority === 'medium' ? 'bg-amber-100 text-amber-800' :
-                    'bg-slate-200 text-slate-800'
-                  }`}>
-                    {alert.priority === 'high' ? 'Alta' : alert.priority === 'medium' ? 'Média' : 'Baixa'}
-                  </span>
+                  <div className="ml-auto">
+                    <Badge
+                      variant={alert.priority === 'high' ? 'danger' : alert.priority === 'medium' ? 'warning' : 'neutral'}
+                      size="sm"
+                    >
+                      {alert.priority === 'high' ? 'Alta' : alert.priority === 'medium' ? 'Média' : 'Baixa'}
+                    </Badge>
+                  </div>
                 </div>
-                <p className="text-slate-600 text-[11px] leading-relaxed">
+                <p className="text-slate-600 text-[11.5px] leading-relaxed">
                   {alert.message}
                 </p>
               </div>
 
               <button
                 onClick={() => onViewChange(alert.targetView, alert.targetParams)}
-                className="mt-1 inline-flex items-center gap-1 text-[10.5px] font-bold text-slate-800 hover:text-amber-700 transition-colors cursor-pointer self-start group"
+                className="mt-1 inline-flex items-center gap-1 text-[11px] font-bold text-slate-800 hover:text-amber-800 transition-colors cursor-pointer self-start group"
               >
                 {alert.actionText}
                 <ArrowRight size={11} className="transition-transform group-hover:translate-x-0.5" />

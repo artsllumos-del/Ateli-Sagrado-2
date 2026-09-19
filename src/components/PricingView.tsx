@@ -63,8 +63,8 @@ export const PricingView: React.FC = () => {
   const [tempMatId, setTempMatId] = useState('');
   const [tempQty, setTempQty] = useState(1);
 
-  const activeInsumos = inventory.filter(i => !i.isDeleted && i.status === 'active');
-  const activeProducts = products.filter(p => !p.isDeleted);
+  const activeInsumos = useMemo(() => inventory.filter(i => !i.isDeleted && i.status === 'active'), [inventory]);
+  const activeProducts = useMemo(() => products.filter(p => !p.isDeleted), [products]);
 
   // Initialize defaults from system settings
   useEffect(() => {

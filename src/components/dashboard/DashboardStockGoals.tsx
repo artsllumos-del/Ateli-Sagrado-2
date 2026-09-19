@@ -63,42 +63,42 @@ export const DashboardStockGoals: React.FC<DashboardStockGoalsProps> = ({
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       
       {/* 1. WIDGET: ESTOQUE */}
-      <div className="bg-white border border-slate-100 p-6 rounded-2xl shadow-xs space-y-4">
+      <div className="bg-white border border-slate-200/80 p-5 sm:p-6 rounded-2xl shadow-xs space-y-4">
         <div className="border-b border-slate-100 pb-3">
           <h3 className="font-serif font-semibold text-base text-slate-900">Saúde do Estoque</h3>
           <p className="text-[11px] text-slate-500">Acompanhamento de insumos críticos e valores imobilizados</p>
         </div>
 
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-3 gap-2.5 sm:gap-3">
           <div 
             onClick={() => onViewChange?.('inventory')}
-            className={`bg-slate-50 p-3 rounded-xl text-center border border-slate-100/60 transition-all ${onViewChange ? 'cursor-pointer hover:bg-slate-100/70 hover:border-slate-300' : ''}`}
+            className={`bg-slate-50 p-3 rounded-xl text-center border border-slate-200/80 transition-all ${onViewChange ? 'cursor-pointer hover:bg-slate-100/70 hover:border-slate-300' : ''}`}
             title="Clique para ver o estoque completo"
           >
             <span className="block text-[9px] uppercase font-bold text-slate-400">Total Imobilizado</span>
-            <span className="text-sm font-bold text-slate-800 font-mono mt-0.5 block">
+            <span className="text-xs sm:text-sm font-bold text-slate-800 font-mono mt-0.5 block">
               R$ {totalStockVal.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}
             </span>
           </div>
 
           <div 
             onClick={() => onViewChange?.('inventory', { status: 'out_of_stock' })}
-            className={`bg-rose-50/50 p-3 rounded-xl text-center border border-rose-100/60 transition-all ${onViewChange ? 'cursor-pointer hover:bg-rose-100/60 hover:border-rose-300' : ''}`}
+            className={`bg-rose-50/50 p-3 rounded-xl text-center border border-rose-200/70 transition-all ${onViewChange ? 'cursor-pointer hover:bg-rose-100/60 hover:border-rose-300' : ''}`}
             title="Clique para filtrar itens zerados"
           >
             <span className="block text-[9px] uppercase font-bold text-rose-500">Zerados / Críticos</span>
-            <span className="text-sm font-bold text-rose-700 font-mono mt-0.5 block">
+            <span className="text-xs sm:text-sm font-bold text-rose-700 font-mono mt-0.5 block">
               {criticalItems.length}
             </span>
           </div>
 
           <div 
             onClick={() => onViewChange?.('inventory', { status: 'low_stock' })}
-            className={`bg-amber-50/50 p-3 rounded-xl text-center border border-amber-100/60 transition-all ${onViewChange ? 'cursor-pointer hover:bg-amber-100/60 hover:border-amber-300' : ''}`}
+            className={`bg-amber-50/50 p-3 rounded-xl text-center border border-amber-200/70 transition-all ${onViewChange ? 'cursor-pointer hover:bg-amber-100/60 hover:border-amber-300' : ''}`}
             title="Clique para filtrar itens abaixo do mínimo"
           >
             <span className="block text-[9px] uppercase font-bold text-amber-600">Abaixo do Mínimo</span>
-            <span className="text-sm font-bold text-amber-700 font-mono mt-0.5 block">
+            <span className="text-xs sm:text-sm font-bold text-amber-700 font-mono mt-0.5 block">
               {lowStockItems.length}
             </span>
           </div>
@@ -106,13 +106,13 @@ export const DashboardStockGoals: React.FC<DashboardStockGoalsProps> = ({
 
         <div className="space-y-2.5">
           <div className="flex items-center justify-between">
-            <h4 className="font-bold text-[10px] uppercase text-slate-450 tracking-wider flex items-center gap-1.5">
+            <h4 className="font-bold text-[10px] uppercase text-slate-500 tracking-wider flex items-center gap-1.5">
               <AlertTriangle size={13} className="text-amber-500" /> Alerta de Reposição Urgente
             </h4>
             {onViewChange && (
               <button
                 onClick={() => onViewChange('inventory', { status: 'critical' })}
-                className="text-[10px] font-bold text-amber-800 hover:underline cursor-pointer"
+                className="text-[11px] font-semibold text-amber-800 hover:underline cursor-pointer"
               >
                 Ver todos
               </button>
@@ -124,11 +124,11 @@ export const DashboardStockGoals: React.FC<DashboardStockGoalsProps> = ({
               <div 
                 key={i.id} 
                 onClick={() => onViewChange?.('inventory', { search: i.name })}
-                className={`flex justify-between items-center bg-rose-50/20 border border-rose-100/40 px-3 py-2 rounded-lg text-[11px] ${onViewChange ? 'cursor-pointer hover:bg-rose-50/60' : ''}`}
+                className={`flex justify-between items-center bg-rose-50/30 border border-rose-200/60 px-3 py-2 rounded-xl text-xs transition-colors ${onViewChange ? 'cursor-pointer hover:bg-rose-50' : ''}`}
                 title={`Buscar ${i.name} no estoque`}
               >
-                <span className="text-slate-850 font-semibold">{i.name}</span>
-                <span className="text-rose-600 font-mono font-black uppercase text-[9px] bg-rose-50 px-2 py-0.5 rounded border border-rose-100">
+                <span className="text-slate-800 font-semibold">{i.name}</span>
+                <span className="text-rose-700 font-mono font-bold uppercase text-[9px] bg-rose-100/80 px-2 py-0.5 rounded-md border border-rose-200">
                   Sem Estoque (0 {i.unit})
                 </span>
               </div>
@@ -138,11 +138,11 @@ export const DashboardStockGoals: React.FC<DashboardStockGoalsProps> = ({
               <div 
                 key={i.id} 
                 onClick={() => onViewChange?.('inventory', { search: i.name })}
-                className={`flex justify-between items-center bg-amber-50/10 border border-amber-100/40 px-3 py-2 rounded-lg text-[11px] ${onViewChange ? 'cursor-pointer hover:bg-amber-50/60' : ''}`}
+                className={`flex justify-between items-center bg-amber-50/30 border border-amber-200/60 px-3 py-2 rounded-xl text-xs transition-colors ${onViewChange ? 'cursor-pointer hover:bg-amber-50' : ''}`}
                 title={`Buscar ${i.name} no estoque`}
               >
-                <span className="text-slate-850 font-semibold">{i.name}</span>
-                <span className="text-amber-700 font-mono font-black text-[9px] bg-amber-50 px-2 py-0.5 rounded border border-amber-100">
+                <span className="text-slate-800 font-semibold">{i.name}</span>
+                <span className="text-amber-800 font-mono font-bold text-[9px] bg-amber-100/80 px-2 py-0.5 rounded-md border border-amber-200">
                   {i.quantity} {i.unit} (Mín: {i.minQuantity})
                 </span>
               </div>
@@ -156,7 +156,7 @@ export const DashboardStockGoals: React.FC<DashboardStockGoalsProps> = ({
       </div>
 
       {/* 2. WIDGET: METAS MENSAIS */}
-      <div className="bg-white border border-slate-100 p-6 rounded-2xl shadow-xs space-y-4">
+      <div className="bg-white border border-slate-200/80 p-5 sm:p-6 rounded-2xl shadow-xs space-y-4">
         <div className="border-b border-slate-100 pb-3">
           <h3 className="font-serif font-semibold text-base text-slate-900">Metas e Desempenho Mensal</h3>
           <p className="text-[11px] text-slate-500">Porcentagem alcançada dos objetivos estipulados para o ateliê</p>

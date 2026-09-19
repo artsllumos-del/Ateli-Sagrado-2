@@ -152,8 +152,8 @@ export const TenantsManagementView: React.FC = () => {
       }
       setShowCreateModal(false);
       resetForm();
-    } catch (err: any) {
-      toast.error('Erro', err.message || 'Falha ao salvar ateliê.');
+    } catch (err: unknown) {
+      toast.error('Erro', err instanceof Error ? err.message : 'Falha ao salvar ateliê.');
     } finally {
       setIsSubmitting(false);
     }

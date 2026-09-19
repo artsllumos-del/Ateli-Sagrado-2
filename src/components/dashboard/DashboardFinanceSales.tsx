@@ -167,7 +167,7 @@ export const DashboardFinanceSales: React.FC<DashboardFinanceSalesProps> = ({
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       
       {/* 1. WIDGET: FINANCEIRO */}
-      <div className="bg-white border border-slate-100 p-6 rounded-2xl shadow-xs space-y-5">
+      <div className="bg-white border border-slate-200/80 p-5 sm:p-6 rounded-2xl shadow-xs space-y-5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
           <div>
             <h3 className="font-serif font-semibold text-base text-slate-900">Movimentação Financeira</h3>
@@ -175,15 +175,15 @@ export const DashboardFinanceSales: React.FC<DashboardFinanceSalesProps> = ({
           </div>
 
           {/* Time range filters */}
-          <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-lg border border-slate-200/60 shrink-0">
+          <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-xl border border-slate-200/80 shrink-0 self-start sm:self-auto">
             {(['today', 'week', 'month', 'year'] as const).map(filter => {
               const label = filter === 'today' ? 'Hoje' : filter === 'week' ? 'Semana' : filter === 'month' ? 'Mês' : 'Ano';
               return (
                 <button
                   key={filter}
                   onClick={() => setFinanceFilter(filter)}
-                  className={`px-2.5 py-1 text-[10px] font-bold rounded-md transition-all cursor-pointer ${
-                    financeFilter === filter ? 'bg-white text-slate-900 shadow-3xs border border-slate-200/50' : 'text-slate-400 hover:text-slate-600'
+                  className={`px-2.5 py-1 text-[11px] font-semibold rounded-lg transition-all cursor-pointer ${
+                    financeFilter === filter ? 'bg-white text-slate-900 shadow-xs border border-slate-200/60 font-bold' : 'text-slate-500 hover:text-slate-900'
                   }`}
                 >
                   {label}
@@ -194,22 +194,22 @@ export const DashboardFinanceSales: React.FC<DashboardFinanceSalesProps> = ({
         </div>
 
         {/* Financial mini summary */}
-        <div className="grid grid-cols-3 gap-3">
-          <div className="bg-emerald-50/30 border border-emerald-100/60 p-3 rounded-xl">
-            <span className="block text-[9px] uppercase font-bold text-slate-450 tracking-wider">Receitas</span>
-            <span className="text-sm font-bold text-emerald-800 font-mono">
+        <div className="grid grid-cols-3 gap-2.5 sm:gap-3">
+          <div className="bg-emerald-50/40 border border-emerald-200/60 p-3 rounded-xl">
+            <span className="block text-[9px] uppercase font-bold text-slate-500 tracking-wider">Receitas</span>
+            <span className="text-xs sm:text-sm font-bold text-emerald-800 font-mono">
               R$ {financeStats.receita.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
             </span>
           </div>
-          <div className="bg-rose-50/20 border border-rose-100/60 p-3 rounded-xl">
-            <span className="block text-[9px] uppercase font-bold text-slate-450 tracking-wider">Despesas</span>
-            <span className="text-sm font-bold text-rose-800 font-mono">
+          <div className="bg-rose-50/40 border border-rose-200/60 p-3 rounded-xl">
+            <span className="block text-[9px] uppercase font-bold text-slate-500 tracking-wider">Despesas</span>
+            <span className="text-xs sm:text-sm font-bold text-rose-800 font-mono">
               R$ {financeStats.despesa.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
             </span>
           </div>
-          <div className="bg-slate-50 border border-slate-200/40 p-3 rounded-xl">
-            <span className="block text-[9px] uppercase font-bold text-slate-450 tracking-wider">Saldo Período</span>
-            <span className={`text-sm font-bold font-mono ${financeStats.saldo >= 0 ? 'text-emerald-800' : 'text-rose-800'}`}>
+          <div className="bg-slate-50 border border-slate-200/80 p-3 rounded-xl">
+            <span className="block text-[9px] uppercase font-bold text-slate-500 tracking-wider">Saldo Período</span>
+            <span className={`text-xs sm:text-sm font-bold font-mono ${financeStats.saldo >= 0 ? 'text-emerald-800' : 'text-rose-800'}`}>
               R$ {financeStats.saldo.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
             </span>
           </div>
@@ -273,28 +273,28 @@ export const DashboardFinanceSales: React.FC<DashboardFinanceSalesProps> = ({
       </div>
 
       {/* 2. WIDGET: VENDAS */}
-      <div className="bg-white border border-slate-100 p-6 rounded-2xl shadow-xs space-y-5">
+      <div className="bg-white border border-slate-200/80 p-5 sm:p-6 rounded-2xl shadow-xs space-y-5">
         <div className="border-b border-slate-100 pb-4">
           <h3 className="font-serif font-semibold text-base text-slate-900">Estatísticas de Vendas</h3>
           <p className="text-[11px] text-slate-500">Métricas comerciais, ticket médio e conversão de orçamentos</p>
         </div>
 
-        <div className="grid grid-cols-3 gap-3.5">
-          <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-100 text-center flex flex-col justify-between">
-            <span className="text-[9px] uppercase font-bold text-slate-450 tracking-wider">Pedidos Fechados</span>
-            <h4 className="text-lg font-mono font-black text-slate-800 mt-1">{activeOrders.length}</h4>
+        <div className="grid grid-cols-3 gap-2.5 sm:gap-3.5">
+          <div className="bg-slate-50 p-3 sm:p-3.5 rounded-xl border border-slate-200/80 text-center flex flex-col justify-between">
+            <span className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">Pedidos Fechados</span>
+            <h4 className="text-base sm:text-lg font-mono font-black text-slate-800 mt-1">{activeOrders.length}</h4>
             <span className="text-[9px] text-slate-400 font-semibold mt-1">Geral</span>
           </div>
 
-          <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-100 text-center flex flex-col justify-between">
-            <span className="text-[9px] uppercase font-bold text-slate-450 tracking-wider">Conversão</span>
-            <h4 className="text-lg font-mono font-black text-slate-800 mt-1">{quoteConversion}%</h4>
-            <span className="text-[9px] text-emerald-650 font-semibold mt-1">Orçamentos</span>
+          <div className="bg-slate-50 p-3 sm:p-3.5 rounded-xl border border-slate-200/80 text-center flex flex-col justify-between">
+            <span className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">Conversão</span>
+            <h4 className="text-base sm:text-lg font-mono font-black text-slate-800 mt-1">{quoteConversion}%</h4>
+            <span className="text-[9px] text-emerald-700 font-semibold mt-1">Orçamentos</span>
           </div>
 
-          <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-100 text-center flex flex-col justify-between">
-            <span className="text-[9px] uppercase font-bold text-slate-450 tracking-wider">Ticket Médio</span>
-            <h4 className="text-lg font-mono font-black text-slate-800 mt-1">
+          <div className="bg-slate-50 p-3 sm:p-3.5 rounded-xl border border-slate-200/80 text-center flex flex-col justify-between">
+            <span className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">Ticket Médio</span>
+            <h4 className="text-base sm:text-lg font-mono font-black text-slate-800 mt-1">
               R$ {activeOrders.length > 0 ? Math.round(financeStats.receita / activeOrders.length) : 0}
             </h4>
             <span className="text-[9px] text-slate-400 font-semibold mt-1">Estimado</span>

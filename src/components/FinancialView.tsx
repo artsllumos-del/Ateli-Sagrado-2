@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useDb } from '../context/DbContext';
-import { FinancialTransaction, TransactionType } from '../types/erp';
+import { FinancialTransaction, TransactionType, Product, InventoryItem, ProductMaterialComposition } from '../types/erp';
 import { 
   TrendingUp, TrendingDown, DollarSign, Plus, Search, Trash2, X, Filter,
   ArrowUpRight, ArrowDownRight, CreditCard, Calendar, BarChart3, Wallet, AlertTriangle,
@@ -64,7 +64,7 @@ export const FinancialView: React.FC<FinancialViewProps> = ({ initialFilter }) =
 
   // Export State
   const [showExportMenu, setShowExportMenu] = useState(false);
-  const [isExporting, setIsExporting] = useState(false);
+  const [isExporting, setIsExporting] = useState<string | boolean>(false);
 
   // Component States
   const [search, setSearch] = useState(initialFilter?.search || '');
@@ -126,10 +126,10 @@ export const FinancialView: React.FC<FinancialViewProps> = ({ initialFilter }) =
   const totalOperationalRevenue = roundCurrency(realizedRevenue + pendingRevenue);
 
   // Helper to calculate the raw material replacement cost of a product composition
-  const getProductMaterialCost = (product: any) => {
+  const getProductMaterialCost = (product?: Product | null) => {
     if (!product || !product.composition) return 0;
-    return roundCurrency(product.composition.reduce((acc: number, comp: any) => {
-      const mat = inventory.find((m: any) => m.id === comp.materialId);
+    return roundCurrency(product.composition.reduce((acc: number, comp: ProductMaterialComposition) => {
+      const mat = inventory.find((m: InventoryItem) => m.id === comp.materialId);
       const unitVal = mat ? mat.unitValue : safeDiv(comp.cost, comp.quantity);
       return acc + (safeNumber(comp.quantity, 0) * safeNumber(unitVal, 0));
     }, 0));
@@ -295,18 +295,19 @@ export const FinancialView: React.FC<FinancialViewProps> = ({ initialFilter }) =
   };
 
   const processExtractFile = async (file: File) => {
-    const extension = file.name.split('.').pop()?.toLowerCase();
-    if (!['csv', 'ofx', 'xlsx'].includes(extension || '')) {
+    const rawExt = file.name.split('.').pop()?.toLowerCase();
+    if (rawExt !== 'csv' && rawExt !== 'ofx' && rawExt !== 'xlsx') {
       toast.error("Formato Inválido", "Por favor envie arquivos .CSV, .OFX ou .XLSX");
       return;
     }
+    const extension: 'csv' | 'ofx' | 'xlsx' = rawExt;
 
     setIsImporting(true);
     try {
       const reader = new FileReader();
       reader.onload = async (e) => {
         const text = e.target?.result as string;
-        const res = await importFinancialFile(extension as any, text);
+        const res = await importFinancialFile(extension, text);
         if (res.success) {
           toast.success("Extrato Importado!", `${res.count} lançamentos bancários carregados para conciliação.`);
           setShowImportZone(false);
@@ -316,8 +317,8 @@ export const FinancialView: React.FC<FinancialViewProps> = ({ initialFilter }) =
         setIsImporting(false);
       };
       reader.readAsText(file);
-    } catch (err: any) {
-      toast.error("Falha", err.message);
+    } catch (err: unknown) {
+      toast.error("Falha", err instanceof Error ? err.message : 'Erro ao processar arquivo.');
       setIsImporting(false);
     }
   };
@@ -497,7 +498,7 @@ export const FinancialView: React.FC<FinancialViewProps> = ({ initialFilter }) =
   const overdueReceivablesCount = receivables.filter(r => r.status !== 'received' && r.dueDate < nowDayStr).length;
 
   const handleExport = async (reportType: 'transactions' | 'payables' | 'receivables' | 'cashflow') => {
-    setIsExporting(reportType as any);
+    setIsExporting(reportType);
     setShowExportMenu(false);
     try {
       const res = await exportFinancialReport(reportType);
@@ -506,8 +507,8 @@ export const FinancialView: React.FC<FinancialViewProps> = ({ initialFilter }) =
       } else {
         toast.error(res.error || 'Erro ao gerar arquivo de exportação.');
       }
-    } catch (err: any) {
-      toast.error(err.message || 'Falha ao exportar relatório.');
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Falha ao exportar relatório.');
     } finally {
       setIsExporting(false);
     }
@@ -1113,7 +1114,7 @@ export const FinancialView: React.FC<FinancialViewProps> = ({ initialFilter }) =
 
               <select
                 value={selectedType}
-                onChange={(e) => setSelectedType(e.target.value as any)}
+                onChange={(e) => setSelectedType(e.target.value as 'all' | 'income' | 'expense')}
                 className="px-3.5 py-2 text-xs rounded-xl border border-slate-200 bg-slate-50 text-slate-700 focus:outline-none"
               >
                 <option value="all">Todas as Movimentações</option>

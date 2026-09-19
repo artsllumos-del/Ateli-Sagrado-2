@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useDb } from '../context/DbContext';
 import { Order, OrderStatus, OrderItem } from '../types/erp';
 import { 
@@ -54,9 +54,9 @@ export const OrdersView: React.FC<OrdersViewProps> = ({ initialFilter }) => {
   const [selectedProdId, setSelectedProdId] = useState('');
   const [selectedQty, setSelectedQty] = useState(1);
 
-  const activeOrders = orders.filter(o => !o.isDeleted);
-  const activeClients = clients.filter(c => !c.isDeleted);
-  const activeProducts = products.filter(p => !p.isDeleted);
+  const activeOrders = useMemo(() => orders.filter(o => !o.isDeleted), [orders]);
+  const activeClients = useMemo(() => clients.filter(c => !c.isDeleted), [clients]);
+  const activeProducts = useMemo(() => products.filter(p => !p.isDeleted), [products]);
 
   // Automated PDF generation and instant download for Orders
   const handleDownloadPdf = async (o: Order) => {
@@ -287,19 +287,22 @@ export const OrdersView: React.FC<OrdersViewProps> = ({ initialFilter }) => {
 
   // Filter orders
   const todayDateStr = new Date().toISOString().split('T')[0];
-  const filteredOrders = activeOrders.filter(o => {
-    const matchesSearch = 
-      o.clientName.toLowerCase().includes(search.toLowerCase()) || 
-      o.orderNumber.toLowerCase().includes(search.toLowerCase());
-    
-    const isOrderDelayed = !['completed', 'shipped', 'delivered', 'cancelled'].includes(o.status) && Boolean(o.dueDate && o.dueDate < todayDateStr);
-    const matchesStatus = 
-      selectedStatus === 'all' ? true :
-      selectedStatus === 'delayed' ? isOrderDelayed :
-      o.status === selectedStatus;
+  const filteredOrders = useMemo(() => {
+    const s = search.toLowerCase();
+    return activeOrders.filter(o => {
+      const matchesSearch = 
+        o.clientName.toLowerCase().includes(s) || 
+        o.orderNumber.toLowerCase().includes(s);
+      
+      const isOrderDelayed = !['completed', 'shipped', 'delivered', 'cancelled'].includes(o.status) && Boolean(o.dueDate && o.dueDate < todayDateStr);
+      const matchesStatus = 
+        selectedStatus === 'all' ? true :
+        selectedStatus === 'delayed' ? isOrderDelayed :
+        o.status === selectedStatus;
 
-    return matchesSearch && matchesStatus;
-  });
+      return matchesSearch && matchesStatus;
+    });
+  }, [activeOrders, search, selectedStatus, todayDateStr]);
 
   const paginatedOrders = filteredOrders.slice(
     (ordersPage - 1) * ordersPerPage,

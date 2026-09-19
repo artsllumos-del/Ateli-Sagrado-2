@@ -43,11 +43,18 @@ const AppContent: React.FC = () => {
     if (!user) return false;
     if (['dashboard', 'profile', 'account_security'].includes(viewId)) return true;
     
-    const roleStr = (user.role || (user as any).roleLabel || '').toLowerCase();
-    if (roleStr.includes('admin') || roleStr.includes('master') || (user as any).isOwner) return true;
+    const roleLabel = 'roleLabel' in user && typeof user.roleLabel === 'string' ? user.roleLabel : '';
+    const role = typeof user.role === 'string' ? user.role : '';
+    const roleStr = (role || roleLabel).toLowerCase();
+    const isOwner = 'isOwner' in user && Boolean(user.isOwner);
 
-    if (user.permissions && typeof (user.permissions as any)[viewId] === 'boolean') {
-      return !!(user.permissions as any)[viewId];
+    if (roleStr.includes('admin') || roleStr.includes('master') || isOwner) return true;
+
+    if (user.permissions && typeof user.permissions === 'object') {
+      const perms = user.permissions as Record<string, boolean | undefined>;
+      if (typeof perms[viewId] === 'boolean') {
+        return Boolean(perms[viewId]);
+      }
     }
     return true;
   };
@@ -175,7 +182,7 @@ const AppContent: React.FC = () => {
  />
 
  {/* Dynamic Inner views container */}
- <main className="p-6 max-w-[1600px] w-full mx-auto flex-1 pb-16 print:p-0 print:max-w-none">
+ <main className="p-3 sm:p-4 md:p-6 max-w-[1600px] w-full mx-auto flex-1 pb-16 print:p-0 print:max-w-none">
  <AnimatePresence mode="wait">
   <motion.div
    key={activeView}

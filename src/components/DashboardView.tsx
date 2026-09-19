@@ -3,6 +3,7 @@ import { useDb } from '../context/DbContext';
 import { Settings2, RotateCcw, Clock, Eye, EyeOff, ChevronUp, ChevronDown, Check, X, Sparkles, LayoutGrid } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from './Toast';
+import { Modal, Tabs, Button, Skeleton } from './ui';
 
 // Sub-widgets imports
 import { DashboardHeader, BannerConfig, DEFAULT_BANNER } from './dashboard/DashboardHeader';
@@ -257,23 +258,29 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onViewChange, onQu
   // SKELETON LOADER
   if (loadingSkeleton) {
     return (
-      <div className="space-y-6 animate-pulse">
+      <div className="space-y-6">
         {/* Header Skeleton */}
-        <div className="h-28 bg-white border border-slate-100 rounded-2xl p-6 flex justify-between items-center">
-          <div className="space-y-3 w-1/3">
-            <div className="h-4 bg-slate-200 rounded w-1/2" />
-            <div className="h-8 bg-slate-200 rounded" />
+        <div className="bg-white border border-slate-200/80 rounded-2xl p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div className="space-y-2.5 w-full sm:w-1/3">
+            <Skeleton width="40%" height={16} />
+            <Skeleton width="75%" height={28} />
           </div>
-          <div className="h-12 bg-slate-200 rounded w-1/5" />
+          <div className="w-full sm:w-1/4">
+            <Skeleton width="100%" height={40} variant="rectangular" />
+          </div>
         </div>
 
         {/* Banner Skeleton */}
-        <div className="h-44 bg-slate-100/50 rounded-2xl" />
+        <Skeleton height={140} variant="card" />
 
         {/* KPIs Skeleton */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           {[1, 2, 3, 4, 5].map(i => (
-            <div key={i} className="h-28 bg-white border border-slate-100 rounded-xl" />
+            <div key={i} className="p-4 bg-white border border-slate-200/80 rounded-2xl space-y-3">
+              <Skeleton width="50%" height={14} />
+              <Skeleton width="80%" height={24} />
+              <Skeleton width="35%" height={12} />
+            </div>
           ))}
         </div>
       </div>
@@ -429,57 +436,55 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onViewChange, onQu
         })}
       </div>
 
-      {/* MASTER CUSTOMIZATION DIALOG */}
-      {showCustomizeModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-3xs p-4 no-print">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-xl w-full max-w-xl overflow-hidden flex flex-col max-h-[85vh] animate-scale-in">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between p-5 border-b border-slate-100">
-              <div className="flex items-center gap-2">
-                <LayoutGrid size={18} className="text-amber-500" />
-                <div>
-                  <h3 className="font-serif font-semibold text-slate-900 text-base">Personalizar Painel Executivo</h3>
-                  <p className="text-[10px] text-slate-500">Ajuste o layout, reordene widgets e configure o banner ou metas</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setShowCustomizeModal(false)}
-                className="w-7 h-7 rounded-full bg-slate-50 hover:bg-slate-100 text-slate-500 flex items-center justify-center cursor-pointer"
-              >
-                <X size={14} />
-              </button>
-            </div>
+      {/* MASTER CUSTOMIZATION MODAL */}
+      <Modal
+        isOpen={showCustomizeModal}
+        onClose={() => setShowCustomizeModal(false)}
+        title={
+          <div className="flex items-center gap-2">
+            <LayoutGrid size={18} className="text-amber-500 shrink-0" />
+            <span>Personalizar Painel Executivo</span>
+          </div>
+        }
+        subtitle="Ajuste o layout, reordene widgets e configure o banner ou metas"
+        size="lg"
+        footer={
+          <div className="flex items-center justify-between w-full">
+            <Button
+              variant="ghost"
+              size="sm"
+              leftIcon={<RotateCcw size={13} />}
+              onClick={handleResetLayout}
+            >
+              Restaurar Padrões
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => setShowCustomizeModal(false)}
+            >
+              Confirmar Configuração
+            </Button>
+          </div>
+        }
+      >
+        {/* Modal Tabs navigation */}
+        <div className="mb-4">
+          <Tabs
+            variant="pills"
+            size="sm"
+            tabs={[
+              { id: 'widgets', label: 'Organização (Widgets)' },
+              { id: 'banner', label: 'Personalizar Banner' },
+              { id: 'goals', label: 'Definir Metas do Mês' },
+            ]}
+            activeTab={activeTab}
+            onChange={(id) => setActiveTab(id as any)}
+          />
+        </div>
 
-            {/* Modal Tabs navigation */}
-            <div className="flex bg-slate-50 border-b border-slate-100 px-4 text-xs">
-              <button
-                onClick={() => setActiveTab('widgets')}
-                className={`px-4 py-3.5 font-bold cursor-pointer border-b-2 transition-all ${
-                  activeTab === 'widgets' ? 'border-amber-500 text-amber-700 font-bold' : 'border-transparent text-slate-400 hover:text-slate-600'
-                }`}
-              >
-                Organização (Widgets)
-              </button>
-              <button
-                onClick={() => setActiveTab('banner')}
-                className={`px-4 py-3.5 font-bold cursor-pointer border-b-2 transition-all ${
-                  activeTab === 'banner' ? 'border-amber-500 text-amber-700 font-bold' : 'border-transparent text-slate-400 hover:text-slate-600'
-                }`}
-              >
-                Personalizar Banner
-              </button>
-              <button
-                onClick={() => setActiveTab('goals')}
-                className={`px-4 py-3.5 font-bold cursor-pointer border-b-2 transition-all ${
-                  activeTab === 'goals' ? 'border-amber-500 text-amber-700 font-bold' : 'border-transparent text-slate-400 hover:text-slate-600'
-                }`}
-              >
-                Definir Metas do Mês
-              </button>
-            </div>
-
-            {/* Scrollable Content */}
-            <div className="p-6 overflow-y-auto flex-1 space-y-5 text-xs">
+        {/* Scrollable Content */}
+        <div className="space-y-4 text-xs">
               
               {/* TAB 1: ORGANIZAR WIDGETS */}
               {activeTab === 'widgets' && (
@@ -683,29 +688,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onViewChange, onQu
                 </div>
               )}
 
-            </div>
-
-            {/* Modal Footer */}
-            <div className="flex items-center justify-between p-5 border-t border-slate-100 bg-slate-50">
-              <button
-                type="button"
-                onClick={handleResetLayout}
-                className="inline-flex items-center gap-1 text-[10.5px] font-bold text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
-              >
-                <RotateCcw size={12} /> Restaurar Padrões
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setShowCustomizeModal(false)}
-                className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl cursor-pointer shadow-md transition-all active:scale-98"
-              >
-                Confirmar Configuração
-              </button>
-            </div>
-          </div>
         </div>
-      )}
+      </Modal>
 
     </div>
   );

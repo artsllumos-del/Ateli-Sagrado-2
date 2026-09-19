@@ -1258,7 +1258,7 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
  }, [settings?.primaryColor]);
 
  // Save states to local storage
- const saveToLocal = (key: string, data: any) => {
+ const saveToLocal = (key: string, data: unknown) => {
  localStorage.setItem(`as_${key}`, JSON.stringify(data));
  };
 
@@ -3082,24 +3082,28 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
  return labels[status] || status;
  };
 
- // Dynamically compute reserved and available quantities in real-time
+ // Dynamically compute reserved and available quantities in real-time (O(N) Map lookup)
  const inventoryWithReserved = React.useMemo(() => {
+  const reservedMap = new Map<string, number>();
+  const productMap = new Map<string, Product>();
+  products.forEach(p => productMap.set(p.id, p));
+
+  quotes.forEach(q => {
+   if (!q.isDeleted && (q.status === 'pending' || q.status === 'analysis' || q.status === 'approved')) {
+    q.items.forEach(qi => {
+     const prod = productMap.get(qi.productId);
+     if (prod?.composition) {
+      prod.composition.forEach(comp => {
+       const current = reservedMap.get(comp.materialId) || 0;
+       reservedMap.set(comp.materialId, current + (comp.quantity * qi.quantity));
+      });
+     }
+    });
+   }
+  });
+
   return inventory.map(item => {
-   let reserved = 0;
-   quotes.forEach(q => {
-    if (!q.isDeleted && (q.status === 'pending' || q.status === 'analysis' || q.status === 'approved')) {
-     q.items.forEach(qi => {
-      const prod = products.find(p => p.id === qi.productId);
-      if (prod && prod.composition) {
-       prod.composition.forEach(comp => {
-        if (comp.materialId === item.id) {
-         reserved += comp.quantity * qi.quantity;
-        }
-       });
-      }
-     });
-    }
-   });
+   const reserved = reservedMap.get(item.id) || 0;
    const reservedRounded = Number(reserved.toFixed(2));
    return {
     ...item,
@@ -3405,101 +3409,175 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
   return paymentCharges.filter(c => !c.tenantId || c.tenantId === currentTenantId);
  }, [paymentCharges, currentTenantId]);
 
- return (
- <DbContext.Provider value={{
- tenants: tenants || [],
- currentTenant: currentTenant || initialTenants[0],
- switchTenant,
- createTenant,
- updateTenant,
- deleteTenant,
- clients: scopedClients,
- inventory: scopedInventory,
- products: scopedProducts,
- quotes: scopedQuotes,
- orders: scopedOrders,
- productionTasks: scopedProductionTasks,
- transactions: scopedTransactions,
- settings,
- user,
- login,
- logout,
- resetSystem,
- syncAllData,
- recoverPassword,
+ const contextValue = React.useMemo<DbContextType>(() => ({
+  tenants: tenants || [],
+  currentTenant: currentTenant || initialTenants[0],
+  switchTenant,
+  createTenant,
+  updateTenant,
+  deleteTenant,
+  clients: scopedClients,
+  inventory: scopedInventory,
+  products: scopedProducts,
+  quotes: scopedQuotes,
+  orders: scopedOrders,
+  productionTasks: scopedProductionTasks,
+  transactions: scopedTransactions,
+  settings,
+  user,
+  login,
+  logout,
+  resetSystem,
+  syncAllData,
+  recoverPassword,
   users: scopedUsers,
   addUser,
   updateUser,
   deleteUser,
- 
- addClient,
- updateClient,
- deleteClient,
+  addClient,
+  updateClient,
+  deleteClient,
+  addInventoryItem,
+  updateInventoryItem,
+  deleteInventoryItem,
+  adjustStock,
+  addProduct,
+  updateProduct,
+  deleteProduct,
+  addQuote,
+  updateQuote,
+  deleteQuote,
+  duplicateQuote,
+  convertToOrder,
+  addOrder,
+  updateOrder,
+  deleteOrder,
+  cancelOrder,
+  addOrderTimeline,
+  updateProductionTask,
+  addTransaction,
+  updateTransaction,
+  deleteTransaction,
+  updateSettings,
+  notifications: scopedNotifications,
+  addNotification,
+  toggleNotificationRead,
+  markNotificationAsRead,
+  markAllNotificationsAsRead,
+  clearNotification,
+  clearAllNotifications,
+  scanReceipt,
+  importFinancialFile,
+  agendaActivities: scopedAgendaActivities,
+  auditLogs: scopedAuditLogs,
+  addAgendaActivity,
+  updateAgendaActivity,
+  deleteAgendaActivity,
+  addAuditLog,
+  payables: scopedPayables,
+  receivables: scopedReceivables,
+  paymentCharges: scopedPaymentCharges,
+  paymentConfig,
+  addPayable,
+  updatePayable,
+  deletePayable,
+  settlePayable,
+  addReceivable,
+  updateReceivable,
+  deleteReceivable,
+  settleReceivable,
+  createPaymentCheckout,
+  simulateWebhookPayment,
+  refundCharge,
+  updatePaymentConfig,
+  exportFinancialReport
+ }), [
+  tenants,
+  currentTenant,
+  scopedClients,
+  scopedInventory,
+  scopedProducts,
+  scopedQuotes,
+  scopedOrders,
+  scopedProductionTasks,
+  scopedTransactions,
+  settings,
+  user,
+  scopedUsers,
+  scopedNotifications,
+  scopedAgendaActivities,
+  scopedAuditLogs,
+  scopedPayables,
+  scopedReceivables,
+  scopedPaymentCharges,
+  paymentConfig,
+  switchTenant,
+  createTenant,
+  updateTenant,
+  deleteTenant,
+  login,
+  logout,
+  resetSystem,
+  syncAllData,
+  recoverPassword,
+  addUser,
+  updateUser,
+  deleteUser,
+  addClient,
+  updateClient,
+  deleteClient,
+  addInventoryItem,
+  updateInventoryItem,
+  deleteInventoryItem,
+  adjustStock,
+  addProduct,
+  updateProduct,
+  deleteProduct,
+  addQuote,
+  updateQuote,
+  deleteQuote,
+  duplicateQuote,
+  convertToOrder,
+  addOrder,
+  updateOrder,
+  deleteOrder,
+  cancelOrder,
+  addOrderTimeline,
+  updateProductionTask,
+  addTransaction,
+  updateTransaction,
+  deleteTransaction,
+  updateSettings,
+  addNotification,
+  toggleNotificationRead,
+  markNotificationAsRead,
+  markAllNotificationsAsRead,
+  clearNotification,
+  clearAllNotifications,
+  scanReceipt,
+  importFinancialFile,
+  addAgendaActivity,
+  updateAgendaActivity,
+  deleteAgendaActivity,
+  addAuditLog,
+  addPayable,
+  updatePayable,
+  deletePayable,
+  settlePayable,
+  addReceivable,
+  updateReceivable,
+  deleteReceivable,
+  settleReceivable,
+  createPaymentCheckout,
+  simulateWebhookPayment,
+  refundCharge,
+  updatePaymentConfig,
+  exportFinancialReport
+ ]);
 
- addInventoryItem,
- updateInventoryItem,
- deleteInventoryItem,
- adjustStock,
-
- addProduct,
- updateProduct,
- deleteProduct,
-
- addQuote,
- updateQuote,
- deleteQuote,
- duplicateQuote,
- convertToOrder,
-
- addOrder,
- updateOrder,
- deleteOrder,
- cancelOrder,
- addOrderTimeline,
-
- updateProductionTask,
-
- addTransaction,
- updateTransaction,
- deleteTransaction,
-
- updateSettings,
- notifications: scopedNotifications,
- addNotification,
- toggleNotificationRead,
- markNotificationAsRead,
- markAllNotificationsAsRead,
- clearNotification,
- clearAllNotifications,
- scanReceipt,
- importFinancialFile,
- agendaActivities: scopedAgendaActivities,
- auditLogs: scopedAuditLogs,
- addAgendaActivity,
- updateAgendaActivity,
- deleteAgendaActivity,
- addAuditLog,
-
- // Financial & Gateway
- payables: scopedPayables,
- receivables: scopedReceivables,
- paymentCharges: scopedPaymentCharges,
- paymentConfig,
- addPayable,
- updatePayable,
- deletePayable,
- settlePayable,
- addReceivable,
- updateReceivable,
- deleteReceivable,
- settleReceivable,
- createPaymentCheckout,
- simulateWebhookPayment,
- refundCharge,
- updatePaymentConfig,
- exportFinancialReport
- }}>
- {children}
- </DbContext.Provider>
+ return (
+  <DbContext.Provider value={contextValue}>
+   {children}
+  </DbContext.Provider>
  );
 };

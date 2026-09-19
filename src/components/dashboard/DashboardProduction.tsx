@@ -51,8 +51,8 @@ export const DashboardProduction: React.FC<DashboardProductionProps> = ({
   };
 
   return (
-    <div className="bg-white border border-slate-100 p-6 rounded-2xl shadow-xs space-y-4">
-      <div className="flex items-center justify-between">
+    <div className="bg-white border border-slate-200/80 p-5 sm:p-6 rounded-2xl shadow-xs space-y-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <Hammer size={18} className="text-amber-600" />
           <div>
@@ -62,7 +62,7 @@ export const DashboardProduction: React.FC<DashboardProductionProps> = ({
         </div>
         <button
           onClick={() => onViewChange('production')}
-          className="px-3 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 font-bold text-[10px] rounded-lg cursor-pointer"
+          className="px-3.5 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 font-semibold text-xs rounded-xl cursor-pointer transition-colors self-start sm:self-auto"
         >
           Ver Chão Completo
         </button>
@@ -73,12 +73,12 @@ export const DashboardProduction: React.FC<DashboardProductionProps> = ({
         {['todo', 'producing', 'finishing'].map((status) => {
           const tasksInStatus = activeTasks.filter(t => t.status === status);
           const title = status === 'todo' ? 'Aguardando' : status === 'producing' ? 'Em Montagem' : 'Acabamento';
-          const titleColor = status === 'todo' ? 'text-slate-400 bg-slate-50 border-slate-200/60' : status === 'producing' ? 'text-amber-700 bg-amber-50 border-amber-100' : 'text-purple-700 bg-purple-50 border-purple-150';
+          const titleColor = status === 'todo' ? 'text-slate-600 bg-slate-100 border-slate-200' : status === 'producing' ? 'text-amber-800 bg-amber-50 border-amber-200/80' : 'text-purple-800 bg-purple-50 border-purple-200/80';
 
           return (
-            <div key={status} className="bg-slate-50/50 border border-slate-150 p-4 rounded-xl flex flex-col gap-3 min-h-[220px]">
+            <div key={status} className="bg-slate-50/70 border border-slate-200/80 p-3.5 sm:p-4 rounded-2xl flex flex-col gap-3 min-h-[220px]">
               <div className="flex justify-between items-center pb-2 border-b border-slate-200/60">
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-lg uppercase tracking-wider ${titleColor}`}>
+                <span className={`text-[10px] font-bold px-2.5 py-1 rounded-lg uppercase tracking-wider border ${titleColor}`}>
                   {title} ({tasksInStatus.length})
                 </span>
               </div>
@@ -89,8 +89,8 @@ export const DashboardProduction: React.FC<DashboardProductionProps> = ({
                   return (
                     <div
                       key={task.id}
-                      className={`p-3.5 rounded-lg border bg-white shadow-3xs space-y-2 transition-all ${
-                        isPaused ? 'border-rose-200 bg-rose-50/10' : 'border-slate-100'
+                      className={`p-3.5 rounded-xl border bg-white shadow-xs space-y-2 transition-all ${
+                        isPaused ? 'border-rose-200 bg-rose-50/10' : 'border-slate-200/80 hover:border-slate-300'
                       }`}
                     >
                       <div className="flex justify-between items-start">
@@ -111,12 +111,12 @@ export const DashboardProduction: React.FC<DashboardProductionProps> = ({
                         <span className="truncate">Resp: {task.responsible || 'Ateliê'}</span>
                       </div>
 
-                      <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2.5">
+                      <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
                         {/* Interactive Buttons */}
                         {status === 'todo' && (
                           <button
                             onClick={() => handleStart(task.id)}
-                            className="w-full py-1.5 bg-slate-900 text-white hover:bg-slate-800 font-bold text-[9px] rounded-lg flex items-center justify-center gap-1 cursor-pointer transition-all active:scale-95 shadow-3xs"
+                            className="w-full py-1.5 bg-slate-900 text-white hover:bg-slate-800 font-semibold text-[10px] rounded-lg flex items-center justify-center gap-1 cursor-pointer transition-all active:scale-95 shadow-xs"
                           >
                             <Play size={10} /> Iniciar Montagem
                           </button>
@@ -126,7 +126,7 @@ export const DashboardProduction: React.FC<DashboardProductionProps> = ({
                           <>
                             <button
                               onClick={() => handleTogglePause(task.id, task.productName)}
-                              className={`px-2 py-1.5 rounded-lg font-bold text-[9px] flex items-center justify-center gap-1 cursor-pointer transition-all active:scale-95 border ${
+                              className={`px-2 py-1.5 rounded-lg font-semibold text-[10px] flex items-center justify-center gap-1 cursor-pointer transition-all active:scale-95 border ${
                                 isPaused
                                   ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200'
                                   : 'bg-rose-50 hover:bg-rose-100 text-rose-700 border-rose-200'
@@ -139,7 +139,7 @@ export const DashboardProduction: React.FC<DashboardProductionProps> = ({
                             <button
                               disabled={isPaused}
                               onClick={() => handleFinishing(task.id)}
-                              className="flex-1 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-[9px] rounded-lg flex items-center justify-center gap-1 cursor-pointer transition-all active:scale-95 shadow-3xs disabled:opacity-40 disabled:cursor-not-allowed"
+                              className="flex-1 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-[10px] rounded-lg flex items-center justify-center gap-1 cursor-pointer transition-all active:scale-95 shadow-xs disabled:opacity-40 disabled:cursor-not-allowed"
                             >
                               Polimento <Check size={10} />
                             </button>
@@ -149,9 +149,9 @@ export const DashboardProduction: React.FC<DashboardProductionProps> = ({
                         {status === 'finishing' && (
                           <button
                             onClick={() => handleComplete(task.id)}
-                            className="w-full py-1.5 bg-purple-600 hover:bg-purple-500 text-white font-bold text-[9px] rounded-lg flex items-center justify-center gap-1 cursor-pointer transition-all active:scale-95 shadow-3xs"
+                            className="w-full py-1.5 bg-purple-700 hover:bg-purple-600 text-white font-bold text-[10px] rounded-lg flex items-center justify-center gap-1 cursor-pointer transition-all active:scale-95 shadow-xs"
                           >
-                            <Check size={10} /> Finalizar Peça (Concluir)
+                            <Check size={10} /> Finalizar Peça
                           </button>
                         )}
                       </div>

@@ -112,8 +112,8 @@ export const ReceivablesTab: React.FC<ReceivablesTabProps> = ({ onOpenCheckout }
       setDueDate('');
       setNotes('');
       setTotalInstallments(1);
-    } catch (err: any) {
-      toast.error(err.message || 'Erro ao registrar conta a receber.');
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Erro ao registrar conta a receber.');
     } finally {
       setIsSubmitting(false);
     }
@@ -154,8 +154,8 @@ export const ReceivablesTab: React.FC<ReceivablesTabProps> = ({ onOpenCheckout }
       } else {
         toast.error(res.error || 'Erro ao liquidar recebimento.');
       }
-    } catch (err: any) {
-      toast.error(err.message || 'Erro inesperado ao liquidar recebimento.');
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Erro inesperado ao liquidar recebimento.');
     } finally {
       setIsSettling(false);
     }
@@ -566,7 +566,7 @@ export const ReceivablesTab: React.FC<ReceivablesTabProps> = ({ onOpenCheckout }
                 <label className="block text-xs font-bold text-slate-700 mb-1">Forma de Recebimento *</label>
                 <select
                   value={settleMethod}
-                  onChange={e => setSettleMethod(e.target.value as any)}
+                  onChange={e => setSettleMethod(e.target.value as 'pix' | 'credit_card' | 'debit_card' | 'bank_slip' | 'cash')}
                   className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 bg-white"
                 >
                   <option value="pix">PIX Instantâneo</option>
