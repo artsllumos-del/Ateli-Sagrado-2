@@ -6,6 +6,8 @@ import {
   Layers, Search, Clock, FileText, CheckCircle2, RotateCcw
 } from 'lucide-react';
 import { toast } from './Toast';
+import { Pagination } from './Pagination';
+import { PageHeader, StatCard, Badge, Button, EmptyState, ConfirmDialog } from './ui';
 import { motion, AnimatePresence } from 'motion/react';
 
 export const ProductionView: React.FC = () => {
@@ -187,6 +189,15 @@ export const ProductionView: React.FC = () => {
 
   const filteredArchived = getFilteredArchivedOrders();
 
+  // Pagination for Archived Orders
+  const [archivePage, setArchivePage] = useState(1);
+  const [archivePerPage, setArchivePerPage] = useState(8);
+
+  const paginatedArchived = filteredArchived.slice(
+    (archivePage - 1) * archivePerPage,
+    archivePage * archivePerPage
+  );
+
   // Stats calculations for non-archived tasks on active floor
   const activeCount = kanbanOrders.length;
   const inProductionCount = kanbanOrders.filter(o => o.status === 'production').length;
@@ -196,87 +207,71 @@ export const ProductionView: React.FC = () => {
   return (
     <div className="space-y-6 select-none font-sans pb-10">
       
-      {/* Header with Switcher */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight text-slate-900">
-            {activeTab === 'kanban' ? 'Chão de Fábrica' : 'Histórico de Arquivados'}
-          </h2>
-          <p className="text-xs text-slate-500 mt-1">
-            {activeTab === 'kanban' 
-              ? 'Acompanhamento em tempo real e evolução das etapas de produção e montagem.' 
-              : 'Pedidos concluídos ou arquivados manualmente, preservando o histórico de auditoria.'}
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2 bg-slate-50 p-1.5 rounded-xl border border-slate-100 self-start md:self-auto">
-          <button
-            onClick={() => setActiveTab('kanban')}
-            className={`px-4 py-2 text-xs font-bold rounded-lg transition-all flex items-center gap-2 cursor-pointer ${
-              activeTab === 'kanban' 
-                ? 'bg-slate-900 text-white shadow-md' 
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <Layers size={14} />
-            Quadro Kanban
-          </button>
-          <button
-            onClick={() => setActiveTab('archived')}
-            className={`px-4 py-2 text-xs font-bold rounded-lg transition-all flex items-center gap-2 cursor-pointer ${
-              activeTab === 'archived' 
-                ? 'bg-slate-900 text-white shadow-md' 
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <Archive size={14} />
-            Arquivados ({archivedOrdersList.length})
-          </button>
-        </div>
-      </div>
+      {/* Header with PageHeader component */}
+      <PageHeader
+        title={activeTab === 'kanban' ? 'Chão de Fábrica & Produção' : 'Histórico de Arquivados'}
+        description={
+          activeTab === 'kanban'
+            ? 'Acompanhamento em tempo real e evolução das etapas de produção e montagem artesanal.'
+            : 'Pedidos concluídos ou arquivados manualmente, preservando o histórico de auditoria.'
+        }
+        actions={
+          <div className="flex items-center gap-1.5 bg-slate-100/90 p-1 rounded-xl border border-slate-200/60">
+            <button
+              onClick={() => setActiveTab('kanban')}
+              className={`px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-2 cursor-pointer ${
+                activeTab === 'kanban' 
+                  ? 'bg-slate-900 text-white shadow-xs' 
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Layers size={13} />
+              Quadro Kanban
+            </button>
+            <button
+              onClick={() => setActiveTab('archived')}
+              className={`px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-2 cursor-pointer ${
+                activeTab === 'archived' 
+                  ? 'bg-slate-900 text-white shadow-xs' 
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Archive size={13} />
+              Arquivados ({archivedOrdersList.length})
+            </button>
+          </div>
+        }
+      />
 
       {/* KPI Cards Strip (Only for Kanban Tab) */}
       {activeTab === 'kanban' && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-3.5">
-            <div className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-650 shrink-0">
-              <Layers size={18} />
-            </div>
-            <div>
-              <p className="text-[10px] font-bold text-slate-450 uppercase tracking-wider">Ativos no Fluxo</p>
-              <p className="text-lg font-extrabold text-slate-900 mt-0.5">{activeCount}</p>
-            </div>
-          </div>
-
-          <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-3.5">
-            <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-600 shrink-0">
-              <Play size={18} />
-            </div>
-            <div>
-              <p className="text-[10px] font-bold text-slate-450 uppercase tracking-wider">Em Produção</p>
-              <p className="text-lg font-extrabold text-slate-900 mt-0.5">{inProductionCount}</p>
-            </div>
-          </div>
-
-          <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-3.5">
-            <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 shrink-0">
-              <CheckCircle2 size={18} />
-            </div>
-            <div>
-              <p className="text-[10px] font-bold text-slate-450 uppercase tracking-wider">Prontos</p>
-              <p className="text-lg font-extrabold text-slate-900 mt-0.5">{waitingDelivery}</p>
-            </div>
-          </div>
-
-          <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-3.5">
-            <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200/60 flex items-center justify-center text-slate-700 shrink-0">
-              <Check size={18} />
-            </div>
-            <div>
-              <p className="text-[10px] font-bold text-slate-450 uppercase tracking-wider">Concluídos</p>
-              <p className="text-lg font-extrabold text-slate-900 mt-0.5">{completedActive}</p>
-            </div>
-          </div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatCard
+            title="Ativos no Fluxo"
+            value={activeCount}
+            subtitle="Ordens em andamento"
+            icon={<Layers size={18} />}
+          />
+          <StatCard
+            title="Em Produção"
+            value={inProductionCount}
+            subtitle="Na bancada artesanal"
+            variant="gold"
+            icon={<Play size={18} />}
+          />
+          <StatCard
+            title="Prontos"
+            value={waitingDelivery}
+            subtitle="Aguardando entrega"
+            variant="emerald"
+            icon={<CheckCircle2 size={18} />}
+          />
+          <StatCard
+            title="Concluídos"
+            value={completedActive}
+            subtitle="Finalizados recentemente"
+            icon={<Check size={18} />}
+          />
         </div>
       )}
 
@@ -424,15 +419,47 @@ export const ProductionView: React.FC = () => {
                               {/* Primary advancement or status actions */}
                               <div className="pt-2">
                                 {order.status === 'production' && (
-                                  <button
-                                    onClick={() => {
-                                      setEditingOrderId(order.id);
-                                      setArtisanName(order.responsible || '');
-                                    }}
-                                    className="w-full text-center py-1.5 border border-amber-200 bg-amber-50/20 hover:bg-amber-50 text-amber-850 rounded-lg text-[10px] font-bold cursor-pointer transition-colors mb-2"
-                                  >
-                                    Definir Artesão Responsável
-                                  </button>
+                                  editingOrderId === order.id ? (
+                                    <div className="p-2.5 bg-amber-50/80 border border-amber-200 rounded-xl space-y-1.5 mb-2 animate-slide-in-up">
+                                      <label className="block text-[9px] font-bold uppercase tracking-wider text-amber-900">
+                                        Nome do Artesão Responsável:
+                                      </label>
+                                      <div className="flex gap-1.5">
+                                        <input
+                                          type="text"
+                                          autoFocus
+                                          value={artisanName}
+                                          onChange={(e) => setArtisanName(e.target.value)}
+                                          placeholder="Ex: Rosana Santos"
+                                          className="flex-1 px-2.5 py-1 text-xs rounded-lg border border-slate-200 bg-white font-medium focus:outline-none focus:ring-1 focus:ring-amber-500"
+                                        />
+                                        <button
+                                          type="button"
+                                          onClick={() => handleSetResponsible(order.id)}
+                                          className="px-2.5 py-1 bg-slate-900 text-white rounded-lg text-xs font-bold hover:bg-slate-800 cursor-pointer"
+                                        >
+                                          Salvar
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => setEditingOrderId(null)}
+                                          className="px-2 py-1 border border-slate-200 rounded-lg text-xs text-slate-500 hover:bg-slate-100 cursor-pointer"
+                                        >
+                                          ✕
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <button
+                                      onClick={() => {
+                                        setEditingOrderId(order.id);
+                                        setArtisanName(order.responsible || '');
+                                      }}
+                                      className="w-full text-center py-1.5 border border-amber-200 bg-amber-50/20 hover:bg-amber-50 text-amber-850 rounded-lg text-[10px] font-bold cursor-pointer transition-colors mb-2"
+                                    >
+                                      {order.responsible ? `Artesão: ${order.responsible} (Alterar)` : 'Definir Artesão Responsável'}
+                                    </button>
+                                  )
                                 )}
 
                                 {getNextStage(order.status) ? (
@@ -526,7 +553,7 @@ export const ProductionView: React.FC = () => {
                   <input
                     type="text"
                     value={archiveSearch}
-                    onChange={(e) => setArchiveSearch(e.target.value)}
+                    onChange={(e) => { setArchiveSearch(e.target.value); setArchivePage(1); }}
                     placeholder="Buscar por cliente, pedido ou item..."
                     className="w-full pl-9 pr-4 py-2 text-xs rounded-xl border border-slate-200 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-500/10 focus:bg-white text-slate-800"
                   />
@@ -546,7 +573,7 @@ export const ProductionView: React.FC = () => {
                     return (
                       <button
                         key={f}
-                        onClick={() => setArchiveFilter(f)}
+                        onClick={() => { setArchiveFilter(f); setArchivePage(1); }}
                         className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
                           archiveFilter === f
                             ? 'bg-slate-900 text-white'
@@ -612,7 +639,7 @@ export const ProductionView: React.FC = () => {
               </div>
 
               <div className="divide-y divide-slate-100">
-                {filteredArchived.map(order => (
+                {paginatedArchived.map(order => (
                   <div 
                     key={order.id} 
                     className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-slate-50/50 transition-colors"
@@ -674,113 +701,38 @@ export const ProductionView: React.FC = () => {
                 )}
               </div>
             </div>
+
+            {/* Pagination for Archived orders */}
+            <Pagination
+              currentPage={archivePage}
+              totalPages={Math.ceil(filteredArchived.length / archivePerPage)}
+              totalItems={filteredArchived.length}
+              itemsPerPage={archivePerPage}
+              onPageChange={setArchivePage}
+              onItemsPerPageChange={(val) => { setArchivePerPage(val); setArchivePage(1); }}
+              labelSingular="pedido arquivado"
+              labelPlural="pedidos arquivados"
+            />
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* MODAL RESPONSIBLE ARTISAN ASSIGNER (Kanban only) */}
-      {editingOrderId && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <div className="bg-white border border-slate-200 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden animate-slide-in-up flex flex-col">
-            <div className="px-5 py-4 border-b border-slate-150 flex items-center justify-between bg-slate-50">
-              <h3 className="font-bold text-sm text-slate-900 flex items-center gap-1.5">
-                <Users size={16} className="text-amber-500" />
-                Vincular Artesão Responsável
-              </h3>
-            </div>
-
-            <div className="p-5 space-y-4">
-              <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">
-                  Nome do Artesão / Ourives
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={artisanName}
-                  onChange={(e) => setArtisanName(e.target.value)}
-                  placeholder="Ex: Rosana Santos, Francisco Assis"
-                  className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 bg-slate-50 text-slate-850 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
-                />
-              </div>
-            </div>
-
-            <div className="p-4 border-t border-slate-150 flex justify-end gap-2 bg-slate-50">
-              <button
-                type="button"
-                onClick={() => setEditingOrderId(null)}
-                className="px-4 py-2 border border-slate-200 hover:bg-slate-100 rounded-xl text-xs font-bold text-slate-500 cursor-pointer"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={() => handleSetResponsible(editingOrderId)}
-                className="px-4 py-2 bg-slate-900 text-white hover:bg-slate-800 rounded-xl text-xs font-bold cursor-pointer"
-              >
-                Salvar Vinculação
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL CANCEL CONFIRMATION */}
-      {cancelConfirmId && (() => {
-        const orderToCancel = orders.find(o => o.id === cancelConfirmId);
-        if (!orderToCancel) return null;
-        return (
-          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-            <div className="bg-white border border-slate-200 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden animate-slide-in-up flex flex-col">
-              <div className="px-5 py-4 border-b border-rose-150 flex items-center justify-between bg-rose-50/50">
-                <h3 className="font-bold text-sm text-rose-800 flex items-center gap-1.5">
-                  <AlertTriangle size={16} className="text-rose-600 animate-pulse" />
-                  Confirmar Cancelamento de Pedido
-                </h3>
-              </div>
-
-              <div className="p-5 space-y-3.5 text-xs text-slate-650 leading-relaxed">
-                <p>
-                  Você tem certeza que deseja cancelar o pedido <strong className="text-slate-900 font-bold">#{orderToCancel.orderNumber}</strong> de <strong className="text-slate-900 font-bold">{orderToCancel.clientName}</strong>?
-                </p>
-                <div className="bg-amber-50 border border-amber-200/60 p-3.5 rounded-xl space-y-2 text-amber-905">
-                  <p className="font-extrabold uppercase tracking-wider text-[9px] text-amber-800">Ações que serão executadas automaticamente:</p>
-                  <ul className="list-disc list-inside space-y-1.5 text-[10px] font-semibold text-amber-850">
-                    <li>Registro do cancelamento com histórico na linha do tempo;</li>
-                    <li>Estorno e liberação imediata de todos os insumos e matérias-primas no estoque;</li>
-                    <li>Remoção de todas as tarefas de fabricação ligadas ao pedido;</li>
-                    <li>Reversão imediata de receitas previstas e custos de produção no Fluxo Financeiro;</li>
-                    <li>Atualização em tempo real das métricas e KPIs de faturamento no Dashboard.</li>
-                  </ul>
-                </div>
-                <p className="text-slate-450 italic text-[10.5px]">Essa operação de cancelamento é irreversível e atualizará todos os relatórios do ERP em tempo real.</p>
-              </div>
-
-              <div className="p-4 border-t border-slate-150 flex justify-end gap-2 bg-slate-50">
-                <button
-                  type="button"
-                  onClick={() => setCancelConfirmId(null)}
-                  className="px-4 py-2 border border-slate-200 hover:bg-slate-100 rounded-xl text-xs font-bold text-slate-500 cursor-pointer"
-                >
-                  Voltar
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    cancelOrder(orderToCancel.id);
-                    setCancelConfirmId(null);
-                    toast.success("Pedido Cancelado", `Pedido ${orderToCancel.orderNumber} cancelado com estorno completo.`);
-                  }}
-                  className="px-4 py-2 bg-rose-600 hover:bg-rose-750 text-white rounded-xl text-xs font-bold cursor-pointer flex items-center gap-1.5 shadow-sm active:scale-95 transition-transform"
-                >
-                  <Check size={14} />
-                  Sim, Cancelar Pedido
-                </button>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
+      {/* CANCEL CONFIRMATION DIALOG */}
+      <ConfirmDialog
+        isOpen={Boolean(cancelConfirmId)}
+        onClose={() => setCancelConfirmId(null)}
+        onConfirm={() => {
+          if (!cancelConfirmId) return;
+          const orderToCancel = orders.find(o => o.id === cancelConfirmId);
+          cancelOrder(cancelConfirmId);
+          setCancelConfirmId(null);
+          toast.success("Pedido Cancelado", `Pedido ${orderToCancel?.orderNumber || ''} cancelado com estorno de estoque.`);
+        }}
+        title="Confirmar Cancelamento de Pedido"
+        description="Deseja realmente cancelar este pedido? Todos os insumos reservados serão estornados ao estoque e os lançamentos no fluxo financeiro serão revertidos."
+        confirmText="Sim, Cancelar Pedido"
+        variant="danger"
+      />
 
     </div>
   );

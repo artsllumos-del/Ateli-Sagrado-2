@@ -46,7 +46,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, isO
   const menuItems = settings?.firstSetup ? [
     { id: 'settings', label: 'Configuração Inicial', icon: Settings },
   ] : [
-    { id: 'dashboard', label: 'Painel Executivo', icon: LayoutDashboard },
+    { id: 'dashboard', label: 'Início (Dashboard)', icon: LayoutDashboard },
     { id: 'inventory', label: 'Estoque de Insumos', icon: Package },
     { id: 'purchases', label: 'Compras Necessárias', icon: ShoppingBag },
     { id: 'products', label: 'Produtos (Composição)', icon: Sparkles },
@@ -56,18 +56,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, isO
     { id: 'orders', label: 'Pedidos de Venda', icon: ShoppingCart },
     { id: 'production', label: 'Chão de Fábrica', icon: Hammer },
     { id: 'financial', label: 'Fluxo Financeiro', icon: TrendingUp },
-    { id: 'subscription', label: 'Planos & Assinatura', icon: CreditCard },
-    { id: 'users', label: 'Operadores & Permissões', icon: Shield },
+    { id: 'subscription', label: 'Assinatura', icon: CreditCard },
     { id: 'profile', label: 'Meu Perfil & Segurança', icon: UserCheck },
     { id: 'settings', label: 'Configurações', icon: Settings },
   ];
 
-  const filteredMenuItems = menuItems.filter(item => {
-    if (!user || !user.permissions) return true;
-    const permKey = item.id as keyof typeof user.permissions;
-    if (user.permissions[permKey] === false) return false;
-    return true;
-  });
+  // Acesso integral e irrestrito a todos os recursos do ERP (Plano Único)
+  const filteredMenuItems = menuItems;
 
   const handleNav = (viewId: string) => {
     onViewChange(viewId);

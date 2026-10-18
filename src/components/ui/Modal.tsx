@@ -5,8 +5,10 @@ export interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
   title?: React.ReactNode;
+  subtitle?: React.ReactNode;
   description?: React.ReactNode;
   children: React.ReactNode;
+  footer?: React.ReactNode;
   size?: 'sm' | 'md' | 'lg' | 'xl' | 'full';
   showCloseButton?: boolean;
   className?: string;
@@ -24,12 +26,16 @@ export const Modal: React.FC<ModalProps> = ({
   isOpen,
   onClose,
   title,
+  subtitle,
   description,
   children,
+  footer,
   size = 'md',
   showCloseButton = true,
   className = '',
 }) => {
+  const effectiveDescription = description || subtitle;
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isOpen) {
@@ -39,6 +45,8 @@ export const Modal: React.FC<ModalProps> = ({
     if (isOpen) {
       document.body.style.overflow = 'hidden';
       window.addEventListener('keydown', handleKeyDown);
+    } else {
+      document.body.style.overflow = '';
     }
     return () => {
       document.body.style.overflow = '';
@@ -46,10 +54,17 @@ export const Modal: React.FC<ModalProps> = ({
     };
   }, [isOpen, onClose]);
 
+  // Extra safety to guarantee body overflow is never stuck on unmount
+  useEffect(() => {
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, []);
+
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto">
       {/* Backdrop */}
       <div 
         className="fixed inset-0 bg-ink-900/40 backdrop-blur-xs transition-opacity duration-200"
@@ -61,11 +76,15 @@ export const Modal: React.FC<ModalProps> = ({
         role="dialog"
         aria-modal="true"
         className={`
-          relative w-full ${sizeClasses[size]} bg-white rounded-2xl sm:rounded-3xl shadow-2xl
-          border border-slate-200/80 overflow-hidden flex flex-col max-h-[90vh] z-10
-          animate-slide-in-up ${className}
+          relative w-full ${sizeClasses[size]} bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl
+          border border-slate-200/80 overflow-hidden flex flex-col max-h-[92dvh] sm:max-h-[90vh] z-10
+          animate-slide-in-up pb-safe ${className}
         `}
       >
+        {/* Mobile Drag Handle */}
+        <div className="pt-2 pb-0.5 flex justify-center sm:hidden shrink-0">
+          <div className="w-10 h-1.5 rounded-full bg-slate-200" />
+        </div>
         {/* Header */}
         {(title || showCloseButton) && (
           <div className="px-5 py-4 sm:px-6 sm:py-5 border-b border-slate-100 flex items-start justify-between gap-4 shrink-0">
@@ -75,9 +94,9 @@ export const Modal: React.FC<ModalProps> = ({
                   {title}
                 </h3>
               )}
-              {description && (
+              {effectiveDescription && (
                 <p className="text-xs sm:text-sm text-slate-500 mt-1">
-                  {description}
+                  {effectiveDescription}
                 </p>
               )}
             </div>
@@ -99,6 +118,13 @@ export const Modal: React.FC<ModalProps> = ({
         <div className="px-5 py-4 sm:px-6 sm:py-5 overflow-y-auto flex-1 text-slate-800">
           {children}
         </div>
+
+        {/* Footer if provided */}
+        {footer && (
+          <div className="px-5 py-3 sm:px-6 sm:py-4 bg-slate-50/80 border-t border-slate-100 flex flex-wrap items-center justify-end gap-2.5 shrink-0">
+            {footer}
+          </div>
+        )}
       </div>
     </div>
   );

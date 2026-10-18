@@ -3,7 +3,7 @@ import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-r
 
 interface PaginationProps {
   currentPage: number;
-  totalPages: number;
+  totalPages?: number;
   totalItems: number;
   itemsPerPage: number;
   onPageChange: (page: number) => void;
@@ -26,8 +26,16 @@ export const Pagination: React.FC<PaginationProps> = ({
 }) => {
   if (totalItems === 0) return null;
 
-  const validTotalPages = Math.max(1, totalPages);
+  const calculatedTotalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
+  const validTotalPages = totalPages ? Math.max(1, totalPages) : calculatedTotalPages;
   const safeCurrentPage = Math.min(Math.max(1, currentPage), validTotalPages);
+
+  // Auto-correct page if current page exceeds total pages due to filter changes
+  React.useEffect(() => {
+    if (currentPage > validTotalPages) {
+      onPageChange(validTotalPages);
+    }
+  }, [currentPage, validTotalPages, onPageChange]);
 
   const startItem = (safeCurrentPage - 1) * itemsPerPage + 1;
   const endItem = Math.min(safeCurrentPage * itemsPerPage, totalItems);
@@ -52,23 +60,22 @@ export const Pagination: React.FC<PaginationProps> = ({
   };
 
   return (
-    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 py-3.5 px-4 bg-white/80 backdrop-blur-xs border border-slate-200/80 rounded-2xl shadow-xs text-xs font-medium text-slate-600 select-none transition-all">
+    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 py-3 px-3.5 sm:px-4 bg-white/80 backdrop-blur-xs border border-slate-200/80 rounded-2xl shadow-xs text-xs font-medium text-slate-600 select-none transition-all">
       {/* Left: Summary text & page size selector */}
-      <div className="flex flex-wrap items-center gap-3">
-        <span className="text-slate-500">
-          Exibindo <strong className="font-bold text-slate-800">{startItem}</strong> a{' '}
-          <strong className="font-bold text-slate-800">{endItem}</strong> de{' '}
+      <div className="flex flex-wrap items-center justify-between sm:justify-start w-full sm:w-auto gap-2 sm:gap-3">
+        <span className="text-slate-500 text-[11px] sm:text-xs">
+          <strong className="font-bold text-slate-800">{startItem}–{endItem}</strong> de{' '}
           <strong className="font-bold text-slate-800">{totalItems}</strong>{' '}
           {totalItems === 1 ? labelSingular : labelPlural}
         </span>
 
         {onItemsPerPageChange && (
-          <div className="flex items-center gap-1.5 pl-3 border-l border-slate-200">
-            <span className="text-[11px] text-slate-400">Exibir:</span>
+          <div className="flex items-center gap-1.5 sm:pl-3 sm:border-l border-slate-200">
+            <span className="text-[11px] text-slate-400 hidden xs:inline">Exibir:</span>
             <select
               value={itemsPerPage}
               onChange={(e) => onItemsPerPageChange(Number(e.target.value))}
-              className="bg-slate-50 border border-slate-200 text-slate-800 rounded-lg text-xs font-bold py-1 px-2 focus:outline-none focus:ring-1 focus:ring-amber-500 cursor-pointer"
+              className="bg-slate-50 border border-slate-200 text-slate-800 rounded-lg text-[11px] sm:text-xs font-bold py-1 px-2 focus:outline-none focus:ring-1 focus:ring-amber-500 cursor-pointer"
             >
               {itemsPerPageOptions.map((opt) => (
                 <option key={opt} value={opt}>
@@ -81,7 +88,7 @@ export const Pagination: React.FC<PaginationProps> = ({
       </div>
 
       {/* Right: Navigation controls */}
-      <div className="flex items-center gap-1">
+      <div className="flex items-center justify-center w-full sm:w-auto gap-1">
         {/* First Page */}
         <button
           onClick={() => onPageChange(1)}

@@ -3,28 +3,40 @@ import React from 'react';
 export type BadgeVariant = 
   | 'neutral' 
   | 'success' 
+  | 'emerald'
   | 'warning' 
   | 'danger' 
+  | 'destructive'
   | 'info' 
   | 'gold' 
-  | 'purple';
+  | 'purple'
+  | 'primary'
+  | 'secondary';
 
 export type BadgeSize = 'xs' | 'sm' | 'md';
 
 export interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
-  variant?: BadgeVariant;
+  variant?: BadgeVariant | string;
   size?: BadgeSize;
   dot?: boolean;
   icon?: React.ReactNode;
   pill?: boolean;
 }
 
-const variantStyles: Record<BadgeVariant, { container: string; dot: string }> = {
+const variantStyles: Record<string, { container: string; dot: string }> = {
   neutral: {
     container: 'bg-slate-100 text-slate-700 border-slate-200/80',
     dot: 'bg-slate-500',
   },
+  secondary: {
+    container: 'bg-slate-100 text-slate-700 border-slate-200/80',
+    dot: 'bg-slate-500',
+  },
   success: {
+    container: 'bg-emerald-50 text-emerald-800 border-emerald-200/70',
+    dot: 'bg-emerald-500',
+  },
+  emerald: {
     container: 'bg-emerald-50 text-emerald-800 border-emerald-200/70',
     dot: 'bg-emerald-500',
   },
@@ -36,11 +48,19 @@ const variantStyles: Record<BadgeVariant, { container: string; dot: string }> = 
     container: 'bg-rose-50 text-rose-800 border-rose-200/80',
     dot: 'bg-rose-500',
   },
+  destructive: {
+    container: 'bg-rose-50 text-rose-800 border-rose-200/80',
+    dot: 'bg-rose-500',
+  },
   info: {
     container: 'bg-sky-50 text-sky-800 border-sky-200/80',
     dot: 'bg-sky-500',
   },
   gold: {
+    container: 'bg-amber-500/10 text-amber-900 border-amber-400/40',
+    dot: 'bg-amber-500',
+  },
+  primary: {
     container: 'bg-amber-500/10 text-amber-900 border-amber-400/40',
     dot: 'bg-amber-500',
   },
@@ -56,17 +76,23 @@ const sizeStyles: Record<BadgeSize, string> = {
   md: 'text-xs px-2.5 py-1 gap-1.5 leading-tight font-semibold',
 };
 
+const defaultStyle = {
+  container: 'bg-slate-100 text-slate-700 border-slate-200/80',
+  dot: 'bg-slate-500',
+};
+
 export const Badge: React.FC<BadgeProps> = ({
   children,
   variant = 'neutral',
   size = 'sm',
   dot = false,
   icon,
-  pill = true,
+  pill = false,
   className = '',
   ...props
 }) => {
-  const styles = variantStyles[variant];
+  const styles = (variant && variantStyles[variant]) || defaultStyle;
+  const sizeClass = (size && sizeStyles[size]) || sizeStyles.sm;
 
   return (
     <span
@@ -74,7 +100,7 @@ export const Badge: React.FC<BadgeProps> = ({
         inline-flex items-center border select-none whitespace-nowrap
         ${pill ? 'rounded-full' : 'rounded-md'}
         ${styles.container}
-        ${sizeStyles[size]}
+        ${sizeClass}
         ${className}
       `}
       {...props}

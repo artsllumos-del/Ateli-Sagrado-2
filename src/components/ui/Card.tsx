@@ -105,10 +105,10 @@ export interface StatCardProps {
 
 const statVariantStyles = {
   default: 'border-slate-200/80 bg-white text-slate-900',
-  gold: 'border-amber-200/80 bg-gradient-to-br from-amber-50/70 to-white text-amber-950',
-  emerald: 'border-emerald-200/80 bg-gradient-to-br from-emerald-50/70 to-white text-emerald-950',
-  rose: 'border-rose-200/80 bg-gradient-to-br from-rose-50/70 to-white text-rose-950',
-  sky: 'border-sky-200/80 bg-gradient-to-br from-sky-50/70 to-white text-sky-950',
+  gold: 'border-amber-200/90 bg-amber-50/30 text-amber-950',
+  emerald: 'border-emerald-200/90 bg-emerald-50/30 text-emerald-950',
+  rose: 'border-rose-200/90 bg-rose-50/30 text-rose-950',
+  sky: 'border-sky-200/90 bg-sky-50/30 text-sky-950',
 };
 
 export const StatCard: React.FC<StatCardProps> = ({
@@ -125,18 +125,18 @@ export const StatCard: React.FC<StatCardProps> = ({
     <div
       onClick={onClick}
       className={`
-        rounded-2xl border p-4 sm:p-5 shadow-2xs transition-all duration-150 relative overflow-hidden
-        ${onClick ? 'cursor-pointer hover:shadow-md hover:-translate-y-0.5 active:translate-y-0' : ''}
+        rounded-2xl border p-4 sm:p-5 shadow-2xs transition-control relative overflow-hidden
+        ${onClick ? 'cursor-pointer hover:shadow-xs hover:border-slate-300 active:scale-[0.99]' : ''}
         ${statVariantStyles[variant]}
         ${className}
       `}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider truncate mb-1">
+          <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider truncate mb-1">
             {title}
           </p>
-          <div className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">
+          <div className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 tabular-nums">
             {value}
           </div>
           {subtitle && (

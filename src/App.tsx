@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { DbProvider, useDb } from './context/DbContext';
 import { AuthProvider } from './context/AuthContext';
-import { Sidebar } from './components/Sidebar';
-import { Header } from './components/Header';
+import { AppShell } from './components/layout/AppShell';
 import { ModernAuthView } from './components/auth/ModernAuthView';
 import { DashboardView } from './components/DashboardView';
 import { InventoryView } from './components/InventoryView';
@@ -15,16 +14,14 @@ import { ProductionView } from './components/ProductionView';
 import { FinancialView } from './components/FinancialView';
 import { SettingsView } from './components/SettingsView';
 import { PurchasesView } from './components/PurchasesView';
-import { UsersPermissionsView } from './components/UsersPermissionsView';
 import { SubscriptionBillingView } from './components/subscription/SubscriptionBillingView';
 import { AccountSecurityView } from './components/account/AccountSecurityView';
 import { UserProfileView } from './components/account/UserProfileView';
-import { TenantsManagementView } from './components/tenants/TenantsManagementView';
-import { AccessDeniedView } from './components/AccessDeniedView';
 import { motion, AnimatePresence } from 'motion/react';
 import { ToastContainer, toast } from './components/Toast';
 
 import { useAuth } from './hooks/useAuth';
+import { useSubscription } from './hooks/useSubscription';
 
 const AppContent: React.FC = () => {
   const { user: dbUser, settings } = useDb();
@@ -38,26 +35,30 @@ const AppContent: React.FC = () => {
   const isFirstSetup = settings?.firstSetup;
   const activeView = isFirstSetup ? 'settings' : currentView;
 
-  // View permission guard
-  const canAccessView = (viewId: string): boolean => {
-    if (!user) return false;
-    if (['dashboard', 'profile', 'account_security'].includes(viewId)) return true;
-    
-    const roleLabel = 'roleLabel' in user && typeof user.roleLabel === 'string' ? user.roleLabel : '';
-    const role = typeof user.role === 'string' ? user.role : '';
-    const roleStr = (role || roleLabel).toLowerCase();
-    const isOwner = 'isOwner' in user && Boolean(user.isOwner);
+  // Enforce subscription tracking and automatic redirection to 'pricing' when expired
+  useSubscription(setCurrentView, activeView);
 
-    if (roleStr.includes('admin') || roleStr.includes('master') || isOwner) return true;
+  // Show loading indicator during initial authentication check
+  if (authLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-bg-app">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-10 w-10 animate-spin rounded-full border-4 border-amber-600 border-t-transparent" />
+          <p className="text-sm font-medium text-stone-600">Carregando Ateliê Sagrado ERP...</p>
+        </div>
+      </div>
+    );
+  }
 
-    if (user.permissions && typeof user.permissions === 'object') {
-      const perms = user.permissions as Record<string, boolean | undefined>;
-      if (typeof perms[viewId] === 'boolean') {
-        return Boolean(perms[viewId]);
-      }
-    }
-    return true;
-  };
+  // If user is not authenticated, display ModernAuthView
+  if (!user) {
+    return (
+      <>
+        <ModernAuthView />
+        <ToastContainer />
+      </>
+    );
+  }
 
   // Handle Navigation with optional filter parameters (Drill-down support)
   const handleNavigate = (view: string, params?: Record<string, any>) => {
@@ -67,28 +68,7 @@ const AppContent: React.FC = () => {
     setCurrentView(view);
   };
 
-  // Show loading indicator while verifying session
-  if (authLoading) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-stone-50 font-sans p-4">
-        <div className="w-12 h-12 border-3 border-amber-600 border-t-transparent rounded-full animate-spin mb-4 shadow-sm" />
-        <h2 className="text-base font-bold text-stone-800">Ateliê Sagrado ERP</h2>
-        <p className="text-xs text-stone-500 mt-1">Carregando permissões e dados da sessão...</p>
-      </div>
-    );
-  }
-
-  // If user is not authenticated, render the beautiful ModernAuthView
-  if (!user) {
-    return (
-      <>
-        <ModernAuthView onSuccess={() => setCurrentView('dashboard')} />
-        <ToastContainer />
-      </>
-    );
-  }
-
-  // Handle Quick Action Trigger
+  // Handle Quick Action Trigger with direct navigation
   const handleQuickAction = (actionType: 'order' | 'client' | 'product' | 'quote') => {
     switch (actionType) {
       case 'order':
@@ -100,8 +80,8 @@ const AppContent: React.FC = () => {
         toast.info("Ações Rápidas", "Redirecionado para Clientes. Clique em 'Novo Cliente' para registrar.");
         break;
       case 'product':
-        setCurrentView('products');
-        toast.info("Ações Rápidas", "Redirecionado para Produtos. Adicione um novo produto com fórmula.");
+        handleNavigate('products', { screen: 'create' });
+        toast.info("Ações Rápidas", "Redirecionado para Cadastro de Novo Produto.");
         break;
       case 'quote':
         setCurrentView('quotes');
@@ -110,18 +90,8 @@ const AppContent: React.FC = () => {
     }
   };
 
-  // Render correct view based on navigation menu item selection with permission check
+  // Render correct view based on navigation menu item selection (Acesso Integral e Ilimitado)
   const renderMainContent = () => {
-    if (!canAccessView(activeView)) {
-      return (
-        <AccessDeniedView 
-          moduleName={activeView}
-          userRole={user.role || (user as any).roleLabel || 'Operador'}
-          onGoBack={() => setCurrentView('dashboard')}
-        />
-      );
-    }
-
     switch (activeView) {
       case 'dashboard':
         return <DashboardView onViewChange={handleNavigate} onQuickAction={handleQuickAction} />;
@@ -130,9 +100,9 @@ const AppContent: React.FC = () => {
       case 'purchases':
         return <PurchasesView initialFilter={viewParams.purchases} />;
       case 'products':
-        return <ProductsView />;
+        return <ProductsView initialScreen={viewParams.products?.screen} onNavigate={handleNavigate} />;
       case 'pricing':
-        return <PricingView />;
+        return <PricingView onNavigate={handleNavigate} />;
       case 'clients':
         return <ClientsView />;
       case 'quotes':
@@ -143,63 +113,41 @@ const AppContent: React.FC = () => {
         return <ProductionView />;
       case 'financial':
         return <FinancialView initialFilter={viewParams.financial} />;
-      case 'tenants':
-        return <TenantsManagementView />;
       case 'subscription':
-        return <SubscriptionBillingView />;
-      case 'users':
-        return <UsersPermissionsView />;
+        return <SubscriptionBillingView onNavigate={handleNavigate} />;
       case 'profile':
       case 'account_security':
         return <UserProfileView />;
       case 'settings':
-        return <SettingsView />;
+        return <SettingsView onViewChange={handleNavigate} />;
       default:
         return <DashboardView onViewChange={handleNavigate} onQuickAction={handleQuickAction} />;
     }
   };
 
- return (
- <div className="min-h-screen bg-bg-app text-ink-900 flex">
- 
- {/* Fixed Sidebar component */}
- <Sidebar 
- currentView={activeView} 
- onViewChange={setCurrentView} 
- isOpen={sidebarOpen} 
- onClose={() => setSidebarOpen(false)} 
- />
-
- {/* Main viewport area */}
- <div className="flex-1 flex flex-col lg:pl-20 min-h-screen print:pl-0">
- 
- {/* Persistent top Header bar */}
- <Header 
- onMenuToggle={() => setSidebarOpen(!sidebarOpen)} 
- currentView={activeView} 
- onViewChange={setCurrentView}
- onQuickAction={handleQuickAction}
- />
-
- {/* Dynamic Inner views container */}
- <main className="p-3 sm:p-4 md:p-6 max-w-[1600px] w-full mx-auto flex-1 pb-16 print:p-0 print:max-w-none">
- <AnimatePresence mode="wait">
-  <motion.div
-   key={activeView}
-   initial={{ opacity: 0 }}
-   animate={{ opacity: 1 }}
-   exit={{ opacity: 0 }}
-   transition={{ duration: 0.15, ease: "easeInOut" }}
-  >
-   {renderMainContent()}
-  </motion.div>
- </AnimatePresence>
- </main>
- </div>
-
- <ToastContainer />
- </div>
- );
+  return (
+    <AppShell
+      currentView={activeView}
+      onViewChange={setCurrentView}
+      onQuickAction={handleQuickAction}
+      sidebarOpen={sidebarOpen}
+      onSidebarToggle={() => setSidebarOpen(!sidebarOpen)}
+      onSidebarClose={() => setSidebarOpen(false)}
+      isFirstSetup={Boolean(isFirstSetup)}
+    >
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={activeView}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.15, ease: "easeInOut" }}
+        >
+          {renderMainContent()}
+        </motion.div>
+      </AnimatePresence>
+    </AppShell>
+  );
 };
 
 export default function App() {

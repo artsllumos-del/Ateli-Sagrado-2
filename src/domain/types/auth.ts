@@ -27,7 +27,7 @@ export type ResourcePermission =
 
 export type PlanId = 'free_trial' | 'basic' | 'professional' | 'enterprise';
 
-export type BillingCycle = 'monthly' | 'annual';
+export type BillingCycle = 'monthly' | 'quarterly' | 'semiannual' | 'annual';
 
 export interface PlanLimits {
   maxUsers: number; // e.g. 1, 3, 10, -1 (unlimited)
@@ -64,9 +64,12 @@ export interface SubscriptionUsage {
 export interface UserSubscription {
   id: string;
   userId: string;
+  organizationId?: string;
   planId: PlanId;
   status: 'active' | 'trialing' | 'past_due' | 'canceled' | 'expired';
   billingCycle: BillingCycle;
+  price?: number;
+  currency?: string;
   startDate: string;
   currentPeriodStart: string;
   currentPeriodEnd: string;

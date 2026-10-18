@@ -7,6 +7,9 @@ import {
   ArrowLeft, Check, Loader2
 } from 'lucide-react';
 import { toast } from './Toast';
+import { Pagination } from './Pagination';
+import { ConfirmDialog, PageHeader, FilterBar, EmptyState, Button, Badge } from './ui';
+import { useSubscription } from '../hooks/useSubscription';
 import { jsPDF } from 'jspdf';
 import { getPdfThemeColors } from '../utils/theme';
 import { loadLogoBase64 } from '../utils/pdf';
@@ -25,6 +28,8 @@ export const QuotesView: React.FC = () => {
     convertToOrder,
     settings
   } = useDb();
+
+  const { isExpired, currentPlan } = useSubscription();
 
   // Component Screens: 'list' | 'add' | 'edit' | 'delete' | 'conversion-error'
   const [activeScreen, setActiveScreen] = useState<'list' | 'add' | 'edit' | 'delete' | 'conversion-error'>('list');
@@ -125,6 +130,10 @@ export const QuotesView: React.FC = () => {
     };
   };
 
+  // Pagination states
+  const [quotesPage, setQuotesPage] = useState(1);
+  const [quotesPerPage, setQuotesPerPage] = useState(10);
+
   // Filter quotes
   const filteredQuotes = activeQuotes.filter(q => {
     const matchesSearch = q.clientName.toLowerCase().includes(search.toLowerCase()) || 
@@ -132,6 +141,11 @@ export const QuotesView: React.FC = () => {
     const matchesStatus = selectedStatus === 'all' || q.status === selectedStatus;
     return matchesSearch && matchesStatus;
   });
+
+  const paginatedQuotes = filteredQuotes.slice(
+    (quotesPage - 1) * quotesPerPage,
+    quotesPage * quotesPerPage
+  );
 
   // Calculate items sum and complete order totals with cent-perfect precision
   const totals = calculateOrderTotals({
@@ -143,6 +157,16 @@ export const QuotesView: React.FC = () => {
   const total = totals.total;
 
   const handleOpenAdd = () => {
+    if (isExpired) {
+      toast.error("Assinatura Expirada", "A emissão de novos orçamentos requer regularização da assinatura. Seus dados e orçamentos continuam 100% preservados.");
+      return;
+    }
+    const maxQuotes = currentPlan?.limits?.maxQuotesPerMonth ?? 999;
+    if (maxQuotes > 0 && maxQuotes < 999 && quotes.length >= maxQuotes) {
+      toast.error("Limite Mensal Atingido", `Seu plano permite até ${maxQuotes} orçamentos mensais. Faça upgrade para continuar emitindo.`);
+      return;
+    }
+
     setClientId(activeClients[0]?.id || '');
     setDiscount(0);
     setShipping(0);
@@ -591,45 +615,164 @@ export const QuotesView: React.FC = () => {
       {/* 1. LIST SCREEN */}
       {activeScreen === 'list' && (
         <div className="space-y-6 animate-slide-in-up">
-          {/* Filters Bar */}
-          <div className="bg-white border border-slate-150 p-4 rounded-2xl shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="flex flex-1 flex-col sm:flex-row items-stretch sm:items-center gap-3">
-              <div className="relative flex-1 max-w-md">
-                <input
-                  type="text"
-                  placeholder="Buscar por nome do cliente ou ID..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2 text-xs rounded-xl border border-slate-200 bg-slate-50 text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
-                />
-                <Search size={14} className="absolute left-3.5 top-3 text-slate-400" />
+          {/* Subscription Guard Notice */}
+          {isExpired && (
+            <div className="p-4 rounded-2xl bg-rose-50 border border-rose-300 text-rose-900 text-xs flex items-center justify-between">
+              <div>
+                <strong className="font-bold">Modo Somente-Leitura (Assinatura Expirada):</strong> Todos os seus orçamentos, clientes e cálculos continuam 100% preservados. A criação de novos orçamentos está pausada até a regularização do plano.
               </div>
+            </div>
+          )}
 
-              <select
-                value={selectedStatus}
-                onChange={(e) => setSelectedStatus(e.target.value)}
-                className="px-3.5 py-2 text-xs rounded-xl border border-slate-200 bg-slate-50 text-slate-700 focus:outline-none cursor-pointer"
+          {/* PageHeader & FilterBar */}
+          <PageHeader
+            title="Orçamentos & Propostas"
+            description="Simulador de precificação comercial, geração de PDF com design de luxo e conversão direta em ordens de serviço"
+            actions={
+              <Button
+                variant="primary"
+                onClick={handleOpenAdd}
+                disabled={isExpired}
+                icon={<Plus size={15} />}
+                title={isExpired ? 'Assinatura expirada: regularize para criar novos orçamentos' : 'Novo Orçamento'}
               >
-                <option value="all">Todos os Status</option>
-                <option value="pending">Aguardando Aprovação</option>
-                <option value="analysis">Em Análise</option>
-                <option value="approved">Aprovado</option>
-                <option value="rejected">Rejeitado</option>
-                <option value="converted">Convertido em Pedido</option>
-              </select>
+                Novo Orçamento
+              </Button>
+            }
+          />
+
+          <FilterBar
+            searchQuery={search}
+            onSearchChange={(q) => { setSearch(q); setQuotesPage(1); }}
+            searchPlaceholder="Buscar por cliente ou código..."
+            segmentedOptions={[
+              { id: 'all', label: 'Todos' },
+              { id: 'pending', label: 'Aguardando' },
+              { id: 'analysis', label: 'Em Análise' },
+              { id: 'approved', label: 'Aprovados' },
+              { id: 'converted', label: 'Convertidos' },
+              { id: 'rejected', label: 'Rejeitados' },
+            ]}
+            selectedSegment={selectedStatus}
+            onSegmentChange={(id) => { setSelectedStatus(id); setQuotesPage(1); }}
+          />
+
+          {/* Quotes Container: Mobile Cards (< sm) and Full Table (>= sm) */}
+          <div className="bg-white border border-slate-150 rounded-2xl shadow-xs overflow-hidden">
+            {/* Mobile Cards View (< sm) */}
+            <div className="block sm:hidden divide-y divide-slate-100">
+              {paginatedQuotes.map(q => {
+                const totalItemsQty = q.items?.reduce((acc, item) => acc + item.quantity, 0) || 0;
+                return (
+                  <div key={q.id} className="p-4 space-y-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-mono font-bold text-xs text-slate-500">
+                        Q-{q.id.substring(6, 11).toUpperCase()}
+                      </span>
+                      <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold ${
+                        q.status === 'converted' ? 'bg-emerald-500/10 text-emerald-600' :
+                        q.status === 'approved' ? 'bg-blue-500/10 text-blue-600' :
+                        q.status === 'rejected' ? 'bg-rose-500/10 text-rose-600' :
+                        q.status === 'analysis' ? 'bg-indigo-500/10 text-indigo-550' :
+                        'bg-amber-500/10 text-amber-600'
+                      }`}>
+                        {q.status === 'converted' ? 'CONVERTIDO' :
+                         q.status === 'approved' ? 'APROVADO' :
+                         q.status === 'rejected' ? 'REJEITADO' :
+                         q.status === 'analysis' ? 'ANÁLISE' : 'PENDENTE'}
+                      </span>
+                    </div>
+
+                    <div>
+                      <h4 className="font-bold text-sm text-slate-900 leading-snug">{q.clientName}</h4>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        Emissão: {q.date} • {totalItemsQty} {totalItemsQty === 1 ? 'item' : 'itens'}
+                      </p>
+                    </div>
+
+                    <div className="flex items-baseline justify-between pt-1">
+                      <span className="text-[10px] uppercase font-bold text-slate-400">Total Proposta:</span>
+                      <span className="font-mono font-bold text-base text-slate-900">
+                        R$ {q.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </span>
+                    </div>
+
+                    {/* Mobile Action Buttons Bar */}
+                    <div className="flex items-center justify-between pt-2 border-t border-slate-100 gap-1.5 flex-wrap">
+                      {q.status !== 'converted' && (
+                        <button
+                          type="button"
+                          onClick={() => handleConvertToOrder(q)}
+                          className="px-2.5 py-1.5 rounded-lg bg-emerald-600 text-white font-bold text-[11px] flex items-center gap-1 active:scale-95 cursor-pointer shadow-2xs"
+                        >
+                          <ArrowRight size={12} />
+                          <span>Converter</span>
+                        </button>
+                      )}
+                      <div className="flex items-center gap-1 ml-auto">
+                        <button
+                          type="button"
+                          onClick={() => handleDownloadPdf(q)}
+                          title="Baixar PDF"
+                          className="p-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 cursor-pointer"
+                        >
+                          <Printer size={13} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleShareWhatsApp(q)}
+                          title="Enviar por WhatsApp"
+                          className="p-2 rounded-lg border border-slate-200 text-emerald-600 hover:bg-emerald-50 cursor-pointer"
+                        >
+                          <Send size={13} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            duplicateQuote(q.id);
+                            toast.success("Duplicado!", "Orçamento duplicado com status 'Pendente'.");
+                          }}
+                          title="Duplicar"
+                          className="p-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 cursor-pointer"
+                        >
+                          <Copy size={13} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenEdit(q)}
+                          title="Editar"
+                          className="p-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 cursor-pointer"
+                        >
+                          <Edit3 size={13} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(q.id, q.id.substring(6, 11).toUpperCase())}
+                          title="Excluir"
+                          className="p-2 rounded-lg border border-slate-200 text-slate-400 hover:text-rose-600 hover:bg-rose-50 cursor-pointer"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+              {filteredQuotes.length === 0 && (
+                <div className="p-4">
+                  <EmptyState
+                    icon={<FileText size={32} className="text-slate-400" />}
+                    title="Nenhum orçamento encontrado"
+                    description={search || selectedStatus !== 'all' ? "Tente ajustar os filtros ou termo de busca." : "Gere propostas comerciais de alta precisão para seus clientes."}
+                    actionLabel={!isExpired && !search ? "Novo Orçamento" : undefined}
+                    onAction={!isExpired && !search ? handleOpenAdd : undefined}
+                  />
+                </div>
+              )}
             </div>
 
-            <button
-              onClick={handleOpenAdd}
-              className="px-4 py-2 rounded-xl bg-slate-900 text-white hover:bg-slate-800 text-xs font-bold transition-all shadow-md flex items-center gap-2 cursor-pointer"
-            >
-              <Plus size={14} /> Novo Orçamento
-            </button>
-          </div>
-
-          {/* Table container */}
-          <div className="bg-white border border-slate-150 rounded-2xl shadow-xs overflow-hidden">
-            <div className="overflow-x-auto">
+            {/* Desktop Table View (>= sm) */}
+            <div className="hidden sm:block overflow-x-auto">
               <table className="w-full min-w-[800px] text-left text-xs">
                 <thead>
                   <tr className="border-b border-slate-100 text-slate-400 font-bold uppercase tracking-wider bg-slate-50/40">
@@ -643,7 +786,7 @@ export const QuotesView: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {filteredQuotes.map(q => {
+                  {paginatedQuotes.map(q => {
                     const totalItemsQty = q.items?.reduce((acc, item) => acc + item.quantity, 0) || 0;
 
                     return (
@@ -725,8 +868,14 @@ export const QuotesView: React.FC = () => {
                   })}
                   {filteredQuotes.length === 0 && (
                     <tr>
-                      <td colSpan={7} className="p-8 text-center text-slate-400">
-                        Nenhum orçamento pendente ou gerado no sistema.
+                      <td colSpan={7} className="p-8">
+                        <EmptyState
+                          icon={<FileText size={32} className="text-slate-400" />}
+                          title="Nenhum orçamento encontrado"
+                          description={search || selectedStatus !== 'all' ? "Tente ajustar os filtros ou termo de busca." : "Gere propostas comerciais de alta precisão para seus clientes."}
+                          actionLabel={!isExpired && !search ? "Novo Orçamento" : undefined}
+                          onAction={!isExpired && !search ? handleOpenAdd : undefined}
+                        />
                       </td>
                     </tr>
                   )}
@@ -734,6 +883,18 @@ export const QuotesView: React.FC = () => {
               </table>
             </div>
           </div>
+
+          {/* Standardized Pagination */}
+          <Pagination
+            currentPage={quotesPage}
+            totalPages={Math.ceil(filteredQuotes.length / quotesPerPage)}
+            totalItems={filteredQuotes.length}
+            itemsPerPage={quotesPerPage}
+            onPageChange={setQuotesPage}
+            onItemsPerPageChange={(val) => { setQuotesPerPage(val); setQuotesPage(1); }}
+            labelSingular="orçamento"
+            labelPlural="orçamentos"
+          />
         </div>
       )}
 
@@ -1011,37 +1172,23 @@ export const QuotesView: React.FC = () => {
         </div>
       )}
 
-      {/* 3. DEDICATED DELETE CONFIRMATION SCREEN */}
-      {activeScreen === 'delete' && deleteConfirm && (
-        <div className="max-w-md mx-auto bg-white border border-slate-150 rounded-2xl shadow-xs p-6 space-y-4 animate-slide-in-up">
-          <div className="flex items-center gap-3 text-amber-600">
-            <div className="p-2 bg-amber-50 rounded-lg">
-              <AlertTriangle size={20} />
-            </div>
-            <h3 className="font-serif font-bold text-base text-slate-900">Confirmar Exclusão</h3>
-          </div>
-          <p className="text-xs text-slate-500 leading-relaxed">
-            Deseja realmente excluir o orçamento <strong className="text-slate-800">"{deleteConfirm.code}"</strong>? Esta ação removerá o registro permanentemente do sistema de controle.
-          </p>
-          <div className="flex justify-end gap-3 pt-2">
-            <button
-              onClick={() => {
-                setDeleteConfirm(null);
-                setActiveScreen('list');
-              }}
-              className="px-4 py-2 border border-slate-200 hover:bg-slate-50 rounded-xl text-xs font-bold text-slate-500 cursor-pointer transition-all duration-200 active:scale-95"
-            >
-              Cancelar
-            </button>
-            <button
-              onClick={handleConfirmDelete}
-              className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold cursor-pointer transition-all duration-200 active:scale-95"
-            >
-              Confirmar
-            </button>
-          </div>
-        </div>
-      )}
+      {/* 3. DEDICATED DELETE CONFIRMATION DIALOG */}
+      <ConfirmDialog
+        isOpen={Boolean(deleteConfirm)}
+        onClose={() => {
+          setDeleteConfirm(null);
+          if (activeScreen === 'delete') setActiveScreen('list');
+        }}
+        onConfirm={handleConfirmDelete}
+        title="Confirmar Exclusão"
+        description={
+          <>
+            Deseja realmente excluir o orçamento <strong className="text-slate-800">"{deleteConfirm?.code}"</strong>? Esta ação removerá o registro do sistema de controle.
+          </>
+        }
+        confirmText="Excluir Orçamento"
+        variant="danger"
+      />
 
       {/* 4. DEDICATED CONVERSION ERROR SCREEN */}
       {activeScreen === 'conversion-error' && conversionError && (

@@ -7,6 +7,7 @@ import {
   Send, FileText, Zap, DollarSign, Plus
 } from 'lucide-react';
 import { toast } from '../Toast';
+import { Pagination } from '../Pagination';
 
 interface GatewayTabProps {
   initialReceivableToCharge?: {
@@ -57,6 +58,13 @@ export const GatewayTab: React.FC<GatewayTabProps> = ({ initialReceivableToCharg
     if (filterStatus !== 'all' && c.status !== filterStatus) return false;
     return true;
   });
+
+  const [chargesPage, setChargesPage] = useState(1);
+  const [chargesPerPage, setChargesPerPage] = useState(10);
+  const paginatedCharges = filteredCharges.slice(
+    (chargesPage - 1) * chargesPerPage,
+    chargesPage * chargesPerPage
+  );
 
   const totalProcessed = paymentCharges
     .filter(c => c.status === 'paid')
@@ -259,14 +267,14 @@ export const GatewayTab: React.FC<GatewayTabProps> = ({ initialReceivableToCharg
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-xs text-slate-700">
-              {filteredCharges.length === 0 ? (
+              {paginatedCharges.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="py-12 text-center text-slate-400">
                     Nenhuma transação online registrada. Crie uma nova cobrança acima.
                   </td>
                 </tr>
               ) : (
-                filteredCharges.map(charge => (
+                paginatedCharges.map(charge => (
                   <tr key={charge.id} className="hover:bg-slate-50/70 transition-colors">
                     <td className="py-3.5 px-4 font-mono text-[11px]">
                       <div className="font-bold text-slate-900">#{charge.id}</div>
@@ -361,6 +369,20 @@ export const GatewayTab: React.FC<GatewayTabProps> = ({ initialReceivableToCharg
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Pagination */}
+        <div className="p-3 border-t border-slate-100">
+          <Pagination
+            currentPage={chargesPage}
+            totalPages={Math.ceil(filteredCharges.length / chargesPerPage)}
+            totalItems={filteredCharges.length}
+            itemsPerPage={chargesPerPage}
+            onPageChange={setChargesPage}
+            onItemsPerPageChange={(val) => { setChargesPerPage(val); setChargesPage(1); }}
+            labelSingular="cobrança"
+            labelPlural="cobranças"
+          />
         </div>
       </div>
 

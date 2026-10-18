@@ -39,7 +39,7 @@ export const ModernAuthView: React.FC<ModernAuthViewProps> = ({ onSuccess }) => 
   const [regPassword, setRegPassword] = useState('');
   const [regCompany, setRegCompany] = useState('');
   const [regPhone, setRegPhone] = useState('');
-  const [regPlanId, setRegPlanId] = useState<PlanId>('free_trial');
+  const [regPlanId, setRegPlanId] = useState<PlanId>('basic');
   const [acceptTerms, setAcceptTerms] = useState(true);
 
   // Recover / Reset State
@@ -340,33 +340,18 @@ export const ModernAuthView: React.FC<ModernAuthViewProps> = ({ onSuccess }) => 
               </div>
             </div>
 
-            {/* Plan selection box */}
-            <div>
-              <label className="block text-xs font-bold text-stone-700 mb-1.5 flex items-center gap-1">
-                <Sparkles size={13} className="text-amber-600" /> Escolha seu Plano Inicial
-              </label>
-              <div className="grid grid-cols-2 gap-2">
-                {(availablePlans || []).map(p => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => setRegPlanId(p.id)}
-                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer relative ${
-                      regPlanId === p.id 
-                        ? 'border-amber-600 bg-amber-50/60 ring-2 ring-amber-500/20' 
-                        : 'border-stone-200 bg-stone-50/50 hover:bg-stone-100/80'
-                    }`}
-                  >
-                    <div className="text-xs font-bold text-stone-900 flex items-center justify-between">
-                      <span>{p.name}</span>
-                      {regPlanId === p.id && <CheckCircle2 size={14} className="text-amber-600 shrink-0" />}
-                    </div>
-                    <p className="text-[10px] text-stone-500 mt-0.5 line-clamp-1">
-                      {p.priceMonthly === 0 ? 'Grátis (10 dias)' : `R$ ${p.priceMonthly}/mês`}
-                    </p>
-                  </button>
-                ))}
+            {/* Single Plan Badge */}
+            <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200/90 text-xs">
+              <div className="flex items-center justify-between font-bold text-amber-950">
+                <span className="flex items-center gap-1.5">
+                  <Sparkles size={14} className="text-amber-600" />
+                  Plano Ateliê Sagrado Completo
+                </span>
+                <span className="text-amber-900 font-extrabold text-sm">R$ 49,90 / mês</span>
               </div>
+              <p className="text-[11px] text-amber-800/80 mt-1 leading-relaxed">
+                Acesso integral e ilimitado a todos os módulos e recursos do sistema. Sem limites de produtos, insumos ou pedidos.
+              </p>
             </div>
 
             <label className="flex items-center gap-2 cursor-pointer text-xs text-stone-600 pt-1">
@@ -387,7 +372,7 @@ export const ModernAuthView: React.FC<ModernAuthViewProps> = ({ onSuccess }) => 
               {loading ? (
                 <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
               ) : (
-                'Criar Minha Conta Grátis'
+                'Criar Minha Conta & Iniciar Acesso Ilimitado'
               )}
             </button>
           </form>

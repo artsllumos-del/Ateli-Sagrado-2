@@ -57,6 +57,8 @@ interface AuthContextType {
   downgradePlan: (planId: PlanId, cycle: BillingCycle) => Promise<UserSubscription>;
   cancelSubscription: () => Promise<UserSubscription>;
   reactivateSubscription: () => Promise<UserSubscription>;
+  renewSubscription: (cycle?: BillingCycle) => Promise<UserSubscription>;
+  simulateStatus: (status: 'active' | 'expired') => Promise<UserSubscription>;
   checkLimit: (resourceKey: keyof SubscriptionUsage, amountToAdd?: number) => Promise<{ allowed: boolean; current: number; max: number; message?: string }>;
   recordUsageDelta: (delta: Partial<SubscriptionUsage>) => Promise<void>;
   addPaymentMethod: (method: Omit<PaymentMethod, 'id'>) => Promise<PaymentMethod>;
@@ -279,9 +281,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return updated;
   };
 
+  const renewSubscription = async (cycle?: BillingCycle) => {
+    if (!user) throw new Error('Usuário não autenticado');
+    const updated = await subRepo.renewSubscription(user.id, cycle);
+    setSubscription(updated);
+    return updated;
+  };
+
+  const simulateStatus = async (status: 'active' | 'expired') => {
+    if (!user) throw new Error('Usuário não autenticado');
+    const updated = await subRepo.simulateStatus(user.id, status);
+    setSubscription(updated);
+    return updated;
+  };
+
   const checkLimit = async (resourceKey: keyof SubscriptionUsage, amountToAdd = 1) => {
-    if (!user) return { allowed: false, current: 0, max: 0, message: 'Usuário não autenticado' };
-    return subRepo.checkResourceLimit(user.id, resourceKey, amountToAdd);
+    return { allowed: true, current: 0, max: 999999 };
   };
 
   const recordUsageDelta = async (delta: Partial<SubscriptionUsage>) => {
@@ -329,40 +344,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const hasPermission = (permission: ResourcePermission): boolean => {
-    if (!user) return permission === 'products:read';
-    if (user.role === 'admin') return true;
-    return Boolean(permissions[permission]);
+    return true; // Acesso integral e irrestrito
   };
 
   const hasRole = (roles: UserRole | UserRole[]): boolean => {
-    if (!user) return false;
-    const list = Array.isArray(roles) ? roles : [roles];
-    return list.includes(user.role);
+    return true; // Acesso integral e irrestrito
   };
 
   const canAccessModule = (moduleId: string): boolean => {
-    if (!user) return moduleId === 'products';
-    if (user.role === 'admin') return true;
-
-    const moduleToPermMap: Record<string, ResourcePermission> = {
-      dashboard: 'dashboard:read',
-      inventory: 'inventory:read',
-      purchases: 'purchases:read',
-      products: 'products:read',
-      pricing: 'pricing:read',
-      clients: 'clients:read',
-      quotes: 'quotes:read',
-      orders: 'orders:read',
-      production: 'production:read',
-      financial: 'financial:read',
-      users: 'users:manage',
-      settings: 'settings:manage',
-      subscription: 'subscription:manage',
-    };
-
-    const perm = moduleToPermMap[moduleId];
-    if (!perm) return true;
-    return hasPermission(perm);
+    return true; // Acesso integral e irrestrito
   };
 
   const isFeatureEnabled = async (key: string): Promise<boolean> => {
@@ -407,6 +397,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     downgradePlan,
     cancelSubscription,
     reactivateSubscription,
+    renewSubscription,
+    simulateStatus,
     checkLimit,
     recordUsageDelta,
     addPaymentMethod,
@@ -447,6 +439,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     downgradePlan,
     cancelSubscription,
     reactivateSubscription,
+    renewSubscription,
+    simulateStatus,
     checkLimit,
     recordUsageDelta,
     addPaymentMethod,

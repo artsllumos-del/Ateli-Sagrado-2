@@ -1,31 +1,33 @@
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { applyThemeColors } from '../utils/theme';
 import { 
- Tenant,
- Client, 
- InventoryItem, 
- Product, 
- Quote, 
- Order, 
- ProductionTask, 
- FinancialTransaction, 
- SystemSettings,
- QuoteStatus,
- OrderStatus,
- ProductionStatus,
- OrderTimelineEvent,
- SystemNotification,
- AppUser,
- DocumentSnapshot,
- AgendaActivity,
- AuditLog,
- ReceiptOcrData,
- AccountPayable,
- AccountReceivable,
- OnlinePaymentCharge,
- OnlinePaymentConfig
+  Tenant,
+  Atelier,
+  Client, 
+  InventoryItem, 
+  Product, 
+  Quote, 
+  Order, 
+  ProductionTask, 
+  FinancialTransaction, 
+  SystemSettings,
+  QuoteStatus,
+  OrderStatus,
+  ProductionStatus,
+  OrderTimelineEvent,
+  SystemNotification,
+  AppUser,
+  DocumentSnapshot,
+  AgendaActivity,
+  AuditLog,
+  ReceiptOcrData,
+  AccountPayable,
+  AccountReceivable,
+  OnlinePaymentCharge,
+  OnlinePaymentConfig
 } from '../types/erp';
 import { roundCurrency, roundQty, safeNumber, calculateWeightedAverageCost, calculateOrderTotals } from '../utils/finance';
+import { toast } from '../components/Toast';
 
  interface DbContextType {
  // Multi-Tenant Core
@@ -35,6 +37,17 @@ import { roundCurrency, roundQty, safeNumber, calculateWeightedAverageCost, calc
  createTenant: (tenant: Omit<Tenant, 'id' | 'createdAt'>) => Promise<Tenant>;
  updateTenant: (id: string, tenant: Partial<Tenant>) => Promise<Tenant>;
  deleteTenant: (id: string) => Promise<boolean>;
+
+ // Ateliês Operacionais da Organização (1 operador = 1 ateliê exclusivo)
+ ateliers: Atelier[];
+ allAteliers: Atelier[];
+ currentAtelier: Atelier | null;
+ setCurrentAtelier: (atelier: Atelier | null) => void;
+ addAtelier: (atelier: Omit<Atelier, 'id' | 'createdAt'>) => Promise<{ success: boolean; atelier?: Atelier; error?: string }>;
+ updateAtelier: (id: string, atelier: Partial<Atelier>) => Promise<{ success: boolean; atelier?: Atelier; error?: string }>;
+ deleteAtelier: (id: string, targetAtelierId?: string) => Promise<{ success: boolean; error?: string }>;
+ assignOperatorToAtelier: (atelierId: string, operatorId: string) => Promise<{ success: boolean; error?: string }>;
+ removeOperatorFromAtelier: (atelierId: string, operatorId: string) => Promise<{ success: boolean; error?: string }>;
 
  clients: Client[];
  inventory: InventoryItem[];
@@ -49,6 +62,7 @@ import { roundCurrency, roundQty, safeNumber, calculateWeightedAverageCost, calc
  // Auth simulation
  user: AppUser | null;
  users: AppUser[];
+ allUsers?: AppUser[];
  login: (usernameOrEmail: string, password: string) => boolean;
  logout: () => void;
  recoverPassword: (email: string) => boolean;
@@ -182,7 +196,7 @@ userTimezone: "GMT-3",
  typography: 'Inter',
  dashboardLayout: 'grid',
  docLogo: "📿",
- docHeader: "Ateliê Sagrado - Joias e Terços Religiosos",
+ docHeader: "Ateliê Sagrado - Artigos Religiosos & Terços",
  docFooter: "Agradecemos pela preferência! Feito sob encomenda com dedicação.",
  docFinalMessage: "Que esta peça traga paz e bênçãos para o seu lar.",
  docSignature: "Rosana Santos - Gestora de Vendas",
@@ -390,7 +404,7 @@ const initialInventory: InventoryItem[] = [
     category: "Fios e Cordões",
     code: "FIO-003",
     description: "Fio de alpaca excelente para contra-pino de terços duradouros.",
-    supplier: "Joias do Vale",
+    supplier: "Metais e Contas do Vale",
     unit: "rolo (50m)",
     weightG: 300,
     quantity: 1,
@@ -842,15 +856,67 @@ const initialTransactions: FinancialTransaction[] = [
   }
 ];
 
+export const initialAteliers: Atelier[] = [
+  // --- ORGANIZAÇÃO 1: ATELIÊ SAGRADO ---
+  {
+    id: "atl_sagrado_matriz",
+    organizationId: "tenant_atelie_sagrado",
+    name: "Ateliê Sagrado - Matriz & Ourivesaria",
+    code: "ATL-MATRIZ",
+    slug: "matriz-ourivesaria",
+    address: "Rua Domingos de Morais, 500 - Vila Mariana, São Paulo/SP",
+    phone: "(11) 98765-4321",
+    managerId: "user_admin",
+    operatorIds: ["user_admin", "user_rosana", "user_lucas"],
+    isActive: true,
+    notes: "Bancada principal para ourivesaria fina, cravação de pedras e atendimento executivo.",
+    createdAt: "2026-05-01T08:00:00Z"
+  },
+  {
+    id: "atl_sagrado_restauro",
+    organizationId: "tenant_atelie_sagrado",
+    name: "Bancada Especial de Restauro e Polimento",
+    code: "ATL-RESTAURO",
+    slug: "bancada-restauro",
+    address: "Rua Domingos de Morais, 504 - Anexo Técnico, São Paulo/SP",
+    phone: "(11) 96543-2109",
+    managerId: "user_admin",
+    operatorIds: ["user_marcos"],
+    isActive: true,
+    notes: "Unidade técnica voltada para restauro devocional e banho químico.",
+    createdAt: "2026-05-05T09:00:00Z"
+  },
+
+  // --- ORGANIZAÇÃO 2: STUDIO LUZ DIVINA ---
+  {
+    id: "atl_luz_principal",
+    organizationId: "tenant_luz_divina",
+    name: "Studio Luz Divina - Cristal & Cera",
+    code: "ATL-LUZ-01",
+    slug: "studio-luz-cristal",
+    address: "Praça XV de Novembro, 34 - Centro, Rio de Janeiro/RJ",
+    phone: "(21) 98888-7777",
+    managerId: "user_admin_luz",
+    operatorIds: ["user_admin_luz", "user_carlos_luz", "user_mariana_luz"],
+    isActive: true,
+    notes: "Confecção artesanal de terços de cristal aurora boreal e decenários.",
+    createdAt: "2026-05-02T10:00:00Z"
+  }
+];
+
 const initialUsers: AppUser[] = [
   // --- ATELIÊ 1: ATELIÊ SAGRADO ---
   {
    id: 'user_admin',
-   tenantId: 'tenant_atelie_sagrado',
+   tenantId: 'tenant_atelie_sagrado', // Vínculo 1:1 exclusivo com a Organização
+   atelierId: 'atl_sagrado_matriz', // Vínculo 1:1 exclusivo com 1 único Ateliê
+   atelierIds: ['atl_sagrado_matriz'],
    isOwner: true,
+   isAdmin: true,
    username: 'Admin',
    name: 'Administrador (Ateliê Sagrado)',
    email: 'admin@atelie.com',
+   phone: '(11) 98765-4321',
    password: '301310Lr',
    role: 'Administrador',
    roleLabel: 'Administrador Titular',
@@ -863,10 +929,14 @@ const initialUsers: AppUser[] = [
   {
    id: 'user_rosana',
    tenantId: 'tenant_atelie_sagrado',
+   atelierId: 'atl_sagrado_matriz',
+   atelierIds: ['atl_sagrado_matriz'],
    isOwner: false,
+   isAdmin: false,
    username: 'Rosana',
    name: 'Rosana Santos',
    email: 'rosana@atelie.com',
+   phone: '(11) 97123-4567',
    password: '123456',
    role: 'Vendedor',
    roleLabel: 'Vendedora / Comercial',
@@ -879,13 +949,17 @@ const initialUsers: AppUser[] = [
   {
    id: 'user_lucas',
    tenantId: 'tenant_atelie_sagrado',
+   atelierId: 'atl_sagrado_matriz',
+   atelierIds: ['atl_sagrado_matriz'],
    isOwner: false,
+   isAdmin: false,
    username: 'Lucas',
    name: 'Lucas Silva',
    email: 'lucas@atelie.com',
+   phone: '(11) 99876-5432',
    password: '123456',
    role: 'Artesão',
-   roleLabel: 'Artesão / Chão de Fábrica',
+   roleLabel: 'Ourives / Mestre Joalheiro',
    isActive: true,
    photoUrl: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?q=80&w=150&auto=format&fit=crop',
    permissions: {
@@ -895,10 +969,14 @@ const initialUsers: AppUser[] = [
   {
    id: 'user_marcos',
    tenantId: 'tenant_atelie_sagrado',
+   atelierId: 'atl_sagrado_restauro',
+   atelierIds: ['atl_sagrado_restauro'],
    isOwner: false,
+   isAdmin: false,
    username: 'Marcos',
    name: 'Marcos Lima',
    email: 'marcos@atelie.com',
+   phone: '(11) 96543-2109',
    password: '123456',
    role: 'Estoquista',
    roleLabel: 'Almoxarife / Estoquista',
@@ -913,10 +991,14 @@ const initialUsers: AppUser[] = [
   {
    id: 'user_admin_luz',
    tenantId: 'tenant_luz_divina',
+   atelierId: 'atl_luz_principal',
+   atelierIds: ['atl_luz_principal'],
    isOwner: true,
+   isAdmin: true,
    username: 'AdminLuz',
    name: 'Administrador (Luz Divina)',
    email: 'admin@luzdivina.com',
+   phone: '(21) 98888-7777',
    password: '301310Lr',
    role: 'Administrador',
    roleLabel: 'Administrador Titular',
@@ -929,10 +1011,14 @@ const initialUsers: AppUser[] = [
   {
    id: 'user_carlos_luz',
    tenantId: 'tenant_luz_divina',
+   atelierId: 'atl_luz_principal',
+   atelierIds: ['atl_luz_principal'],
    isOwner: false,
+   isAdmin: false,
    username: 'CarlosLuz',
    name: 'Carlos Mendonça',
    email: 'carlos@luzdivina.com',
+   phone: '(21) 97777-6666',
    password: '123456',
    role: 'Vendedor',
    roleLabel: 'Vendedora / Comercial',
@@ -945,10 +1031,14 @@ const initialUsers: AppUser[] = [
   {
    id: 'user_mariana_luz',
    tenantId: 'tenant_luz_divina',
+   atelierId: 'atl_luz_principal',
+   atelierIds: ['atl_luz_principal'],
    isOwner: false,
+   isAdmin: false,
    username: 'MarianaLuz',
    name: 'Mariana Costa',
    email: 'mariana@luzdivina.com',
+   phone: '(21) 96666-5555',
    password: '123456',
    role: 'Artesão',
    roleLabel: 'Artesã / Chão de Fábrica',
@@ -1128,6 +1218,8 @@ const initialNotifications: SystemNotification[] = [
 export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
  const [tenants, setTenants] = useState<Tenant[]>(initialTenants);
  const [currentTenantId, setCurrentTenantId] = useState<string>('tenant_atelie_sagrado');
+ const [ateliers, setAteliers] = useState<Atelier[]>(initialAteliers);
+ const [currentAtelier, setCurrentAtelier] = useState<Atelier | null>(null);
  const [clients, setClients] = useState<Client[]>([]);
  const [inventory, setInventory] = useState<InventoryItem[]>([]);
  const [products, setProducts] = useState<Product[]>([]);
@@ -1211,6 +1303,7 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
  setAgendaActivities(loadData('agenda_activities', initialAgendaActivities));
  setAuditLogs(loadData('audit_logs', initialAuditLogs));
  setUsers(loadData('users', initialUsers));
+ setAteliers(loadData('ateliers', initialAteliers));
  setNotifications(loadData('notifications', initialNotifications));
 
  const storedSettings = localStorage.getItem('as_settings');
@@ -1243,6 +1336,17 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
    window.removeEventListener('storage', handleStorageChange);
   };
  }, []);
+
+ // Sincroniza o ateliê ativo automaticamente com a identidade do operador conectado
+ useEffect(() => {
+  const operatorTenantId = user?.tenantId || (user as any)?.activeTenantId;
+  if (operatorTenantId && operatorTenantId !== currentTenantId) {
+   const target = tenants.find(t => t.id === operatorTenantId);
+   if (target) {
+    switchTenant(operatorTenantId);
+   }
+  }
+ }, [user, tenants, currentTenantId]);
 
  // Sync theme class reactively with document root (always light as requested)
  useEffect(() => {
@@ -1349,20 +1453,85 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
   return email.includes('@');
  };
 
- // User CRUD Methods
+ // Helper to build authenticated headers for backend API communication
+ const getAuthHeaders = (extraTenantId?: string): Record<string, string> => {
+   const token = localStorage.getItem('as_jwt') || localStorage.getItem('as_access_token');
+   const orgId = extraTenantId || currentTenantId || 'tenant_atelie_sagrado';
+   const headers: Record<string, string> = {
+     'Content-Type': 'application/json',
+     'x-tenant-id': orgId
+   };
+   if (token) {
+     headers['Authorization'] = `Bearer ${token}`;
+   }
+   const storedUser = localStorage.getItem('as_user');
+   let email = user?.email;
+   let uid = user?.id;
+   if (!email && storedUser) {
+     try {
+       const parsed = JSON.parse(storedUser);
+       email = parsed.email;
+       uid = parsed.id;
+     } catch {}
+   }
+   if (email) {
+     headers['x-user-email'] = email;
+   }
+   if (uid) {
+     headers['x-user-id'] = uid;
+   }
+   return headers;
+ };
+
+ // User CRUD Methods - Cada operador vinculado exclusivamente a 1 único Ateliê
  const addUser = (userData: Omit<AppUser, 'id'>) => {
+  const assignedTenantId = userData.tenantId || currentTenantId;
+  const isOperatorAdmin = userData.isAdmin !== undefined 
+    ? userData.isAdmin 
+    : (userData.role === 'Administrador' || Boolean(userData.isOwner));
+
   const newUser: AppUser = {
    ...userData,
-   tenantId: (userData as any).tenantId || currentTenantId,
-   id: 'user_' + Date.now()
+   tenantId: assignedTenantId, // Vínculo 1:1 obrigatório e invariável por operador
+   atelierId: userData.atelierId,
+   atelierIds: userData.atelierId ? [userData.atelierId] : (userData.atelierIds || []),
+   isAdmin: isOperatorAdmin,
+   phone: userData.phone || '',
+   id: 'user_' + Date.now(),
+   createdAt: new Date().toISOString()
   };
   const updated = [...users, newUser];
   setUsers(updated);
   saveToLocal('users', updated);
 
+  // Sincroniza operador no Ateliê exclusivo (1 usuário = 1 ateliê)
+  if (newUser.atelierId) {
+    setAteliers(prev => {
+      const next = prev.map(a => {
+        if (a.organizationId === assignedTenantId) {
+          if (a.id === newUser.atelierId) {
+            return { ...a, operatorIds: Array.from(new Set([...(a.operatorIds || []), newUser.id])) };
+          } else {
+            return { ...a, operatorIds: (a.operatorIds || []).filter(opId => opId !== newUser.id) };
+          }
+        }
+        return a;
+      });
+      saveToLocal('ateliers', next);
+      return next;
+    });
+  }
+
+  addAuditLog({
+   user: user?.name || 'Administrador',
+   action: `Cadastrou o operador "${newUser.name}" (@${newUser.username}) vinculado exclusivamente à Organização ${assignedTenantId}${newUser.atelierId ? ` e Ateliê ${newUser.atelierId}` : ''}`,
+   module: 'settings',
+   tenantId: assignedTenantId
+  });
+
   fetch('/api/users', {
    method: 'POST',
-   headers: { 'Content-Type': 'application/json' },
+   headers: getAuthHeaders(assignedTenantId),
    body: JSON.stringify(newUser)
   }).catch(() => {});
  };
@@ -1372,22 +1541,77 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
   let updatedUsers: AppUser[];
 
   if (exists) {
-   updatedUsers = users.map(u => u.id === id ? { ...u, ...updatedFields } : u);
+   updatedUsers = users.map(u => {
+     if (u.id === id) {
+       const targetRole = updatedFields.role || u.role;
+       const targetIsAdmin = updatedFields.isAdmin !== undefined 
+         ? updatedFields.isAdmin 
+         : (targetRole === 'Administrador' || Boolean(u.isOwner));
+       const targetTenantId = updatedFields.tenantId || u.tenantId || currentTenantId;
+
+       return {
+         ...u,
+         ...updatedFields,
+         tenantId: targetTenantId,
+         atelierId: updatedFields.atelierId !== undefined ? updatedFields.atelierId : u.atelierId,
+         atelierIds: updatedFields.atelierId ? [updatedFields.atelierId] : (u.atelierIds || []),
+         isAdmin: targetIsAdmin,
+         phone: updatedFields.phone !== undefined ? updatedFields.phone : (u.phone || '')
+       };
+     }
+     return u;
+   });
   } else {
    const base = (user && (user.id === id || user.email === updatedFields.email)) ? user : {
     id,
+    tenantId: updatedFields.tenantId || currentTenantId,
+    atelierId: updatedFields.atelierId,
+    atelierIds: updatedFields.atelierId ? [updatedFields.atelierId] : [],
     username: updatedFields.username || 'user',
     name: updatedFields.name || 'Operador',
     email: updatedFields.email || '',
+    phone: updatedFields.phone || '',
     role: updatedFields.role || 'Administrador',
+    isAdmin: updatedFields.isAdmin ?? true,
     isActive: true,
     permissions: { dashboard: true, inventory: true, purchases: true, products: true, pricing: true, clients: true, quotes: true, orders: true, production: true, financial: true, settings: true }
    };
-   updatedUsers = [...users, { ...base, ...updatedFields } as AppUser];
+   updatedUsers = [...users, { ...base, ...updatedFields, tenantId: updatedFields.tenantId || base.tenantId || currentTenantId } as AppUser];
   }
 
   setUsers(updatedUsers);
   saveToLocal('users', updatedUsers);
+
+  const targetUser = updatedUsers.find(u => u.id === id);
+  const currentOrgId = targetUser?.tenantId || currentTenantId;
+
+  // Sincroniza operador no Ateliê exclusivo (1 usuário = 1 ateliê)
+  if (updatedFields.atelierId !== undefined) {
+    const newAtelierId = updatedFields.atelierId;
+    setAteliers(prev => {
+      const next = prev.map(a => {
+        if (a.organizationId === currentOrgId) {
+          if (a.id === newAtelierId) {
+            return { ...a, operatorIds: Array.from(new Set([...(a.operatorIds || []), id])) };
+          } else {
+            return { ...a, operatorIds: (a.operatorIds || []).filter(opId => opId !== id) };
+          }
+        }
+        return a;
+      });
+      saveToLocal('ateliers', next);
+      return next;
+    });
+  }
+
+  if (targetUser) {
+    addAuditLog({
+     user: user?.name || 'Administrador',
+     action: `Atualizou os dados do operador "${targetUser.name}" (Perfil: ${targetUser.role}, Organização: ${targetUser.tenantId})`,
+     module: 'settings',
+     tenantId: targetUser.tenantId
+    });
+  }
 
   if (user && (user.id === id || (user.email && user.email.toLowerCase() === updatedFields.email?.toLowerCase()))) {
    const updatedCurrentUser = { ...user, ...updatedFields } as AppUser;
@@ -1397,7 +1621,7 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
 
   fetch(`/api/users/${id}`, {
    method: 'PUT',
-   headers: { 'Content-Type': 'application/json' },
+   headers: getAuthHeaders(currentOrgId),
    body: JSON.stringify(updatedFields)
   }).catch(() => {});
  };
@@ -1407,8 +1631,18 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
   setUsers(updated);
   saveToLocal('users', updated);
 
+  setAteliers(prev => {
+    const next = prev.map(a => ({
+      ...a,
+      operatorIds: (a.operatorIds || []).filter(opId => opId !== id)
+    }));
+    saveToLocal('ateliers', next);
+    return next;
+  });
+
   fetch(`/api/users/${id}`, {
-   method: 'DELETE'
+   method: 'DELETE',
+   headers: getAuthHeaders()
   }).catch(() => {});
  };
 
@@ -1677,8 +1911,31 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
  }
  };
 
+ // Helper to check if subscription is expired (Modo Limitado)
+ const checkLimitedMode = (): boolean => {
+  const rawSubs = localStorage.getItem('as_user_subscriptions');
+  if (!rawSubs) return false;
+  try {
+   const subs = JSON.parse(rawSubs);
+   const sub = Object.values(subs)[0] as any;
+   if (!sub) return false;
+   if (sub.status === 'expired') return true;
+   if (sub.currentPeriodEnd && new Date(sub.currentPeriodEnd).getTime() < Date.now() && sub.status !== 'active') return true;
+   return false;
+  } catch {
+   return false;
+  }
+ };
+
  // PRODUCTS CRUD
  const addProduct = (productData: Omit<Product, 'id' | 'createdAt'>) => {
+  if (checkLimitedMode()) {
+   toast.warning(
+    'Modo Limitado Ativo',
+    'Sua assinatura de 30 dias expirou. Renove sua assinatura na aba Assinatura para cadastrar novos produtos no catálogo.'
+   );
+   return;
+  }
  const newProduct: Product = {
  ...productData,
  tenantId: (productData as any).tenantId || currentTenantId,
@@ -1704,6 +1961,13 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
 
  // QUOTES CRUD
  const addQuote = (quoteData: Omit<Quote, 'id' | 'createdAt'>) => {
+  if (checkLimitedMode()) {
+   toast.warning(
+    'Modo Limitado Ativo',
+    'Sua assinatura de 30 dias expirou. Renove sua assinatura na aba Assinatura para gerar novos orçamentos.'
+   );
+   return;
+  }
   const snapshot = {
     companyName: settings.companyName || 'Ateliê Sagrado',
     logo: settings.logo || '',
@@ -1761,6 +2025,13 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
  };
 
  const convertToOrder = (quoteId: string): { success: boolean; error?: string; missingMaterials?: { name: string; required: number; available: number; unit: string }[] } => {
+  if (checkLimitedMode()) {
+   toast.warning(
+    'Modo Limitado Ativo',
+    'Sua assinatura de 30 dias expirou. Renove sua assinatura na aba Assinatura para converter orçamentos em pedidos.'
+   );
+   return { success: false, error: 'Assinatura expirada. Renove na aba Assinatura para continuar operando.' };
+  }
  const quote = quotes.find(q => q.id === quoteId);
  if (!quote) return { success: false, error: 'Orçamento não encontrado.' };
 
@@ -1943,6 +2214,13 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
 
  // ORDERS CRUD
  const addOrder = (orderData: Omit<Order, 'id' | 'createdAt' | 'orderNumber' | 'timeline'>): { success: boolean; error?: string; missingMaterials?: { name: string; required: number; available: number; unit: string }[] } => {
+  if (checkLimitedMode()) {
+   toast.warning(
+    'Modo Limitado Ativo',
+    'Sua assinatura de 30 dias expirou. Renove sua assinatura na aba Assinatura para gerar novos pedidos de venda.'
+   );
+   return { success: false, error: 'Assinatura expirada. Renove sua assinatura na aba Assinatura para continuar operando.' };
+  }
  // 1. Check material requirements and inventory
  const materialRequirements: Record<string, { required: number; name: string; unit: string; available: number }> = {};
 
@@ -2684,15 +2962,12 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
  };
 
  const deletePayable = async (id: string) => {
-   const token = localStorage.getItem('as_access_token');
-   if (token) {
-     try {
-       await fetch(`/api/financial/payables/${id}`, {
-         method: 'DELETE',
-         headers: { 'Authorization': `Bearer ${token}`, 'x-tenant-id': currentTenantId }
-       });
-     } catch (e) {}
-   }
+   try {
+     await fetch(`/api/financial/payables/${id}`, {
+       method: 'DELETE',
+       headers: getAuthHeaders()
+     });
+   } catch (e) {}
    const updated = payables.filter(p => p.id !== id);
    setPayables(updated);
    saveToLocal('payables', updated);
@@ -2826,15 +3101,12 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
  };
 
  const deleteReceivable = async (id: string) => {
-   const token = localStorage.getItem('as_access_token');
-   if (token) {
-     try {
-       await fetch(`/api/financial/receivables/${id}`, {
-         method: 'DELETE',
-         headers: { 'Authorization': `Bearer ${token}`, 'x-tenant-id': currentTenantId }
-       });
-     } catch (e) {}
-   }
+   try {
+     await fetch(`/api/financial/receivables/${id}`, {
+       method: 'DELETE',
+       headers: getAuthHeaders()
+     });
+   } catch (e) {}
    const updated = receivables.filter(r => r.id !== id);
    setReceivables(updated);
    saveToLocal('receivables', updated);
@@ -3066,6 +3338,68 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
 
  const root = window.document.documentElement;
  root.classList.remove('dark');
+
+ // Sincronizar dados de identidade com o Ateliê (Tenant) ativo vinculado ao operador
+ const atelierBrandName = updatedFields.nomeFantasia || updatedFields.companyName;
+ if (currentTenantId) {
+   setTenants(prev => {
+     const updatedTenants = prev.map(t => {
+       if (t.id === currentTenantId) {
+         return {
+           ...t,
+           name: atelierBrandName || t.name,
+           nomeFantasia: updatedFields.nomeFantasia ?? t.nomeFantasia,
+           razaoSocial: updatedFields.razaoSocial ?? t.razaoSocial,
+           document: updatedFields.cnpj ?? t.document,
+           address: updatedFields.address ?? t.address,
+           phone: updatedFields.phone ?? t.phone,
+           email: updatedFields.email ?? t.email,
+           logo: updatedFields.logo ?? t.logo,
+           favicon: updatedFields.favicon ?? t.favicon,
+           primaryColor: updatedFields.primaryColor ?? t.primaryColor,
+           settings: {
+             ...(t.settings || {}),
+             ...updated
+           }
+         };
+       }
+       return t;
+     });
+     localStorage.setItem('as_tenants', JSON.stringify(updatedTenants));
+     return updatedTenants;
+   });
+ }
+
+ // Persistir no servidor
+ const token = localStorage.getItem('as_access_token') || localStorage.getItem('as_jwt');
+ if (token) {
+   fetch('/api/settings', {
+     method: 'PUT',
+     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+     body: JSON.stringify(updated)
+   }).catch(() => {});
+
+   if (currentTenantId) {
+     fetch(`/api/tenants/${currentTenantId}`, {
+       method: 'PUT',
+       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+       body: JSON.stringify({
+         name: atelierBrandName,
+         nomeFantasia: updatedFields.nomeFantasia,
+         razaoSocial: updatedFields.razaoSocial,
+         document: updatedFields.cnpj,
+         address: updatedFields.address,
+         phone: updatedFields.phone,
+         email: updatedFields.email,
+         primaryColor: updatedFields.primaryColor
+       })
+     }).catch(() => {});
+   }
+ }
+
+ if (updated.primaryColor) {
+   applyThemeColors(updated.primaryColor);
+ }
  };
 
  const getStatusLabel = (status: OrderStatus): string => {
@@ -3242,19 +3576,30 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     if (target) {
       setCurrentTenantId(tenantId);
       localStorage.setItem('as_active_tenant_id', tenantId);
-      if (target.primaryColor) {
-        applyThemeColors(target.primaryColor);
-        setSettings(prev => ({
-          ...prev,
-          primaryColor: target.primaryColor || prev.primaryColor,
-          companyName: target.name || prev.companyName,
-          razaoSocial: target.razaoSocial || prev.razaoSocial,
-          nomeFantasia: target.nomeFantasia || prev.nomeFantasia,
-          cnpj: target.document || prev.cnpj,
-          address: target.address || prev.address,
-          email: target.email || prev.email,
-          phone: target.phone || prev.phone
-        }));
+
+      // Carregar configurações do ateliê selecionado
+      const tenantSettings = target.settings || {};
+      const newSettings: SystemSettings = {
+        ...defaultSettings,
+        ...settings,
+        ...tenantSettings,
+        companyName: target.settings?.companyName || target.name || target.razaoSocial || settings.companyName,
+        nomeFantasia: target.settings?.nomeFantasia || target.nomeFantasia || target.name || settings.nomeFantasia,
+        razaoSocial: target.settings?.razaoSocial || target.razaoSocial || target.name || settings.razaoSocial,
+        cnpj: target.settings?.cnpj || target.document || settings.cnpj,
+        address: target.settings?.address || target.address || settings.address,
+        phone: target.settings?.phone || target.phone || settings.phone,
+        email: target.settings?.email || target.email || settings.email,
+        primaryColor: target.settings?.primaryColor || target.primaryColor || settings.primaryColor || '#D4AF37',
+        logo: target.settings?.logo || target.logo || settings.logo,
+        favicon: target.settings?.favicon || target.favicon || settings.favicon,
+        theme: 'light'
+      };
+
+      setSettings(newSettings);
+      localStorage.setItem('as_settings', JSON.stringify(newSettings));
+      if (newSettings.primaryColor) {
+        applyThemeColors(newSettings.primaryColor);
       }
     }
   };
@@ -3304,9 +3649,202 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
       localStorage.setItem('as_active_tenant_id', filtered[0].id);
     }
     try {
-      await fetch(`/api/tenants/${id}`, { method: 'DELETE' });
+      await fetch(`/api/tenants/${id}`, { 
+        method: 'DELETE',
+        headers: getAuthHeaders(id)
+      });
     } catch (e) {}
     return true;
+  };
+
+  // --- ATELIÊS OPERACIONAIS DA ORGANIZAÇÃO (1 operador = 1 ateliê exclusivo) ---
+  const addAtelier = async (atelierData: Omit<Atelier, 'id' | 'createdAt'>): Promise<{ success: boolean; atelier?: Atelier; error?: string }> => {
+    try {
+      const orgId = atelierData.organizationId || currentTenantId;
+      const res = await fetch('/api/ateliers', {
+        method: 'POST',
+        headers: getAuthHeaders(orgId),
+        body: JSON.stringify({ ...atelierData, organizationId: orgId })
+      });
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        return { success: false, error: errJson.message || errJson.error || 'Erro ao criar ateliê.' };
+      }
+      const newAtelier: Atelier = await res.json();
+      setAteliers(prev => {
+        const updated = [...prev, newAtelier];
+        saveToLocal('ateliers', updated);
+        return updated;
+      });
+      return { success: true, atelier: newAtelier };
+    } catch {
+      // Local fallback
+      const newAtelier: Atelier = {
+        ...atelierData,
+        id: 'atl_' + Date.now(),
+        organizationId: atelierData.organizationId || currentTenantId,
+        createdAt: new Date().toISOString()
+      };
+      setAteliers(prev => {
+        const updated = [...prev, newAtelier];
+        saveToLocal('ateliers', updated);
+        return updated;
+      });
+      return { success: true, atelier: newAtelier };
+    }
+  };
+
+  const updateAtelier = async (id: string, atelierData: Partial<Atelier>): Promise<{ success: boolean; atelier?: Atelier; error?: string }> => {
+    try {
+      const res = await fetch(`/api/ateliers/${id}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(atelierData)
+      });
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        return { success: false, error: errJson.message || errJson.error || 'Erro ao atualizar ateliê.' };
+      }
+      const updated: Atelier = await res.json();
+      setAteliers(prev => {
+        const next = prev.map(a => a.id === id ? { ...a, ...updated } : a);
+        saveToLocal('ateliers', next);
+        return next;
+      });
+      return { success: true, atelier: updated };
+    } catch {
+      setAteliers(prev => {
+        const next = prev.map(a => a.id === id ? { ...a, ...atelierData, updatedAt: new Date().toISOString() } : a);
+        saveToLocal('ateliers', next);
+        return next;
+      });
+      return { success: true };
+    }
+  };
+
+  const deleteAtelier = async (id: string, targetAtelierId?: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const res = await fetch(`/api/ateliers/${id}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ targetAtelierId })
+      });
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        if (res.status === 400) {
+          return { success: false, error: errJson.message || 'Não é permitido excluir o único ateliê operacional.' };
+        }
+        console.warn('API delete atelier returned non-ok status, proceeding with local deletion:', errJson);
+      }
+    } catch (e) {
+      console.warn('Network error during deleteAtelier, proceeding with local deletion.');
+    }
+
+    setAteliers(prev => {
+      let next = prev.filter(a => a.id !== id);
+      if (targetAtelierId) {
+        // Find bound operators to add to target
+        const opsToMove = users.filter(u => u.atelierId === id).map(u => u.id);
+        next = next.map(a => {
+          if (a.id === targetAtelierId) {
+            const combined = Array.from(new Set([...(a.operatorIds || []), ...opsToMove]));
+            return { ...a, operatorIds: combined };
+          }
+          return a;
+        });
+      }
+      saveToLocal('ateliers', next);
+      return next;
+    });
+
+    // Reassocia ou desvincula operadores que pertenciam exclusivamente a este ateliê
+    setUsers(prev => {
+      const next = prev.map(u => {
+        if (u.atelierId === id) {
+          if (targetAtelierId) {
+            return { ...u, atelierId: targetAtelierId, atelierIds: [targetAtelierId] };
+          }
+          return { ...u, atelierId: undefined, atelierIds: [] };
+        }
+        return u;
+      });
+      saveToLocal('users', next);
+      return next;
+    });
+
+    return { success: true };
+  };
+
+  const assignOperatorToAtelier = async (atelierId: string, operatorId: string): Promise<{ success: boolean; error?: string }> => {
+    // REGRA DE OURO: Cada operador só pode estar relacionado a 1 ateliê exclusivo
+    try {
+      await fetch(`/api/ateliers/${atelierId}/operators`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ operatorId })
+      });
+    } catch {}
+
+    setAteliers(prev => {
+      const next = prev.map(a => {
+        if (a.organizationId === currentTenantId) {
+          if (a.id === atelierId) {
+            return {
+              ...a,
+              operatorIds: Array.from(new Set([...(a.operatorIds || []), operatorId]))
+            };
+          } else {
+            // Remove de qualquer outro ateliê para manter o isolamento 1:1 estrito
+            return {
+              ...a,
+              operatorIds: (a.operatorIds || []).filter(opId => opId !== operatorId)
+            };
+          }
+        }
+        return a;
+      });
+      saveToLocal('ateliers', next);
+      return next;
+    });
+
+    setUsers(prev => {
+      const next = prev.map(u => u.id === operatorId ? { ...u, atelierId, atelierIds: [atelierId] } : u);
+      saveToLocal('users', next);
+      return next;
+    });
+
+    return { success: true };
+  };
+
+  const removeOperatorFromAtelier = async (atelierId: string, operatorId: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      await fetch(`/api/ateliers/${atelierId}/operators/${operatorId}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
+      });
+    } catch {}
+
+    setAteliers(prev => {
+      const next = prev.map(a => {
+        if (a.id === atelierId) {
+          return {
+            ...a,
+            operatorIds: (a.operatorIds || []).filter(opId => opId !== operatorId)
+          };
+        }
+        return a;
+      });
+      saveToLocal('ateliers', next);
+      return next;
+    });
+
+    setUsers(prev => {
+      const next = prev.map(u => u.id === operatorId && u.atelierId === atelierId ? { ...u, atelierId: undefined, atelierIds: [] } : u);
+      saveToLocal('users', next);
+      return next;
+    });
+
+    return { success: true };
   };
 
   const syncAllData = () => {
@@ -3409,6 +3947,10 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
   return paymentCharges.filter(c => !c.tenantId || c.tenantId === currentTenantId);
  }, [paymentCharges, currentTenantId]);
 
+ const scopedAteliers = React.useMemo(() => {
+  return ateliers.filter(a => !a.organizationId || a.organizationId === currentTenantId);
+ }, [ateliers, currentTenantId]);
+
  const contextValue = React.useMemo<DbContextType>(() => ({
   tenants: tenants || [],
   currentTenant: currentTenant || initialTenants[0],
@@ -3416,6 +3958,15 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
   createTenant,
   updateTenant,
   deleteTenant,
+  ateliers: scopedAteliers,
+  allAteliers: ateliers,
+  currentAtelier: currentAtelier || scopedAteliers[0] || null,
+  setCurrentAtelier,
+  addAtelier,
+  updateAtelier,
+  deleteAtelier,
+  assignOperatorToAtelier,
+  removeOperatorFromAtelier,
   clients: scopedClients,
   inventory: scopedInventory,
   products: scopedProducts,
@@ -3431,6 +3982,7 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
   syncAllData,
   recoverPassword,
   users: scopedUsers,
+  allUsers: users,
   addUser,
   updateUser,
   deleteUser,
@@ -3494,6 +4046,9 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
  }), [
   tenants,
   currentTenant,
+  ateliers,
+  scopedAteliers,
+  currentAtelier,
   scopedClients,
   scopedInventory,
   scopedProducts,
@@ -3503,6 +4058,7 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
   scopedTransactions,
   settings,
   user,
+  users,
   scopedUsers,
   scopedNotifications,
   scopedAgendaActivities,

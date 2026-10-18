@@ -14,10 +14,28 @@ export interface Tenant {
   favicon?: string;
   primaryColor?: string;
   planId?: 'free_trial' | 'basic' | 'professional' | 'enterprise';
+  subscriptionId?: string;
   status: 'active' | 'trial' | 'suspended';
   ownerId?: string;
   createdAt: string;
   settings?: SystemSettings;
+}
+
+export interface Atelier {
+  id: string;
+  organizationId: string; // Tenant ID da Organização detentora
+  name: string; // Nome da Unidade / Bancada Operacional
+  code: string; // Código de identificação (e.g. 'ATL-01')
+  slug?: string;
+  address?: string;
+  phone?: string;
+  managerId?: string;
+  responsibleManager?: string;
+  operatorIds: string[]; // Lista de operadores vinculados a esta unidade operacional
+  isActive: boolean;
+  notes?: string;
+  createdAt: string;
+  updatedAt?: string;
 }
 
 export interface ClientAddress {
@@ -408,14 +426,17 @@ export interface SystemSettings {
 
 export interface AppUser {
   id: string;
-  tenantId: string;
+  tenantId: string; // Vínculo estrito 1:1 com a Organização
+  atelierId?: string; // Vínculo estrito 1:1 com 1 único Ateliê Operacional
+  atelierIds?: string[]; // Suporte legado/retrocompatível
   isOwner?: boolean;
-  username: string;
-  name: string;
+  isAdmin?: boolean; // Indicador de status de Administrador (Sim / Não)
+  username: string; // Identificação do Operador para login
+  name: string; // Nome Completo do Operador
   email: string;
-  phone?: string;
+  phone?: string; // Telefone / WhatsApp do Operador
   password?: string;
-  role: string;
+  role: string; // Perfil / Cargo Operacional
   roleLabel?: string;
   isActive: boolean;
   photoUrl?: string;

@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useDb } from '../context/DbContext';
-import { Menu, Search, Bell, Sparkles, UserPlus, ShoppingCart, FileText, ChevronRight, Trash2, Eye, EyeOff, CheckCircle2, AlertTriangle, AlertCircle, Info, Plus } from 'lucide-react';
+import { useSubscription } from '../hooks/useSubscription';
+import { Menu, Search, Bell, Sparkles, UserPlus, ShoppingCart, FileText, ChevronRight, Trash2, Eye, EyeOff, CheckCircle2, AlertTriangle, AlertCircle, Info, Plus, Clock } from 'lucide-react';
 import { toast } from './Toast';
+import { CommandPalette } from './CommandPalette';
 
 interface HeaderProps {
  onMenuToggle: () => void;
@@ -18,6 +20,9 @@ interface HeaderProps {
  }) => {
   const { 
    currentTenant,
+   tenants,
+   switchTenant,
+   user,
    inventory, 
    orders,
    notifications,
@@ -28,10 +33,27 @@ interface HeaderProps {
    clearAllNotifications,
    settings
   } = useDb();
-  const [searchQuery, setSearchQuery] = useState('');
+  const { isExpired, isUrgent, daysRemaining, formattedRemainingTime, daysUntilRenewal } = useSubscription();
+  const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [showQuickMenu, setShowQuickMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showTenantDropdown, setShowTenantDropdown] = useState(false);
   const [notifFilter, setNotifFilter] = useState<'all' | 'unread' | 'read'>('all');
+
+  // Global keyboard shortcut: Ctrl+K / Cmd+K to open Command Palette
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setShowCommandPalette(prev => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, []);
+
+  const atelierBrandName = settings?.nomeFantasia || settings?.companyName || currentTenant?.nomeFantasia || currentTenant?.name || 'Ateliê';
+  const atelierThemeColor = settings?.primaryColor || currentTenant?.primaryColor || '#D4AF37';
 
  // Determine low/critical stock warnings
  const lowStockItems = inventory.filter(i => !i.isDeleted && i.quantity <= i.minQuantity && i.quantity > 0);
@@ -49,37 +71,14 @@ interface HeaderProps {
   orders: 'Pedidos de Venda',
   production: 'Chão de Fábrica (Produção)',
   financial: 'Fluxo Financeiro',
-  subscription: 'Planos & Assinatura',
-  users: 'Operadores & Permissões',
+  subscription: 'Assinatura',
   profile: 'Meu Perfil',
   account_security: 'Segurança & Sessões',
   settings: 'Configurações',
  };
 
- const handleGlobalSearch = (e: React.FormEvent) => {
-  e.preventDefault();
-  if (!searchQuery) return;
-  
-  const searchLower = searchQuery.toLowerCase();
-  toast.info("Busca Global", `Buscando por "${searchQuery}"...`);
-
-  if (searchLower.includes('insumo') || searchLower.includes('pérola') || searchLower.includes('crucifixo') || searchLower.includes('material')) {
-   onViewChange('inventory');
-  } else if (searchLower.includes('terço') || searchLower.includes('pulseira') || searchLower.includes('produto')) {
-   onViewChange('products');
-  } else if (searchLower.includes('pedido') || searchLower.includes('ped')) {
-   onViewChange('orders');
-  } else if (searchLower.includes('orçamento')) {
-   onViewChange('quotes');
-  } else if (searchLower.includes('cliente') || searchLower.includes('ana') || searchLower.includes('paróquia')) {
-   onViewChange('clients');
-  } else {
-   toast.info("Nenhum atalho encontrado", "Exibindo resultados comuns...");
-  }
-  setSearchQuery('');
- };
-
  return (
+  <>
   <header className="h-16 border-b border-[rgba(42,36,32,0.06)] bg-[#FFFDF9] px-3 sm:px-6 flex items-center justify-between sticky top-0 z-30 print:hidden">
   
    {/* Left Area: Hamburger and Ateliê Brand Badge */}
@@ -93,37 +92,154 @@ interface HeaderProps {
     </button>
 
     {/* Dedicated Ateliê Brand Badge */}
-    <div className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs font-bold text-amber-950 shadow-2xs shrink-0">
-     <div 
-      className="w-2.5 h-2.5 rounded-full ring-2 ring-white shrink-0" 
-      style={{ backgroundColor: currentTenant?.primaryColor || '#D4AF37' }}
-     />
-     <span className="truncate max-w-[110px] sm:max-w-[180px]">
-      {currentTenant?.name || settings.companyName || 'Ateliê Sagrado'}
-     </span>
+    <div className="relative">
+     <button 
+      onClick={() => setShowTenantDropdown(prev => !prev)}
+      className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/15 border border-amber-500/20 text-xs font-bold text-amber-950 shadow-2xs shrink-0 cursor-pointer transition-all active:scale-[0.98]"
+      title="Identidade do Ateliê (clique para detalhes)"
+     >
+      <div 
+       className="w-2.5 h-2.5 rounded-full ring-2 ring-white shrink-0 shadow-2xs" 
+       style={{ backgroundColor: atelierThemeColor }}
+      />
+      <span className="truncate max-w-[120px] sm:max-w-[200px]">
+       {atelierBrandName}
+      </span>
+     </button>
+
+     {showTenantDropdown && (
+      <>
+       <div className="fixed inset-0 z-40" onClick={() => setShowTenantDropdown(false)} />
+       <div className="absolute left-0 mt-2 w-72 bg-white border border-slate-200/90 rounded-2xl shadow-xl p-3.5 z-50 animate-slide-in-up">
+        <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100">
+         <div 
+          className="w-9 h-9 rounded-xl flex items-center justify-center font-serif font-bold text-white shadow-xs shrink-0 text-sm"
+          style={{ backgroundColor: atelierThemeColor }}
+         >
+          {settings?.logo && !settings.logo.startsWith('http') ? settings.logo : (atelierBrandName[0] || 'A')}
+         </div>
+         <div className="min-w-0 flex-1">
+          <h4 className="font-bold text-xs text-slate-900 truncate">{atelierBrandName}</h4>
+          <p className="text-[10px] text-slate-500 truncate">
+           {settings?.razaoSocial || currentTenant?.razaoSocial || 'Arte Sacra & Produção'}
+          </p>
+          {(settings?.cnpj || currentTenant?.document) && (
+           <p className="text-[9px] font-mono text-slate-400">CNPJ: {settings?.cnpj || currentTenant?.document}</p>
+          )}
+         </div>
+        </div>
+
+        <div className="py-2.5 space-y-1.5 text-[11px] border-b border-slate-100">
+         <div className="flex justify-between items-center text-slate-600">
+          <span className="text-slate-400">Assinante:</span>
+          <span className="font-semibold text-slate-800 truncate max-w-[130px]">{user?.name || 'Administrador'}</span>
+         </div>
+         <div className="flex justify-between items-center text-slate-600">
+          <span className="text-slate-400">Assinatura:</span>
+          {isExpired ? (
+            <span className="font-medium bg-red-50 text-red-700 border border-red-200 px-1.5 py-0.5 rounded text-[10px] font-bold">
+             Vencida • 0 dias
+            </span>
+          ) : (
+            <span className={`font-medium border px-1.5 py-0.5 rounded text-[10px] font-bold ${
+              isUrgent
+                ? 'bg-red-50 text-red-700 border-red-200'
+                : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+            }`}>
+             Ativa ({formattedRemainingTime})
+            </span>
+          )}
+         </div>
+         {(settings?.phone || currentTenant?.phone) && (
+          <div className="flex justify-between items-center text-slate-600">
+           <span className="text-slate-400">Telefone:</span>
+           <span className="font-mono text-[10px]">{settings?.phone || currentTenant?.phone}</span>
+          </div>
+         )}
+        </div>
+
+        <div className="pt-2">
+         <button
+          onClick={() => {
+           setShowTenantDropdown(false);
+           onViewChange('settings');
+          }}
+          className="w-full py-1.5 px-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-semibold text-center block cursor-pointer transition-colors"
+         >
+          Configurar Identidade do Ateliê
+         </button>
+        </div>
+       </div>
+      </>
+     )}
     </div>
 
-    <ChevronRight size={14} className="hidden sm:inline text-slate-300 shrink-0" />
-    <span className="text-ink-900 font-serif italic font-semibold truncate hidden sm:inline text-xs">
+    {currentView !== 'dashboard' ? (
+      <>
+        <button
+          type="button"
+          onClick={() => onViewChange('dashboard')}
+          className="text-slate-500 hover:text-slate-900 text-xs font-semibold hover:underline hidden sm:inline cursor-pointer"
+          title="Voltar ao Início"
+        >
+          Início
+        </button>
+        <ChevronRight size={14} className="hidden sm:inline text-slate-300 shrink-0" />
+      </>
+    ) : null}
+    <span className="text-ink-900 font-semibold truncate hidden sm:inline text-xs">
      {viewLabels[currentView] || currentView}
     </span>
    </div>
 
    {/* Right Area: Search, Actions, Notifications */}
    {!settings?.firstSetup && (
-    <div className="flex items-center gap-2 sm:gap-4">
+    <div className="flex items-center gap-1.5 sm:gap-3">
+
+     {/* Visual Subscription Remaining Time Indicator */}
+     <button
+      type="button"
+      onClick={() => onViewChange('subscription')}
+      title={isExpired ? 'Assinatura Vencida - Clique para ver opções de regularização e planos na aba de Assinatura' : `Tempo restante da assinatura: ${formattedRemainingTime}. Clique para gerenciar sua assinatura.`}
+      className={`hidden sm:flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-2xs select-none shrink-0 ${
+       isExpired || isUrgent
+        ? 'bg-red-50 text-red-700 border border-red-300 ring-2 ring-red-400/20 hover:bg-red-100'
+        : 'bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100/70'
+      }`}
+     >
+      <Clock size={13} className={isExpired || isUrgent ? 'text-red-600 shrink-0' : 'text-emerald-600 shrink-0'} />
+      <span className="font-semibold whitespace-nowrap">
+       {formattedRemainingTime}
+      </span>
+      {isUrgent && !isExpired && (
+       <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping" />
+      )}
+     </button>
    
-    {/* Global Search Bar */}
-    <form onSubmit={handleGlobalSearch} className="relative hidden md:block w-64">
-     <input
-      type="text"
-      placeholder="Pesquisar no Ateliê..."
-      value={searchQuery}
-      onChange={(e) => setSearchQuery(e.target.value)}
-      className="w-full pl-9 pr-4 py-2 text-xs rounded-full border border-slate-200/80 bg-slate-50/50 text-ink-900 focus:outline-none focus:ring-2 focus:ring-gold-500/20 focus:border-gold-500 transition-all placeholder-slate-400"
-     />
-     <Search size={14} className="absolute left-3.5 top-2.5 text-slate-400" />
-    </form>
+    {/* Global Quick Search Button & Keyboard Trigger */}
+    <button
+      type="button"
+      onClick={() => setShowCommandPalette(true)}
+      className="hidden md:flex items-center justify-between w-64 px-3 py-1.5 rounded-full border border-slate-200/90 bg-slate-50/70 hover:bg-slate-100/80 text-xs text-slate-400 hover:text-slate-600 transition-all cursor-pointer shadow-2xs select-none"
+    >
+      <div className="flex items-center gap-2">
+        <Search size={14} className="text-slate-400" />
+        <span>Pesquisar no Ateliê...</span>
+      </div>
+      <kbd className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white border border-slate-200 text-slate-500 font-bold shadow-2xs">
+        Ctrl K
+      </kbd>
+    </button>
+
+    {/* Mobile Quick Search Button */}
+    <button
+      type="button"
+      onClick={() => setShowCommandPalette(true)}
+      className="md:hidden p-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-100 cursor-pointer"
+      title="Busca Rápida (Ctrl+K)"
+    >
+      <Search size={16} />
+    </button>
 
     {/* Quick Actions Button */}
     <div className="relative">
@@ -257,8 +373,8 @@ interface HeaderProps {
              </div>
             </div>
 
-            {/* Hover Actions */}
-            <div className="absolute bottom-2.5 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            {/* Hover/Touch Actions */}
+            <div className="absolute bottom-2.5 right-2 flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
              <button
               onClick={(e) => {
                e.stopPropagation();
@@ -302,5 +418,32 @@ interface HeaderProps {
     </div>
    )}
   </header>
+
+  {/* Global Command Palette Modal */}
+  <CommandPalette
+   isOpen={showCommandPalette}
+   onClose={() => setShowCommandPalette(false)}
+   onNavigate={(view) => onViewChange(view)}
+  />
+
+  {/* Limited Mode Notice Banner when expired */}
+  {isExpired && (
+   <div className="bg-amber-500 text-amber-950 px-4 py-2 text-xs font-medium flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-amber-600/30 sticky top-16 z-20 shadow-xs print:hidden animate-fade-in">
+    <div className="flex items-center gap-2">
+     <AlertTriangle size={16} className="text-amber-950 shrink-0" />
+     <span>
+      <strong>Assinatura Vencida • Modo Limitado:</strong> Sua assinatura de 30 dias expirou. Seus dados estão 100% seguros e preservados, mas novas inserções estão pausadas até a renovação.
+     </span>
+    </div>
+    <button
+     type="button"
+     onClick={() => onViewChange('subscription')}
+     className="px-3 py-1 bg-amber-950 hover:bg-slate-900 text-white rounded-lg text-xs font-bold shrink-0 transition-colors cursor-pointer shadow-sm self-start sm:self-auto"
+    >
+     Renovar Assinatura
+    </button>
+   </div>
+  )}
+ </>
  );
 };

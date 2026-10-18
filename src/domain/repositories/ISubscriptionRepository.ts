@@ -14,6 +14,8 @@ export interface ISubscriptionRepository {
   downgradePlan(userId: string, newPlanId: PlanId, cycle: BillingCycle): Promise<UserSubscription>;
   cancelSubscription(userId: string): Promise<UserSubscription>;
   reactivateSubscription(userId: string): Promise<UserSubscription>;
+  renewSubscription(userId: string, cycle?: BillingCycle): Promise<UserSubscription>;
+  simulateStatus(userId: string, status: 'active' | 'expired'): Promise<UserSubscription>;
   checkResourceLimit(userId: string, resourceKey: keyof SubscriptionUsage, amountToAdd?: number): Promise<{
     allowed: boolean;
     current: number;

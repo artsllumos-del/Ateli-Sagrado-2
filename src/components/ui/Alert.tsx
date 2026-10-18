@@ -49,7 +49,7 @@ export const Alert: React.FC<AlertProps> = ({
   compact = false,
   className = '',
 }) => {
-  const styles = variantStyles[variant];
+  const styles = (variant && variantStyles[variant]) || variantStyles.info;
 
   return (
     <div

@@ -1,183 +1,189 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useSubscription } from '../../hooks/useSubscription';
 import { useDb } from '../../context/DbContext';
-import { PlansMatrixView } from './PlansMatrixView';
 import { toast } from '../Toast';
+import { Pagination } from '../Pagination';
 import { 
-  CreditCard, 
-  Download, 
   Sparkles, 
-  Clock, 
-  Users, 
-  Package, 
-  FileText, 
-  HardDrive, 
   CheckCircle, 
-  Plus, 
-  AlertTriangle,
+  ShieldCheck, 
+  Check, 
+  Printer,
+  Infinity as InfinityIcon,
+  Package,
+  ShoppingCart,
+  FileText,
+  Users,
+  Hammer,
   TrendingUp,
-  ShieldCheck,
-  Check,
-  Trash2,
-  Printer
+  RotateCw,
+  AlertTriangle,
+  Clock,
+  Calendar,
+  Zap,
+  Info,
+  BadgePercent,
+  ArrowUpRight
 } from 'lucide-react';
-import { PaymentMethod, BillingInvoice } from '../../domain/types/auth';
+import { BillingInvoice, BillingCycle } from '../../domain/types/auth';
 
-export const SubscriptionBillingView: React.FC = () => {
+interface CycleOption {
+  cycle: BillingCycle;
+  name: string;
+  durationLabel: string;
+  durationDays: number;
+  totalPrice: number;
+  monthlyEquivalent: number;
+  discountPercent: number;
+  discountSavings: number;
+  badge?: string;
+  popular?: boolean;
+}
+
+const CYCLE_OPTIONS: CycleOption[] = [
+  {
+    cycle: 'monthly',
+    name: 'Mensal',
+    durationLabel: '30 dias de acesso',
+    durationDays: 30,
+    totalPrice: 49.90,
+    monthlyEquivalent: 49.90,
+    discountPercent: 0,
+    discountSavings: 0,
+    badge: 'Ciclo Padrão'
+  },
+  {
+    cycle: 'quarterly',
+    name: 'Trimestral',
+    durationLabel: '90 dias (3 meses)',
+    durationDays: 90,
+    totalPrice: 134.70,
+    monthlyEquivalent: 44.90,
+    discountPercent: 10,
+    discountSavings: 15.00,
+    badge: '10% de Desconto'
+  },
+  {
+    cycle: 'semiannual',
+    name: 'Semestral',
+    durationLabel: '180 dias (6 meses)',
+    durationDays: 180,
+    totalPrice: 239.50,
+    monthlyEquivalent: 39.90,
+    discountPercent: 20,
+    discountSavings: 59.90,
+    badge: '20% OFF • Mais Popular',
+    popular: true
+  },
+  {
+    cycle: 'annual',
+    name: 'Anual',
+    durationLabel: '365 dias (12 meses)',
+    durationDays: 365,
+    totalPrice: 419.00,
+    monthlyEquivalent: 34.90,
+    discountPercent: 30,
+    discountSavings: 179.80,
+    badge: '30% OFF • Maior Economia'
+  }
+];
+
+interface SubscriptionBillingViewProps {
+  onNavigate?: (view: string) => void;
+}
+
+export const SubscriptionBillingView: React.FC<SubscriptionBillingViewProps> = ({ onNavigate }) => {
+  const [activeTab, setActiveTab] = useState<'overview' | 'invoices'>('overview');
+  const [selectedCycle, setSelectedCycle] = useState<BillingCycle>('monthly');
+  const [isRenewing, setIsRenewing] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+
   const { 
     subscription, 
-    currentPlan, 
     invoices, 
-    paymentMethods, 
-    isTrial, 
-    isExpired, 
-    trialDaysRemaining,
     daysUntilRenewal,
-    isAutoRenewActive,
-    hasDefaultPaymentMethod,
-    cancelSubscription,
-    reactivateSubscription,
-    addPaymentMethod,
-    removePaymentMethod,
-    setDefaultPaymentMethod
+    isExpired,
+    renewSubscription,
+    simulateStatus
   } = useSubscription();
 
-  const { products, orders, quotes, users, settings } = useDb();
+  const { products, orders, quotes, inventory, clients } = useDb();
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'plans'>('overview');
-  const [showAddPaymentModal, setShowAddPaymentModal] = useState(false);
-  const [showCancelModal, setShowCancelModal] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<BillingInvoice | null>(null);
   const [invoiceFilterYear, setInvoiceFilterYear] = useState<string>('all');
 
-  // Payment method form state
-  const [paymentType, setPaymentType] = useState<'credit_card' | 'pix'>('credit_card');
-  const [cardHolder, setCardHolder] = useState('');
-  const [cardNumber, setCardNumber] = useState('');
-  const [cardExpiry, setCardExpiry] = useState('');
-  const [cardCvv, setCardCvv] = useState('');
+  // Real assertive counts of registered non-deleted items in the studio
+  const activeProducts = useMemo(() => (products || []).filter(p => !p.isDeleted), [products]);
+  const activeOrders = useMemo(() => (orders || []).filter(o => !o.isDeleted), [orders]);
+  const activeQuotes = useMemo(() => (quotes || []).filter(q => !q.isDeleted), [quotes]);
+  const activeClients = useMemo(() => (clients || []).filter(c => !c.isDeleted), [clients]);
+  const activeInventory = useMemo(() => (inventory || []).filter(i => !i.isDeleted), [inventory]);
 
-  const handleCreatePaymentMethod = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // Find currently chosen cycle option
+  const activeCycleOption = CYCLE_OPTIONS.find(c => c.cycle === selectedCycle) || CYCLE_OPTIONS[0];
+
+  // Calculate percentage of 30-day period remaining
+  const currentDaysLeft = isExpired ? 0 : Math.max(0, daysUntilRenewal);
+  const totalDaysInCurrentCycle = subscription?.billingCycle === 'annual' 
+    ? 365 
+    : subscription?.billingCycle === 'semiannual' 
+      ? 180 
+      : subscription?.billingCycle === 'quarterly' 
+        ? 90 
+        : 30;
+
+  const progressPercent = Math.min(100, Math.max(5, Math.round((currentDaysLeft / totalDaysInCurrentCycle) * 100)));
+
+  // Format dates
+  const formatDateBR = (iso?: string) => {
+    if (!iso) return '--/--/----';
     try {
-      if (paymentType === 'credit_card') {
-        if (!cardHolder || !cardNumber || !cardExpiry) {
-          toast.error('Preenchimento Inválido', 'Por favor, preencha os dados do cartão de crédito.');
-          return;
-        }
-        const last4 = cardNumber.slice(-4) || '8888';
-        await addPaymentMethod({
-          type: 'credit_card',
-          last4,
-          brand: 'Mastercard',
-          expiryMonth: 12,
-          expiryYear: 2029,
-          isDefault: paymentMethods.length === 0,
-          holderName: cardHolder.toUpperCase()
-        });
-        toast.success('Forma de Pagamento Adicionada!', `Cartão final ${last4} cadastrado com sucesso.`);
-      } else {
-        await addPaymentMethod({
-          type: 'pix',
-          isDefault: paymentMethods.length === 0
-        });
-        toast.success('Pix Recorrente Habilitado!', 'Forma de pagamento via Pix configurada.');
-      }
-      setShowAddPaymentModal(false);
-      setCardHolder('');
-      setCardNumber('');
-      setCardExpiry('');
-      setCardCvv('');
-    } catch (err) {
-      toast.error('Erro', 'Não foi possível cadastrar a forma de pagamento.');
+      const d = new Date(iso);
+      return d.toLocaleDateString('pt-BR');
+    } catch {
+      return iso;
     }
   };
 
-  const handleRemovePaymentMethod = async (id: string) => {
-    if (paymentMethods.length <= 1) {
-      toast.error('Ação Não Permitida', 'Mantenha ao menos uma forma de pagamento ativa para renovações.');
-      return;
-    }
-    await removePaymentMethod(id);
-    toast.info('Removido', 'Forma de pagamento excluída.');
-  };
-
-  const handleSetDefaultPaymentMethod = async (id: string) => {
-    await setDefaultPaymentMethod(id);
-    toast.success('Padrão Alterado', 'Sua forma de pagamento principal foi atualizada.');
-  };
-
-  const handleCancelSub = async () => {
+  const handleExecuteRenewal = async () => {
+    setIsRenewing(true);
     try {
-      await cancelSubscription();
-      toast.warning('Cancelamento Agendado', 'Sua assinatura não será renovada ao fim do período atual.');
-      setShowCancelModal(false);
-    } catch (err) {
-      toast.error('Erro', 'Não foi possível agendar o cancelamento.');
+      await renewSubscription(selectedCycle);
+      toast.success(
+        'Assinatura Renovada com Sucesso!',
+        `Seu plano foi renovado no ciclo ${activeCycleOption.name} (+${activeCycleOption.durationDays} dias). Acesso integral garantido!`
+      );
+      setShowConfirmModal(false);
+    } catch {
+      toast.error('Erro ao Renovar', 'Não foi possível renovar a assinatura no momento.');
+    } finally {
+      setIsRenewing(false);
     }
   };
 
-  const handleReactivateSub = async () => {
+  const handleSimulateExpired = async () => {
     try {
-      await reactivateSubscription();
-      toast.success('Assinatura Reativada!', 'Sua renovação automática continua ativa.');
-    } catch (err) {
-      toast.error('Erro', 'Não foi possível reativar a assinatura.');
+      await simulateStatus('expired');
+      toast.warning(
+        'Modo Limitado Ativado (Simulação)',
+        'A assinatura foi marcada como expirada para testar o comportamento do Modo Limitado.'
+      );
+    } catch {
+      toast.error('Erro', 'Não foi possível alterar o status.');
     }
   };
 
-  if (activeTab === 'plans') {
-    return (
-      <div>
-        <div className="mb-4">
-          <button
-            onClick={() => setActiveTab('overview')}
-            className="text-xs font-bold text-stone-600 hover:text-stone-900 flex items-center gap-1 cursor-pointer bg-stone-100 hover:bg-stone-200 px-3.5 py-2 rounded-xl transition-all"
-          >
-            ← Voltar para Painel da Minha Assinatura
-          </button>
-        </div>
-        <PlansMatrixView />
-      </div>
-    );
-  }
-
-  // Real usage calculation from database context
-  const currentMonthStr = new Date().toISOString().substring(0, 7);
-  const realOrdersThisMonth = (orders || []).filter(o => (o.date || '').startsWith(currentMonthStr)).length || (orders || []).length;
-  const realQuotesThisMonth = (quotes || []).filter(q => (q.date || '').startsWith(currentMonthStr)).length || (quotes || []).length;
-  const realUsersCount = (users || []).length || 1;
-  const realProductsCount = (products || []).length || 0;
-  const realStorageMb = Math.round(40 + (realProductsCount * 2.5) + (realOrdersThisMonth * 1.5));
-
-  const usage = {
-    usersCount: realUsersCount,
-    productsCount: realProductsCount,
-    ordersThisMonth: realOrdersThisMonth,
-    quotesThisMonth: realQuotesThisMonth,
-    storageUsedMb: realStorageMb
+  const handleRestoreActive = async () => {
+    try {
+      await simulateStatus('active');
+      toast.success(
+        'Assinatura Reativada!',
+        'Sua assinatura de 30 dias está ativa novamente com acesso completo a todos os recursos.'
+      );
+    } catch {
+      toast.error('Erro', 'Não foi possível reativar.');
+    }
   };
-
-  const limits = currentPlan?.limits || {
-    maxUsers: 3,
-    maxProducts: 50,
-    maxOrdersPerMonth: 100,
-    maxQuotesPerMonth: 150,
-    maxStorageMb: 500
-  };
-
-  const calcPercentage = (curr: number, max: number) => {
-    if (max === -1 || max >= 9999) return 12; // unlimited visual level
-    return Math.min(100, Math.round((curr / max) * 100));
-  };
-
-  const getGaugeColor = (pct: number) => {
-    if (pct >= 90) return 'bg-rose-600';
-    if (pct >= 75) return 'bg-amber-500';
-    return 'bg-emerald-600';
-  };
-
-  const basePlanPrice = subscription?.billingCycle === 'annual' ? (currentPlan?.priceAnnual || 0) : (currentPlan?.priceMonthly || 0);
 
   // Invoice filtering
   const filteredInvoices = (invoices || []).filter(inv => {
@@ -185,715 +191,739 @@ export const SubscriptionBillingView: React.FC = () => {
     return (inv.date || '').startsWith(invoiceFilterYear);
   });
 
+  const [invoicesPage, setInvoicesPage] = useState(1);
+  const [invoicesPerPage, setInvoicesPerPage] = useState(5);
+  const paginatedInvoices = filteredInvoices.slice(
+    (invoicesPage - 1) * invoicesPerPage,
+    invoicesPage * invoicesPerPage
+  );
+
   return (
-    <div className="space-y-8 pb-12 font-sans select-none">
+    <div className="space-y-6 pb-12 font-sans select-none">
       
-      {/* Expired or Trial Notice Banner */}
-      {isExpired && (
-        <div className="bg-rose-50 border-2 border-rose-200 rounded-3xl p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-rose-900 shadow-sm">
-          <div className="flex items-start gap-3">
-            <AlertTriangle size={24} className="text-rose-600 shrink-0 mt-1" />
-            <div>
-              <h3 className="font-bold text-sm">Seu Período de Teste Expirou</h3>
-              <p className="text-xs text-rose-700 mt-1 leading-relaxed">
-                Escolha um dos nossos planos para reativar todas as funcionalidades do Ateliê Sagrado ERP sem interrupções.
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={() => setActiveTab('plans')}
-            className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl shadow-md cursor-pointer shrink-0 transition-all active:scale-95"
-          >
-            Escolher Plano Agora
-          </button>
-        </div>
-      )}
-
-      {isTrial && !isExpired && (
-        <div className="bg-gradient-to-r from-amber-50 via-amber-100/50 to-amber-50 border border-amber-300/80 rounded-3xl p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-amber-950 shadow-xs">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-300 flex items-center justify-center text-amber-700 shrink-0 shadow-xs">
-              <Clock size={22} />
-            </div>
-            <div>
-              <h4 className="font-bold text-sm text-amber-950">
-                Período Gratuito de Teste Ativo ({trialDaysRemaining} Dias Restantes)
-              </h4>
-              <p className="text-xs text-amber-800 mt-0.5">
-                Restam <strong className="font-extrabold text-amber-950 text-sm">{trialDaysRemaining} dias</strong> de acesso completo com suporte total a todos os módulos do sistema.
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={() => setActiveTab('plans')}
-            className="px-5 py-2.5 bg-stone-900 hover:bg-stone-800 text-amber-300 font-bold text-xs rounded-xl shadow-md cursor-pointer shrink-0 transition-all active:scale-95"
-          >
-            Mudar para Plano Definitivo
-          </button>
-        </div>
-      )}
-
-      {/* RENEWAL WARNING ALERT: Close to renewal OR missing automatic renewal setup */}
-      {!isExpired && !isTrial && (!isAutoRenewActive || daysUntilRenewal <= 10) && (
-        <div className={`p-6 rounded-3xl border-2 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xs transition-all ${
-          !isAutoRenewActive 
-            ? 'bg-amber-50/90 border-amber-300 text-amber-950' 
-            : 'bg-emerald-50/90 border-emerald-300 text-emerald-950'
-        }`}>
-          <div className="flex items-start gap-3.5">
-            <div className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 mt-0.5 ${
-              !isAutoRenewActive ? 'bg-amber-200/80 text-amber-900' : 'bg-emerald-200/80 text-emerald-900'
-            }`}>
-              {!isAutoRenewActive ? <AlertTriangle size={22} /> : <Clock size={22} />}
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h4 className="font-extrabold text-sm">
-                  {!isAutoRenewActive 
-                    ? `Atenção: Próxima Renovação em ${daysUntilRenewal} dias sem Renovação Automática Ativa`
-                    : `Lembrete de Renovação em ${daysUntilRenewal} dias`
-                  }
-                </h4>
-                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                  !isAutoRenewActive ? 'bg-amber-200 text-amber-900 border border-amber-300' : 'bg-emerald-200 text-emerald-900 border border-emerald-300'
-                }`}>
-                  Faltam {daysUntilRenewal} dias
-                </span>
-              </div>
-              <p className="text-xs mt-1 leading-relaxed opacity-90">
-                {!isAutoRenewActive ? (
-                  <>
-                    {!hasDefaultPaymentMethod ? (
-                      <span>
-                        Nenhum cartão ou chave Pix está definido como padrão. Para evitar o bloqueio no vencimento do ciclo ({subscription?.billingCycle === 'annual' ? 'Anual' : 'Mensal'}), cadastre uma forma de pagamento.
-                      </span>
-                    ) : (
-                      <span>
-                        A renovação automática está pausada (cancelamento agendado para o fim do período). Reative para continuar usando o Ateliê Sagrado ERP sem interrupção.
-                      </span>
-                    )}
-                  </>
-                ) : (
-                  <span>
-                    Sua assinatura ({subscription?.billingCycle === 'annual' ? 'Anual' : 'Mensal'}) será renovada automaticamente no dia{' '}
-                    <strong>{subscription?.currentPeriodEnd ? new Date(subscription.currentPeriodEnd).toLocaleDateString('pt-BR') : ''}</strong> com cobrança no seu cartão padrão.
-                  </span>
-                )}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 shrink-0">
-            {!isAutoRenewActive && subscription?.cancelAtPeriodEnd ? (
-              <button
-                onClick={handleReactivateSub}
-                className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md cursor-pointer transition-all active:scale-95"
-              >
-                Reativar Renovação Automática
-              </button>
-            ) : !hasDefaultPaymentMethod ? (
-              <button
-                onClick={() => setShowAddPaymentModal(true)}
-                className="px-4 py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl shadow-md cursor-pointer transition-all active:scale-95"
-              >
-                Cadastrar Cartão / Pix
-              </button>
-            ) : null}
-          </div>
-        </div>
-      )}
-
-      {/* Main Current Subscription Header Card */}
-      <div className="bg-white border border-stone-200/80 rounded-3xl p-6 sm:p-8 shadow-xs relative overflow-hidden">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-stone-100 pb-6">
+      {/* Top Header & Tab Navigation Bar */}
+      <div className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-xs space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-[10px] uppercase font-bold tracking-widest text-amber-700 bg-amber-100/80 px-2.5 py-0.5 rounded-md border border-amber-200/60">
-                Assinatura Ativa
-              </span>
-
-              {/* Days till renewal pill indicator */}
-              <span className="text-[10px] font-bold px-2.5 py-0.5 bg-stone-900 text-amber-300 rounded-full border border-stone-800 flex items-center gap-1">
-                <Clock size={11} /> Restam {daysUntilRenewal} dias
-              </span>
-
-              {/* Auto renew status indicator */}
-              {isAutoRenewActive ? (
-                <span className="text-[10px] font-bold px-2.5 py-0.5 bg-emerald-100 text-emerald-800 rounded-full border border-emerald-200 flex items-center gap-1">
-                  <CheckCircle size={11} /> Renovação Automática
-                </span>
-              ) : (
-                <span className="text-[10px] font-bold px-2.5 py-0.5 bg-amber-100 text-amber-800 rounded-full border border-amber-200 flex items-center gap-1">
-                  <AlertTriangle size={11} /> Sem Renovação Automática
-                </span>
-              )}
-            </div>
-            
-            <h2 className="text-2xl sm:text-3xl font-black text-stone-900 mt-2">
-              {currentPlan?.name || 'Plano Gratuito / Trial'}
+            <h2 className="text-xl sm:text-2xl font-serif font-bold text-slate-900 tracking-tight">
+              Assinatura
             </h2>
-            
-            <p className="text-xs text-stone-500 mt-1 flex flex-wrap items-center gap-2">
-              <span className="font-medium">Ciclo {subscription?.billingCycle === 'annual' ? 'Anual' : 'Mensal'}</span>
-              <span>•</span>
-              <span>
-                Próxima renovação em:{' '}
-                <strong className="text-stone-900 font-bold">
-                  {subscription?.currentPeriodEnd 
-                    ? new Date(subscription.currentPeriodEnd).toLocaleDateString('pt-BR') 
-                    : 'Em breve'}
-                </strong>{' '}
-                (<span className="text-amber-800 font-extrabold">{daysUntilRenewal} dias disponíveis</span>)
-              </span>
-              <span>•</span>
-              <span className="font-mono font-bold text-stone-900">
-                Valor: R$ {basePlanPrice.toFixed(2)}/mês
-              </span>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Gestão de validade da assinatura de 30 dias, ciclos de renovação com desconto e controle de acesso integral.
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
-            {subscription?.cancelAtPeriodEnd ? (
-              <button
-                onClick={handleReactivateSub}
-                className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-xs transition-all flex items-center gap-2 cursor-pointer"
-              >
-                <CheckCircle size={15} />
-                <span>Reativar Assinatura</span>
-              </button>
+          <div className="flex items-center gap-2 self-start sm:self-auto">
+            {isExpired ? (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 text-amber-900 border border-amber-300 text-xs font-bold animate-pulse">
+                <AlertTriangle size={15} className="text-amber-600" />
+                Vencida • Modo Limitado
+              </span>
             ) : (
-              <button
-                onClick={() => setShowCancelModal(true)}
-                className="px-3.5 py-2.5 border border-stone-200 hover:bg-rose-50 hover:border-rose-200 text-stone-600 hover:text-rose-700 text-xs font-bold rounded-xl transition-all cursor-pointer"
-              >
-                Cancelar Renovação
-              </button>
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-bold">
+                <ShieldCheck size={15} className="text-emerald-600" />
+                Assinatura Válida • Acesso Integral
+              </span>
             )}
+          </div>
+        </div>
 
+        {/* Tab Switcher */}
+        <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100">
+          <button
+            type="button"
+            onClick={() => setActiveTab('overview')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
+              activeTab === 'overview'
+                ? 'bg-slate-900 text-white shadow-xs'
+                : 'bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200'
+            }`}
+          >
+            <Sparkles size={15} />
+            Visão Geral & Renovação
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('invoices')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
+              activeTab === 'invoices'
+                ? 'bg-slate-900 text-white shadow-xs'
+                : 'bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200'
+            }`}
+          >
+            <FileText size={15} />
+            Faturas & Recibos
+          </button>
+        </div>
+      </div>
+
+      {/* EXPIRED BANNER (If in limited mode) */}
+      {isExpired && (
+        <div className="bg-amber-50 border-2 border-amber-400 rounded-3xl p-5 shadow-sm space-y-3">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-amber-500/20 text-amber-800 flex items-center justify-center shrink-0">
+              <AlertTriangle size={22} className="text-amber-700" />
+            </div>
+            <div className="space-y-1">
+              <h3 className="font-bold text-amber-950 text-base">
+                Sua Assinatura Expirou — Conta Operando no Modo Limitado
+              </h3>
+              <p className="text-xs text-amber-900/90 leading-relaxed">
+                Todos os seus dados históricos (produtos, insumos, clientes, pedidos e finanças) continuam <strong>100% seguros e preservados</strong>. No Modo Limitado, novas inserções de produtos, orçamentos e pedidos de venda estão temporariamente pausadas até a renovação.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-amber-200/80">
             <button
-              onClick={() => setActiveTab('plans')}
-              className="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer active:scale-95"
+              onClick={() => {
+                const el = document.getElementById('renewal-plans-section');
+                if (el) el.scrollIntoView({ behavior: 'smooth' });
+              }}
+              className="px-4 py-2 bg-amber-900 hover:bg-amber-950 text-white rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 shadow-sm"
             >
-              <Sparkles size={15} />
-              <span>Ver & Alterar Planos</span>
+              <Zap size={14} />
+              Escolher Período e Renovar Agora
+            </button>
+            <button
+              onClick={handleRestoreActive}
+              className="px-3 py-2 bg-white hover:bg-amber-100/60 text-amber-900 border border-amber-300 rounded-xl text-xs font-semibold transition-colors cursor-pointer"
+            >
+              Restaurar Validade de 30 Dias
             </button>
           </div>
         </div>
+      )}
 
-        {/* Real-time Usage Metrics Section */}
-        <div className="mt-8">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-stone-500 flex items-center gap-1.5">
-              <TrendingUp size={14} className="text-amber-600" />
-              Consumo de Recursos em Tempo Real no Ateliê
-            </h3>
-            <span className="text-[10px] text-stone-400 font-mono">
-              Calculado a partir do seu banco de dados
-            </span>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            
-            {/* Users Metric */}
-            {(() => {
-              const pct = calcPercentage(usage.usersCount, limits.maxUsers);
-              return (
-                <div className="p-4 rounded-2xl bg-stone-50/80 border border-stone-200/60 shadow-2xs">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-bold text-stone-700 flex items-center gap-1.5">
-                      <Users size={14} className="text-amber-600" /> Operadores
-                    </span>
-                    <span className="text-xs font-mono font-bold text-stone-900">
-                      {usage.usersCount} / {limits.maxUsers === 999 ? '∞' : limits.maxUsers}
-                    </span>
-                  </div>
-                  <div className="w-full bg-stone-200/80 h-2 rounded-full overflow-hidden">
-                    <div 
-                      className={`${getGaugeColor(pct)} h-full rounded-full transition-all duration-500`} 
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
-                  <div className="mt-2 flex items-center justify-between text-[10px] text-stone-500">
-                    <span>{pct}% utilizado</span>
-                    {pct >= 85 && (
-                      <button onClick={() => setActiveTab('plans')} className="text-amber-700 font-bold hover:underline">
-                        Aumentar +
-                      </button>
-                    )}
-                  </div>
+      {/* TAB 1: VISÃO GERAL & RENOVAÇÃO */}
+      {activeTab === 'overview' && (
+        <div className="space-y-6">
+          
+          {/* Main Status & Validity Card */}
+          <div className="bg-white rounded-3xl border border-slate-200/80 p-6 shadow-xs space-y-5">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="space-y-1">
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 text-[11px] font-bold">
+                  <Clock size={12} className="text-slate-500" />
+                  Status da Validade
                 </div>
-              );
-            })()}
-
-            {/* Products Metric */}
-            {(() => {
-              const pct = calcPercentage(usage.productsCount, limits.maxProducts);
-              return (
-                <div className="p-4 rounded-2xl bg-stone-50/80 border border-stone-200/60 shadow-2xs">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-bold text-stone-700 flex items-center gap-1.5">
-                      <Package size={14} className="text-amber-600" /> Catálogo
-                    </span>
-                    <span className="text-xs font-mono font-bold text-stone-900">
-                      {usage.productsCount} / {limits.maxProducts === 9999 ? '∞' : limits.maxProducts}
-                    </span>
-                  </div>
-                  <div className="w-full bg-stone-200/80 h-2 rounded-full overflow-hidden">
-                    <div 
-                      className={`${getGaugeColor(pct)} h-full rounded-full transition-all duration-500`} 
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
-                  <div className="mt-2 flex items-center justify-between text-[10px] text-stone-500">
-                    <span>{pct}% utilizado</span>
-                    {pct >= 85 && (
-                      <button onClick={() => setActiveTab('plans')} className="text-amber-700 font-bold hover:underline">
-                        Aumentar +
-                      </button>
-                    )}
-                  </div>
-                </div>
-              );
-            })()}
-
-            {/* Orders Metric */}
-            {(() => {
-              const pct = calcPercentage(usage.ordersThisMonth, limits.maxOrdersPerMonth);
-              return (
-                <div className="p-4 rounded-2xl bg-stone-50/80 border border-stone-200/60 shadow-2xs">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-bold text-stone-700 flex items-center gap-1.5">
-                      <FileText size={14} className="text-amber-600" /> Pedidos/Mês
-                    </span>
-                    <span className="text-xs font-mono font-bold text-stone-900">
-                      {usage.ordersThisMonth} / {limits.maxOrdersPerMonth === 9999 ? '∞' : limits.maxOrdersPerMonth}
-                    </span>
-                  </div>
-                  <div className="w-full bg-stone-200/80 h-2 rounded-full overflow-hidden">
-                    <div 
-                      className={`${getGaugeColor(pct)} h-full rounded-full transition-all duration-500`} 
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
-                  <div className="mt-2 flex items-center justify-between text-[10px] text-stone-500">
-                    <span>{pct}% utilizado</span>
-                    {pct >= 85 && (
-                      <button onClick={() => setActiveTab('plans')} className="text-amber-700 font-bold hover:underline">
-                        Aumentar +
-                      </button>
-                    )}
-                  </div>
-                </div>
-              );
-            })()}
-
-            {/* Storage Metric */}
-            {(() => {
-              const pct = calcPercentage(usage.storageUsedMb, limits.maxStorageMb);
-              return (
-                <div className="p-4 rounded-2xl bg-stone-50/80 border border-stone-200/60 shadow-2xs">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-bold text-stone-700 flex items-center gap-1.5">
-                      <HardDrive size={14} className="text-amber-600" /> Fotos & Nuvem
-                    </span>
-                    <span className="text-xs font-mono font-bold text-stone-900">
-                      {usage.storageUsedMb} MB / {limits.maxStorageMb} MB
-                    </span>
-                  </div>
-                  <div className="w-full bg-stone-200/80 h-2 rounded-full overflow-hidden">
-                    <div 
-                      className={`${getGaugeColor(pct)} h-full rounded-full transition-all duration-500`} 
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
-                  <div className="mt-2 flex items-center justify-between text-[10px] text-stone-500">
-                    <span>{pct}% utilizado</span>
-                    {pct >= 85 && (
-                      <button onClick={() => setActiveTab('plans')} className="text-amber-700 font-bold hover:underline">
-                        Aumentar +
-                      </button>
-                    )}
-                  </div>
-                </div>
-              );
-            })()}
-
-          </div>
-        </div>
-      </div>
-
-      {/* Payment Methods & Invoice History Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        {/* Payment Methods */}
-        <div className="bg-white border border-stone-200/80 rounded-3xl p-6 shadow-xs flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-bold text-stone-900 flex items-center gap-2">
-                <CreditCard size={16} className="text-amber-600" />
-                Formas de Pagamento
-              </h3>
-              <button 
-                onClick={() => setShowAddPaymentModal(true)}
-                className="p-1.5 bg-stone-100 hover:bg-amber-100 hover:text-amber-900 rounded-xl text-stone-700 transition-all cursor-pointer flex items-center gap-1 text-xs font-bold"
-              >
-                <Plus size={14} />
-                <span>Adicionar</span>
-              </button>
-            </div>
-
-            <div className="space-y-3">
-              {(paymentMethods || []).map((pm) => (
-                <div 
-                  key={pm.id} 
-                  className={`p-3.5 rounded-2xl border transition-all flex items-center justify-between gap-3 text-xs ${
-                    pm.isDefault ? 'bg-amber-50/40 border-amber-300' : 'bg-stone-50/50 border-stone-200'
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-white border border-stone-200 flex items-center justify-center font-bold text-stone-700 shadow-2xs">
-                      {pm.type === 'credit_card' ? '💳' : '⚡'}
-                    </div>
-                    <div>
-                      <p className="font-bold text-stone-900">
-                        {pm.type === 'credit_card' ? `${pm.brand || 'Cartão'} **** ${pm.last4}` : 'Pix Automático Recorrente'}
-                      </p>
-                      <p className="text-[10px] text-stone-500">
-                        {pm.holderName || 'Pagamento Seguro Tokens'}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    {pm.isDefault ? (
-                      <span className="text-[10px] font-bold px-2.5 py-0.5 bg-amber-100 text-amber-900 rounded-full border border-amber-200">
-                        Padrão
-                      </span>
-                    ) : (
-                      <button
-                        onClick={() => handleSetDefaultPaymentMethod(pm.id)}
-                        className="text-[10px] font-bold text-stone-500 hover:text-amber-700 hover:underline cursor-pointer"
-                      >
-                        Tornar Padrão
-                      </button>
-                    )}
-
-                    <button
-                      onClick={() => handleRemovePaymentMethod(pm.id)}
-                      className="p-1 text-stone-400 hover:text-rose-600 transition-all cursor-pointer"
-                      title="Excluir forma de pagamento"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="mt-6 pt-4 border-t border-stone-100 flex items-center gap-2 text-[11px] text-stone-400 leading-relaxed">
-            <ShieldCheck size={16} className="text-emerald-600 shrink-0" />
-            <span>Processamento protegido com criptografia PCI-DSS e tokenização.</span>
-          </div>
-        </div>
-
-        {/* Invoice History Table */}
-        <div className="lg:col-span-2 bg-white border border-stone-200/80 rounded-3xl p-6 shadow-xs">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
-            <h3 className="text-sm font-bold text-stone-900 flex items-center gap-2">
-              <FileText size={16} className="text-amber-600" />
-              Histórico de Faturas & Recibos Fiscais
-            </h3>
-
-            <div className="flex items-center gap-2">
-              <select
-                value={invoiceFilterYear}
-                onChange={(e) => setInvoiceFilterYear(e.target.value)}
-                className="text-xs font-bold bg-stone-100 border border-stone-200 rounded-xl px-2.5 py-1.5 text-stone-700"
-              >
-                <option value="all">Todas as Faturas</option>
-                <option value="2026">Ano 2026</option>
-                <option value="2025">Ano 2025</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead>
-                <tr className="border-b border-stone-150 text-stone-400 font-mono text-[10px] uppercase">
-                  <th className="pb-3 font-bold">Fatura Nº</th>
-                  <th className="pb-3 font-bold">Data</th>
-                  <th className="pb-3 font-bold">Plano</th>
-                  <th className="pb-3 font-bold">Valor Total</th>
-                  <th className="pb-3 font-bold">Status</th>
-                  <th className="pb-3 font-bold text-right">Recibo / PDF</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-stone-100 text-stone-700">
-                {filteredInvoices.map((inv) => (
-                  <tr key={inv.id} className="hover:bg-stone-50/80 transition-colors">
-                    <td className="py-3.5 font-mono font-bold text-stone-900">{inv.number}</td>
-                    <td className="py-3.5 font-medium">{inv.date}</td>
-                    <td className="py-3.5 font-medium text-stone-900">{inv.planName}</td>
-                    <td className="py-3.5 font-mono font-bold text-stone-900">R$ {inv.amount.toFixed(2)}</td>
-                    <td className="py-3.5">
-                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
-                        <CheckCircle size={10} /> Pago
-                      </span>
-                    </td>
-                    <td className="py-3.5 text-right">
-                      <button 
-                        onClick={() => setSelectedInvoice(inv)}
-                        className="px-2.5 py-1 hover:bg-amber-100 hover:text-amber-900 rounded-lg text-amber-700 font-bold transition-all cursor-pointer inline-flex items-center gap-1 text-[11px]"
-                      >
-                        <Download size={13} />
-                        <span>Ver Fatura</span>
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-      </div>
-
-      {/* Add Payment Method Modal */}
-      {showAddPaymentModal && (
-        <div className="fixed inset-0 bg-stone-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fade-in">
-          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl border border-stone-150 space-y-5 animate-scale-up">
-            <div className="flex items-center justify-between border-b border-stone-100 pb-4">
-              <h3 className="font-bold text-sm text-stone-900 flex items-center gap-2">
-                <CreditCard size={18} className="text-amber-600" />
-                Cadastrar Nova Forma de Pagamento
-              </h3>
-              <button 
-                onClick={() => setShowAddPaymentModal(false)}
-                className="text-stone-400 hover:text-stone-700 text-xs font-bold p-1 rounded-lg"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="flex items-center gap-2 bg-stone-100 p-1.5 rounded-2xl text-xs font-bold">
-              <button
-                type="button"
-                onClick={() => setPaymentType('credit_card')}
-                className={`flex-1 py-2 rounded-xl transition-all cursor-pointer ${
-                  paymentType === 'credit_card' ? 'bg-white text-stone-900 shadow-2xs' : 'text-stone-500'
-                }`}
-              >
-                💳 Cartão de Crédito
-              </button>
-              <button
-                type="button"
-                onClick={() => setPaymentType('pix')}
-                className={`flex-1 py-2 rounded-xl transition-all cursor-pointer ${
-                  paymentType === 'pix' ? 'bg-white text-stone-900 shadow-2xs' : 'text-stone-500'
-                }`}
-              >
-                ⚡ Pix Automático
-              </button>
-            </div>
-
-            <form onSubmit={handleCreatePaymentMethod} className="space-y-4 text-xs font-semibold">
-              {paymentType === 'credit_card' ? (
-                <>
-                  <div>
-                    <label className="block text-[10px] uppercase font-bold text-stone-500 mb-1">Nome no Cartão *</label>
-                    <input
-                      type="text"
-                      required
-                      value={cardHolder}
-                      onChange={(e) => setCardHolder(e.target.value)}
-                      placeholder="EX: ARTHUR SANTOS"
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 bg-stone-50 font-bold focus:outline-none uppercase"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] uppercase font-bold text-stone-500 mb-1">Número do Cartão *</label>
-                    <input
-                      type="text"
-                      required
-                      value={cardNumber}
-                      onChange={(e) => setCardNumber(e.target.value)}
-                      placeholder="4242 •••• •••• 4242"
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 bg-stone-50 font-mono text-stone-900 focus:outline-none"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-[10px] uppercase font-bold text-stone-500 mb-1">Validade *</label>
-                      <input
-                        type="text"
-                        required
-                        value={cardExpiry}
-                        onChange={(e) => setCardExpiry(e.target.value)}
-                        placeholder="MM/AA"
-                        className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 bg-stone-50 font-mono focus:outline-none"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] uppercase font-bold text-stone-500 mb-1">CVC / CVV *</label>
-                      <input
-                        type="password"
-                        required
-                        maxLength={4}
-                        value={cardCvv}
-                        onChange={(e) => setCardCvv(e.target.value)}
-                        placeholder="123"
-                        className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 bg-stone-50 font-mono focus:outline-none"
-                      />
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200/80 space-y-2 text-stone-800 text-xs">
-                  <p className="font-bold flex items-center gap-1.5 text-amber-950">
-                    <CheckCircle size={15} className="text-emerald-600" /> Pix Recorrente Sem Falhas
-                  </p>
-                  <p className="text-[11px] text-amber-900 leading-relaxed">
-                    Você receberá uma notificação com o código QR do Pix a cada vencimento mensal com desconto e liquidação instantânea.
-                  </p>
-                </div>
-              )}
-
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-stone-100">
-                <button
-                  type="button"
-                  onClick={() => setShowAddPaymentModal(false)}
-                  className="px-4 py-2 rounded-xl border border-stone-200 text-stone-600 font-bold cursor-pointer hover:bg-stone-50"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 rounded-xl bg-stone-900 hover:bg-stone-800 text-amber-300 font-bold shadow-md cursor-pointer"
-                >
-                  Salvar Pagamento
-                </button>
+                <h3 className="text-xl font-serif font-bold text-slate-900">
+                  {isExpired ? 'Assinatura Vencida (0 dias restantes)' : `Assinatura Válida • ${currentDaysLeft} dias restantes`}
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Período atual: <strong>{formatDateBR(subscription?.currentPeriodStart)}</strong> até <strong>{formatDateBR(subscription?.currentPeriodEnd)}</strong>
+                </p>
               </div>
-            </form>
+
+              <div className="flex items-center gap-2">
+                {isExpired ? (
+                  <button
+                    onClick={() => setShowConfirmModal(true)}
+                    className="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold cursor-pointer transition-colors shadow-sm flex items-center gap-2"
+                  >
+                    <RotateCw size={15} />
+                    Renovar Assinatura Agora
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => setShowConfirmModal(true)}
+                    className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold cursor-pointer transition-colors shadow-sm flex items-center gap-2"
+                  >
+                    <Zap size={15} className="text-amber-400" />
+                    Estender / Renovar Assinatura
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Progress Bar */}
+            <div className="space-y-2">
+              <div className="flex justify-between text-xs font-medium">
+                <span className="text-slate-600">Tempo restante no ciclo</span>
+                <span className={isExpired ? 'text-amber-600 font-bold' : 'text-slate-900 font-bold'}>
+                  {isExpired ? 'Expirado' : `${currentDaysLeft} de ${totalDaysInCurrentCycle} dias`}
+                </span>
+              </div>
+              <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden p-0.5 border border-slate-200/60">
+                <div 
+                  className={`h-full rounded-full transition-all duration-500 ${
+                    isExpired 
+                      ? 'bg-amber-500 w-full' 
+                      : currentDaysLeft <= 5 
+                        ? 'bg-amber-500' 
+                        : 'bg-emerald-500'
+                  }`}
+                  style={{ width: isExpired ? '100%' : `${progressPercent}%` }}
+                />
+              </div>
+            </div>
+
+            {/* Info notice about 30 days validation */}
+            <div className="flex items-start gap-2.5 p-3.5 bg-slate-50 border border-slate-200/60 rounded-2xl text-xs text-slate-600">
+              <Info size={16} className="text-slate-500 shrink-0 mt-0.5" />
+              <p>
+                A assinatura padrão é válida por <strong>30 dias</strong>. Você pode renovar a qualquer momento para estender o acesso integral. Abaixo, escolha o ciclo desejado — planos mais longos contam com descontos especiais de até <strong>30%</strong>.
+              </p>
+            </div>
+          </div>
+
+          {/* RENEWAL PLANS & DISCOUNT SELECTOR */}
+          <div id="renewal-plans-section" className="bg-white rounded-3xl border border-slate-200/80 p-6 shadow-xs space-y-6">
+            <div className="space-y-1">
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-800 text-[11px] font-bold">
+                <BadgePercent size={13} className="text-amber-600" />
+                Opções de Renovação com Desconto
+              </div>
+              <h3 className="text-lg font-serif font-bold text-slate-900">
+                Selecione o Ciclo para Renovação
+              </h3>
+              <p className="text-xs text-slate-500">
+                Garanta acesso ininterrupto para o seu ateliê. Escolha o período que melhor atende à sua produção.
+              </p>
+            </div>
+
+            {/* 4 Cards Grid: Monthly, Quarterly, Semiannual, Annual */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {CYCLE_OPTIONS.map(opt => {
+                const isSelected = selectedCycle === opt.cycle;
+                return (
+                  <div
+                    key={opt.cycle}
+                    onClick={() => setSelectedCycle(opt.cycle)}
+                    className={`relative rounded-2xl p-5 border-2 transition-all cursor-pointer flex flex-col justify-between space-y-4 ${
+                      isSelected
+                        ? 'border-amber-600 bg-amber-50/30 shadow-md ring-2 ring-amber-500/20'
+                        : 'border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50/50'
+                    }`}
+                  >
+                    {/* Badge */}
+                    {opt.badge && (
+                      <div className="absolute -top-3 left-4">
+                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-2xs ${
+                          opt.popular
+                            ? 'bg-amber-600 text-white'
+                            : opt.discountPercent > 0
+                              ? 'bg-emerald-600 text-white'
+                              : 'bg-slate-800 text-white'
+                        }`}>
+                          {opt.badge}
+                        </span>
+                      </div>
+                    )}
+
+                    <div className="space-y-2 pt-1">
+                      <div className="flex items-center justify-between">
+                        <h4 className="font-serif font-bold text-base text-slate-900">
+                          {opt.name}
+                        </h4>
+                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                          isSelected ? 'border-amber-600 bg-amber-600 text-white' : 'border-slate-300'
+                        }`}>
+                          {isSelected && <Check size={12} strokeWidth={3} />}
+                        </div>
+                      </div>
+
+                      <p className="text-xs text-slate-500">
+                        {opt.durationLabel}
+                      </p>
+
+                      <div className="pt-2">
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-xs text-slate-400 font-medium">R$</span>
+                          <span className="text-2xl font-bold font-mono text-slate-900">
+                            {opt.monthlyEquivalent.toFixed(2).replace('.', ',')}
+                          </span>
+                          <span className="text-xs text-slate-500 font-medium">/mês</span>
+                        </div>
+                        {opt.discountPercent > 0 ? (
+                          <p className="text-[11px] text-emerald-700 font-medium mt-1">
+                            Total: R$ {opt.totalPrice.toFixed(2).replace('.', ',')} (economize R$ {opt.discountSavings.toFixed(2).replace('.', ',')})
+                          </p>
+                        ) : (
+                          <p className="text-[11px] text-slate-500 font-medium mt-1">
+                            Total: R$ {opt.totalPrice.toFixed(2).replace('.', ',')} por ciclo
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="pt-2 border-t border-slate-100 text-[11px] text-slate-600 space-y-1">
+                      <div className="flex items-center gap-1.5 text-emerald-700 font-medium">
+                        <CheckCircle size={13} className="shrink-0" />
+                        <span>Acesso 100% irrestrito</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-slate-500">
+                        <Calendar size={13} className="shrink-0" />
+                        <span>+{opt.durationDays} dias no vencimento</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Action Bar for selected cycle */}
+            <div className="p-4 rounded-2xl bg-slate-900 text-white flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="space-y-0.5 text-center sm:text-left">
+                <p className="text-xs text-amber-300 font-semibold">
+                  Plano Selecionado: <strong>{activeCycleOption.name} ({activeCycleOption.durationLabel})</strong>
+                </p>
+                <p className="text-sm font-medium text-slate-200">
+                  Total da renovação: <span className="text-white font-bold font-mono text-base">R$ {activeCycleOption.totalPrice.toFixed(2).replace('.', ',')}</span>
+                  {activeCycleOption.discountPercent > 0 && (
+                    <span className="ml-2 text-xs text-emerald-400 font-bold bg-emerald-500/20 px-2 py-0.5 rounded-full border border-emerald-400/30">
+                      Economia de R$ {activeCycleOption.discountSavings.toFixed(2).replace('.', ',')}
+                    </span>
+                  )}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowConfirmModal(true)}
+                className="w-full sm:w-auto px-6 py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-xl transition-all cursor-pointer shadow-md flex items-center justify-center gap-2 shrink-0 active:scale-95"
+              >
+                <Zap size={16} />
+                Confirmar Renovação ({activeCycleOption.name})
+              </button>
+            </div>
+
+            {/* Payment Method Notice */}
+            <div className="bg-amber-500/10 border border-amber-400/30 rounded-2xl p-4 text-xs text-amber-950 flex items-start gap-3">
+              <Info size={18} className="text-amber-700 shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <p className="font-bold">Forma de Pagamento em Fase de Implementação</p>
+                <p className="text-amber-900/90 leading-relaxed">
+                  As formas de pagamento automáticas (como débito recorrente, Pix automático e boleto bancário) estão sendo implementadas. No momento, a renovação é confirmada e registrada diretamente no sistema, garantindo que o seu ateliê continue operando sem pausas e com total tranquilidade.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Assertive Studio Resources & Registrations Grid */}
+          <div className="bg-white rounded-3xl border border-slate-200/80 p-6 shadow-xs space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+              <div className="space-y-0.5">
+                <h3 className="text-base font-serif font-bold text-slate-900 flex items-center gap-2">
+                  <ShieldCheck size={18} className="text-emerald-600" />
+                  Recursos & Cadastros Sincronizados
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Valores assertivos e consolidados em tempo real com cada módulo do sistema.
+                </p>
+              </div>
+              <span className="text-[11px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-xl shrink-0 self-start sm:self-auto flex items-center gap-1.5">
+                <Check size={12} /> Acesso Ilimitado Garantido
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 pt-1">
+              {/* 1. Produtos */}
+              <div 
+                onClick={() => onNavigate?.('products')}
+                className={`p-4 rounded-2xl border transition-all text-center flex flex-col justify-between space-y-2 ${
+                  onNavigate ? 'cursor-pointer hover:border-amber-400 hover:shadow-xs bg-slate-50/70 hover:bg-white' : 'bg-slate-50 border-slate-100'
+                }`}
+              >
+                <div className="space-y-1">
+                  <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-700 flex items-center justify-center mx-auto">
+                    <Package size={17} />
+                  </div>
+                  <span className="text-2xl font-bold font-mono text-slate-900 block">{activeProducts.length}</span>
+                  <span className="text-xs font-bold text-slate-800 block">Produtos (Composição)</span>
+                  <span className="text-[11px] text-slate-500 block">Itens ativos no catálogo</span>
+                </div>
+                <div className="pt-2 border-t border-slate-200/60 flex items-center justify-center gap-1 text-[11px] font-semibold text-amber-800">
+                  <span>Ver Catálogo</span>
+                  <ArrowUpRight size={12} />
+                </div>
+              </div>
+
+              {/* 2. Pedidos de Venda */}
+              <div 
+                onClick={() => onNavigate?.('orders')}
+                className={`p-4 rounded-2xl border transition-all text-center flex flex-col justify-between space-y-2 ${
+                  onNavigate ? 'cursor-pointer hover:border-amber-400 hover:shadow-xs bg-slate-50/70 hover:bg-white' : 'bg-slate-50 border-slate-100'
+                }`}
+              >
+                <div className="space-y-1">
+                  <div className="w-8 h-8 rounded-xl bg-blue-500/10 text-blue-700 flex items-center justify-center mx-auto">
+                    <ShoppingCart size={17} />
+                  </div>
+                  <span className="text-2xl font-bold font-mono text-slate-900 block">{activeOrders.length}</span>
+                  <span className="text-xs font-bold text-slate-800 block">Pedidos de Venda</span>
+                  <span className="text-[11px] text-slate-500 block">Pedidos registrados</span>
+                </div>
+                <div className="pt-2 border-t border-slate-200/60 flex items-center justify-center gap-1 text-[11px] font-semibold text-blue-800">
+                  <span>Ver Pedidos</span>
+                  <ArrowUpRight size={12} />
+                </div>
+              </div>
+
+              {/* 3. Orçamentos */}
+              <div 
+                onClick={() => onNavigate?.('quotes')}
+                className={`p-4 rounded-2xl border transition-all text-center flex flex-col justify-between space-y-2 ${
+                  onNavigate ? 'cursor-pointer hover:border-amber-400 hover:shadow-xs bg-slate-50/70 hover:bg-white' : 'bg-slate-50 border-slate-100'
+                }`}
+              >
+                <div className="space-y-1">
+                  <div className="w-8 h-8 rounded-xl bg-purple-500/10 text-purple-700 flex items-center justify-center mx-auto">
+                    <FileText size={17} />
+                  </div>
+                  <span className="text-2xl font-bold font-mono text-slate-900 block">{activeQuotes.length}</span>
+                  <span className="text-xs font-bold text-slate-800 block">Orçamentos</span>
+                  <span className="text-[11px] text-slate-500 block">Orçamentos gerados</span>
+                </div>
+                <div className="pt-2 border-t border-slate-200/60 flex items-center justify-center gap-1 text-[11px] font-semibold text-purple-800">
+                  <span>Ver Orçamentos</span>
+                  <ArrowUpRight size={12} />
+                </div>
+              </div>
+
+              {/* 4. Clientes */}
+              <div 
+                onClick={() => onNavigate?.('clients')}
+                className={`p-4 rounded-2xl border transition-all text-center flex flex-col justify-between space-y-2 ${
+                  onNavigate ? 'cursor-pointer hover:border-amber-400 hover:shadow-xs bg-slate-50/70 hover:bg-white' : 'bg-slate-50 border-slate-100'
+                }`}
+              >
+                <div className="space-y-1">
+                  <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-700 flex items-center justify-center mx-auto">
+                    <Users size={17} />
+                  </div>
+                  <span className="text-2xl font-bold font-mono text-slate-900 block">{activeClients.length}</span>
+                  <span className="text-xs font-bold text-slate-800 block">Clientes</span>
+                  <span className="text-[11px] text-slate-500 block">Clientes cadastrados</span>
+                </div>
+                <div className="pt-2 border-t border-slate-200/60 flex items-center justify-center gap-1 text-[11px] font-semibold text-emerald-800">
+                  <span>Ver Clientes</span>
+                  <ArrowUpRight size={12} />
+                </div>
+              </div>
+
+              {/* 5. Insumos */}
+              <div 
+                onClick={() => onNavigate?.('inventory')}
+                className={`p-4 rounded-2xl border transition-all text-center flex flex-col justify-between space-y-2 ${
+                  onNavigate ? 'cursor-pointer hover:border-amber-400 hover:shadow-xs bg-slate-50/70 hover:bg-white' : 'bg-slate-50 border-slate-100'
+                }`}
+              >
+                <div className="space-y-1">
+                  <div className="w-8 h-8 rounded-xl bg-amber-600/10 text-amber-800 flex items-center justify-center mx-auto">
+                    <Hammer size={17} />
+                  </div>
+                  <span className="text-2xl font-bold font-mono text-slate-900 block">{activeInventory.length}</span>
+                  <span className="text-xs font-bold text-slate-800 block">Estoque de Insumos</span>
+                  <span className="text-[11px] text-slate-500 block">Matérias cadastradas</span>
+                </div>
+                <div className="pt-2 border-t border-slate-200/60 flex items-center justify-center gap-1 text-[11px] font-semibold text-amber-900">
+                  <span>Ver Estoque</span>
+                  <ArrowUpRight size={12} />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Test & Simulation Tools for User */}
+          <div className="bg-slate-50 rounded-3xl border border-slate-200/80 p-5 shadow-xs space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                  Ferramentas de Simulação (Para Testes do Ateliê)
+                </h4>
+                <p className="text-[11px] text-slate-500">
+                  Teste na prática a transição entre o status de Assinatura Válida e o Modo Limitado.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              <button
+                type="button"
+                onClick={handleSimulateExpired}
+                className="px-3 py-1.5 bg-white hover:bg-slate-100 text-amber-900 border border-amber-300 rounded-xl text-xs font-semibold cursor-pointer transition-colors"
+              >
+                Simular Vencimento (Testar Modo Limitado)
+              </button>
+              <button
+                type="button"
+                onClick={handleRestoreActive}
+                className="px-3 py-1.5 bg-white hover:bg-slate-100 text-emerald-900 border border-emerald-300 rounded-xl text-xs font-semibold cursor-pointer transition-colors"
+              >
+                Restaurar Assinatura Válida (30 dias)
+              </button>
+            </div>
+          </div>
+
+        </div>
+      )}
+
+      {/* TAB 2: FATURAS & RECIBOS */}
+      {activeTab === 'invoices' && (
+        <div className="space-y-6">
+          <div className="bg-white rounded-3xl border border-slate-200/80 p-6 shadow-xs space-y-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h3 className="text-lg font-serif font-bold text-slate-900">
+                  Histórico de Faturas & Recibos
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Comprovantes e registros de renovação da assinatura do Ateliê Sagrado ERP.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <label className="text-xs font-medium text-slate-600">Ano:</label>
+                <select
+                  value={invoiceFilterYear}
+                  onChange={e => {
+                    setInvoiceFilterYear(e.target.value);
+                    setInvoicesPage(1);
+                  }}
+                  className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none"
+                >
+                  <option value="all">Todos os anos</option>
+                  <option value="2026">2026</option>
+                  <option value="2025">2025</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Invoices Table */}
+            <div className="overflow-x-auto rounded-2xl border border-slate-100">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-100 text-slate-500 font-bold uppercase tracking-wider text-[10px]">
+                    <th className="py-3 px-4">Fatura / Recibo</th>
+                    <th className="py-3 px-4">Data</th>
+                    <th className="py-3 px-4">Plano & Ciclo</th>
+                    <th className="py-3 px-4">Valor</th>
+                    <th className="py-3 px-4">Status</th>
+                    <th className="py-3 px-4 text-right">Comprovante</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {paginatedInvoices.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="py-8 text-center text-slate-400">
+                        Nenhuma fatura encontrada para este período.
+                      </td>
+                    </tr>
+                  ) : (
+                    paginatedInvoices.map((inv) => (
+                      <tr key={inv.id} className="hover:bg-slate-50/60 transition-colors">
+                        <td className="py-3.5 px-4 font-mono font-bold text-slate-900">
+                          {inv.number}
+                        </td>
+                        <td className="py-3.5 px-4 text-slate-600">
+                          {formatDateBR(inv.date)}
+                        </td>
+                        <td className="py-3.5 px-4 text-slate-700 font-medium">
+                          {inv.planName} • {inv.billingCycle === 'annual' ? 'Anual' : inv.billingCycle === 'semiannual' ? 'Semestral' : inv.billingCycle === 'quarterly' ? 'Trimestral' : 'Mensal'}
+                        </td>
+                        <td className="py-3.5 px-4 font-mono font-bold text-slate-900">
+                          R$ {inv.amount.toFixed(2).replace('.', ',')}
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                            <CheckCircle size={11} /> Pago
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-4 text-right">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedInvoice(inv)}
+                            className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[11px] font-bold transition-colors cursor-pointer"
+                          >
+                            Visualizar
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination */}
+            <Pagination
+              totalItems={filteredInvoices.length}
+              totalPages={Math.ceil(filteredInvoices.length / invoicesPerPage)}
+              itemsPerPage={invoicesPerPage}
+              currentPage={invoicesPage}
+              onPageChange={setInvoicesPage}
+              onItemsPerPageChange={(val) => { setInvoicesPerPage(val); setInvoicesPage(1); }}
+              labelSingular="fatura"
+              labelPlural="faturas"
+            />
           </div>
         </div>
       )}
 
-      {/* Invoice Details & Print Modal */}
-      {selectedInvoice && (
-        <div className="fixed inset-0 bg-stone-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fade-in">
-          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl border border-stone-150 space-y-6 animate-scale-up print:p-0 print:shadow-none print:border-none">
-            <div className="flex items-center justify-between border-b border-stone-100 pb-4 print:hidden">
-              <div className="flex items-center gap-2">
-                <FileText size={18} className="text-amber-600" />
-                <span className="font-bold text-sm text-stone-900">Comprovante de Fatura</span>
+      {/* RENEWAL CONFIRMATION MODAL */}
+      {showConfirmModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-5 animate-scale-up">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-amber-500/10 text-amber-700 flex items-center justify-center">
+                  <Zap size={20} />
+                </div>
+                <div>
+                  <h3 className="font-serif font-bold text-base text-slate-900">
+                    Confirmar Renovação
+                  </h3>
+                  <p className="text-[11px] text-slate-500">
+                    Ciclo {activeCycleOption.name} (+{activeCycleOption.durationDays} dias de acesso)
+                  </p>
+                </div>
               </div>
-              <button 
-                onClick={() => setSelectedInvoice(null)}
-                className="text-stone-400 hover:text-stone-700 text-xs font-bold p-1 rounded-lg"
+              <button
+                type="button"
+                onClick={() => setShowConfirmModal(false)}
+                className="text-slate-400 hover:text-slate-600 text-lg leading-none cursor-pointer"
               >
-                ✕
+                ×
               </button>
             </div>
 
-            {/* Printable Invoice Details Card */}
-            <div className="space-y-4 text-xs font-sans text-stone-800">
-              <div className="flex items-start justify-between">
-                <div>
-                  <h3 className="font-serif font-black text-base text-stone-900">{settings.companyName || 'Ateliê Sagrado ERP'}</h3>
-                  <p className="text-[11px] text-stone-500 font-mono">CNPJ: {settings.cnpj || '00.000.000/0001-00'}</p>
-                </div>
-                <div className="text-right">
-                  <span className="font-mono font-bold text-amber-700 text-xs block">{selectedInvoice.number}</span>
-                  <span className="text-[10px] text-stone-400">Emissão: {selectedInvoice.date}</span>
-                </div>
+            {/* Plan Summary */}
+            <div className="bg-slate-50 rounded-2xl p-4 space-y-2 border border-slate-200/80 text-xs">
+              <div className="flex justify-between items-center text-slate-600">
+                <span>Plano:</span>
+                <span className="font-bold text-slate-900">Ateliê Sagrado Completo</span>
               </div>
-
-              <div className="p-4 rounded-2xl bg-stone-50 border border-stone-200/80 space-y-1.5">
-                <div className="flex justify-between">
-                  <span className="text-stone-500">Descrição do Item:</span>
-                  <span className="font-bold text-stone-900">{selectedInvoice.planName} ({selectedInvoice.billingCycle === 'annual' ? 'Anual' : 'Mensal'})</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-stone-500">Status do Pagamento:</span>
-                  <span className="font-bold text-emerald-700 uppercase">● {selectedInvoice.status}</span>
-                </div>
-                <div className="flex justify-between pt-2 border-t border-stone-200/60 text-sm">
-                  <span className="font-bold text-stone-900">Valor Total Pago:</span>
-                  <span className="font-mono font-black text-stone-900">R$ {selectedInvoice.amount.toFixed(2)}</span>
-                </div>
+              <div className="flex justify-between items-center text-slate-600">
+                <span>Ciclo Escolhido:</span>
+                <span className="font-bold text-slate-900">{activeCycleOption.name} ({activeCycleOption.durationLabel})</span>
               </div>
-
-              <p className="text-[10px] text-stone-400 italic text-center">
-                Este documento serve como recibo oficial de prestação de serviços de software ERP.
-              </p>
+              <div className="flex justify-between items-center text-slate-600">
+                <span>Equivalência Mensal:</span>
+                <span className="font-mono text-slate-900">R$ {activeCycleOption.monthlyEquivalent.toFixed(2).replace('.', ',')}/mês</span>
+              </div>
+              {activeCycleOption.discountPercent > 0 && (
+                <div className="flex justify-between items-center text-emerald-700 font-medium">
+                  <span>Desconto Aplicado:</span>
+                  <span className="font-bold">{activeCycleOption.discountPercent}% OFF (-R$ {activeCycleOption.discountSavings.toFixed(2).replace('.', ',')})</span>
+                </div>
+              )}
+              <div className="pt-2 border-t border-slate-200 flex justify-between items-center text-sm font-bold text-slate-900">
+                <span>Valor Total:</span>
+                <span className="text-base text-amber-900 font-mono">R$ {activeCycleOption.totalPrice.toFixed(2).replace('.', ',')}</span>
+              </div>
             </div>
 
-            <div className="flex items-center justify-between pt-4 border-t border-stone-100 print:hidden">
+            <p className="text-xs text-slate-500 leading-relaxed">
+              Ao confirmar, a validade da sua assinatura será imediatamente estendida por <strong>{activeCycleOption.durationDays} dias</strong>, assegurando que todas as operações e acessos permaneçam desbloqueados e ativos.
+            </p>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setShowConfirmModal(false)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={isRenewing}
+                onClick={handleExecuteRenewal}
+                className="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center gap-2 shadow-sm"
+              >
+                {isRenewing ? (
+                  <>
+                    <RotateCw size={14} className="animate-spin" />
+                    Renovando...
+                  </>
+                ) : (
+                  <>
+                    <Check size={14} />
+                    Confirmar e Ativar Acesso
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* INVOICE MODAL */}
+      {selectedInvoice && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-6 animate-scale-up">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-amber-500/10 text-amber-700 flex items-center justify-center font-serif font-bold text-lg">
+                  AS
+                </div>
+                <div>
+                  <h3 className="font-serif font-bold text-base text-slate-900">
+                    Recibo Oficial de Assinatura
+                  </h3>
+                  <p className="text-[11px] text-slate-500">
+                    Comprovante de pagamento e renovação
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedInvoice(null)}
+                className="text-slate-400 hover:text-slate-600 text-lg leading-none cursor-pointer"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="space-y-4 text-xs">
+              <div className="grid grid-cols-2 gap-3 p-3 bg-slate-50 rounded-2xl border border-slate-100">
+                <div>
+                  <span className="text-[10px] text-slate-400 uppercase font-bold">Número da Fatura:</span>
+                  <p className="font-mono font-bold text-slate-900">{selectedInvoice.number}</p>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-400 uppercase font-bold">Data de Emissão:</span>
+                  <p className="font-medium text-slate-800">{formatDateBR(selectedInvoice.date)}</p>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-400 uppercase font-bold">Status do Pagamento:</span>
+                  <p className="text-emerald-700 font-bold">Confirmado / Pago</p>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-400 uppercase font-bold">Valor Total:</span>
+                  <p className="font-mono font-bold text-slate-900 text-sm">
+                    R$ {selectedInvoice.amount.toFixed(2).replace('.', ',')}
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 space-y-1">
+                <span className="text-[10px] text-slate-400 uppercase font-bold">Discriminação do Serviço:</span>
+                <p className="text-slate-800 font-medium">
+                  {selectedInvoice.planName} — Assinatura de Sistema de Gestão para Ateliê Artesanal
+                </p>
+                <p className="text-slate-500 text-[11px]">
+                  Acesso integral e ilimitado aos módulos de estoque, compras, catálogo, orçamentos, pedidos, chão de fábrica e fluxo financeiro.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
               <button
                 type="button"
                 onClick={() => window.print()}
-                className="px-4 py-2 bg-stone-100 hover:bg-stone-200 text-stone-800 font-bold rounded-xl text-xs flex items-center gap-2 cursor-pointer transition-all"
+                className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 shadow-sm"
               >
-                <Printer size={15} />
-                <span>Imprimir / Salvar PDF</span>
+                <Printer size={14} /> Imprimir Recibo
               </button>
-
               <button
                 type="button"
                 onClick={() => setSelectedInvoice(null)}
-                className="px-5 py-2 bg-stone-900 text-amber-300 hover:bg-stone-800 font-bold rounded-xl text-xs cursor-pointer"
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors cursor-pointer"
               >
                 Fechar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Cancel Confirmation Modal */}
-      {showCancelModal && (
-        <div className="fixed inset-0 bg-stone-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fade-in">
-          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl border border-stone-150 space-y-5 animate-scale-up">
-            <div className="flex items-center justify-between border-b border-stone-100 pb-4">
-              <h3 className="font-bold text-sm text-rose-700 flex items-center gap-2">
-                <AlertTriangle size={18} />
-                Confirmar Cancelamento de Renovação
-              </h3>
-              <button 
-                onClick={() => setShowCancelModal(false)}
-                className="text-stone-400 hover:text-stone-700 text-xs font-bold p-1 rounded-lg"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="space-y-3 text-xs text-stone-700 leading-relaxed">
-              <p>
-                Tem certeza que deseja cancelar a renovação automática do seu plano <strong className="text-stone-900">{currentPlan?.name}</strong>?
-              </p>
-              <p className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-amber-900 text-[11px]">
-                Você continuará com acesso completo até o fim do período já pago em <strong>{subscription?.currentPeriodEnd ? new Date(subscription.currentPeriodEnd).toLocaleDateString('pt-BR') : 'breve'}</strong>.
-              </p>
-            </div>
-
-            <div className="flex items-center justify-end gap-3 pt-4 border-t border-stone-100">
-              <button
-                type="button"
-                onClick={() => setShowCancelModal(false)}
-                className="px-4 py-2.5 rounded-xl border border-stone-200 text-stone-700 font-bold cursor-pointer hover:bg-stone-50 text-xs"
-              >
-                Manter Minha Assinatura
-              </button>
-              <button
-                type="button"
-                onClick={handleCancelSub}
-                className="px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold cursor-pointer text-xs shadow-md"
-              >
-                Confirmar Cancelamento
               </button>
             </div>
           </div>

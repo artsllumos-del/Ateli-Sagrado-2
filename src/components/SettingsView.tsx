@@ -3,43 +3,87 @@ import { useDb } from '../context/DbContext';
 import { applyThemeColors } from '../utils/theme';
 import { AppUser, SystemSettings } from '../types/erp';
 import { 
-  Building, DollarSign, FileText, Sliders, User, Shield, 
+  Building, DollarSign, FileText, Sliders, User, 
   Plus, Edit3, Trash2, Key, Check, AlertCircle, Eye, EyeOff, Sparkles, CreditCard
 } from 'lucide-react';
 import { toast } from './Toast';
-import { UsersPermissionsView } from './UsersPermissionsView';
+import { PageHeader } from './ui';
 import { SubscriptionBillingView } from './subscription/SubscriptionBillingView';
 
-export const SettingsView: React.FC = () => {
-  const { settings, updateSettings, user, updateUser, resetSystem } = useDb();
+interface SettingsViewProps {
+  onViewChange?: (view: string) => void;
+}
 
-  const isAdminRole = (role?: string) => {
-    if (!role) return false;
-    const r = role.toLowerCase();
-    return r.includes('admin') || r.includes('gerente') || r === 'administrador';
-  };
+export const SettingsView: React.FC<SettingsViewProps> = ({ onViewChange }) => {
+  const { settings, updateSettings, user, updateUser, resetSystem, currentTenant } = useDb();
 
-  // Active tab state: 'atelier' | 'financial' | 'documents' | 'system' | 'profile' | 'users' | 'subscription'
-  const [activeTab, setActiveTab] = useState<'atelier' | 'financial' | 'documents' | 'system' | 'profile' | 'users' | 'subscription'>('atelier');
+  // Active tab state: 'atelier' | 'financial' | 'documents' | 'system' | 'profile' | 'subscription'
+  const [activeTab, setActiveTab] = useState<'atelier' | 'financial' | 'documents' | 'system' | 'profile' | 'subscription'>('atelier');
 
   // --- 1. ATELIER STATE ---
-  const [companyName, setCompanyName] = useState(settings.companyName || '');
-  const [razaoSocial, setRazaoSocial] = useState(settings.razaoSocial || '');
-  const [cnpj, setCnpj] = useState(settings.cnpj || '');
+  const [companyName, setCompanyName] = useState(settings.companyName || currentTenant?.name || '');
+  const [razaoSocial, setRazaoSocial] = useState(settings.razaoSocial || currentTenant?.razaoSocial || '');
+  const [cnpj, setCnpj] = useState(settings.cnpj || currentTenant?.document || '');
   const [inscricaoEstadual, setInscricaoEstadual] = useState(settings.inscricaoEstadual || '');
-  const [address, setAddress] = useState(settings.address || '');
-  const [phone, setPhone] = useState(settings.phone || '');
+  const [address, setAddress] = useState(settings.address || currentTenant?.address || '');
+  const [phone, setPhone] = useState(settings.phone || currentTenant?.phone || '');
   const [whatsapp, setWhatsapp] = useState(settings.whatsapp || '');
-  const [email, setEmail] = useState(settings.email || '');
+  const [email, setEmail] = useState(settings.email || currentTenant?.email || '');
   const [website, setWebsite] = useState(settings.website || '');
   const [socialMedia, setSocialMedia] = useState(settings.socialMedia || '');
-  const [logo, setLogo] = useState(settings.logo || '');
-  const [favicon, setFavicon] = useState(settings.favicon || '');
+  const [logo, setLogo] = useState(settings.logo || currentTenant?.logo || '');
+  const [favicon, setFavicon] = useState(settings.favicon || currentTenant?.favicon || '');
   const [slogan, setSlogan] = useState(settings.slogan || 'Artesanato com Amor');
   const [phrases, setPhrases] = useState(settings.phrases || 'Artesanato com Amor');
-  const [nomeFantasia, setNomeFantasia] = useState(settings.nomeFantasia || '');
+  const [nomeFantasia, setNomeFantasia] = useState(settings.nomeFantasia || currentTenant?.nomeFantasia || currentTenant?.name || '');
   const [institutionalPhoto, setInstitutionalPhoto] = useState(settings.institutionalPhoto || '');
-  const [primaryColor, setPrimaryColor] = useState(settings.primaryColor || '#D4AF37');
+  const [primaryColor, setPrimaryColor] = useState(settings.primaryColor || currentTenant?.primaryColor || '#D4AF37');
+
+  // Re-sync local state if global settings or tenant changes
+  useEffect(() => {
+    if (settings) {
+      setCompanyName(settings.companyName || currentTenant?.name || '');
+      setRazaoSocial(settings.razaoSocial || currentTenant?.razaoSocial || '');
+      setNomeFantasia(settings.nomeFantasia || currentTenant?.nomeFantasia || currentTenant?.name || '');
+      setCnpj(settings.cnpj || currentTenant?.document || '');
+      setInscricaoEstadual(settings.inscricaoEstadual || '');
+      setAddress(settings.address || currentTenant?.address || '');
+      setPhone(settings.phone || currentTenant?.phone || '');
+      setWhatsapp(settings.whatsapp || '');
+      setEmail(settings.email || currentTenant?.email || '');
+      setWebsite(settings.website || '');
+      setSocialMedia(settings.socialMedia || '');
+      setLogo(settings.logo || currentTenant?.logo || '');
+      setFavicon(settings.favicon || currentTenant?.favicon || '');
+      setSlogan(settings.slogan || 'Artesanato com Amor');
+      setPhrases(settings.phrases || 'Artesanato com Amor');
+      setInstitutionalPhoto(settings.institutionalPhoto || '');
+      setPrimaryColor(settings.primaryColor || currentTenant?.primaryColor || '#D4AF37');
+
+      setLaborHourlyRate(settings.laborHourlyRate || 0);
+      setIndirectCosts(settings.indirectCosts || 0);
+      setDefaultMarginPercent(settings.defaultMarginPercent || 0);
+      setMinMarginPercent(settings.minMarginPercent || 0);
+      setIdealMarginPercent(settings.idealMarginPercent || 0);
+      setTaxPercent(settings.taxPercent || 0);
+      setCommissionPercent(settings.commissionPercent || 0);
+      setDefaultDiscountPercent(settings.defaultDiscountPercent || 0);
+
+      setDocLogo(settings.docLogo || '');
+      setDocHeader(settings.docHeader || '');
+      setDocFooter(settings.docFooter || '');
+      setDocFinalMessage(settings.docFinalMessage || '');
+      setDocSignature(settings.docSignature || '');
+      setDocNotes(settings.docNotes || '');
+
+      setLanguage(settings.language || 'pt-BR');
+      setCurrencyFormat(settings.currencyFormat || 'BRL');
+      setDateFormat(settings.dateFormat || 'DD/MM/YYYY');
+      setAutoNumberingPattern(settings.autoNumberingPattern || 'PED-YYYY-XXXX');
+      setBackupFrequency(settings.backupFrequency || 'weekly');
+      setNotificationsEnabled(settings.notificationsEnabled !== false);
+    }
+  }, [settings, currentTenant]);
 
   // --- 2. FINANCIAL MOTOR STATE ---
   const [laborHourlyRate, setLaborHourlyRate] = useState(settings.laborHourlyRate || 0);
@@ -87,31 +131,37 @@ export const SettingsView: React.FC = () => {
 
   const handleSaveAtelier = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!companyName || !nomeFantasia || !logo || !favicon || !address || !phone) {
-      toast.error("Configuração Obrigatória", "Por favor, preencha os campos obrigatórios: Nome da Empresa, Nome Fantasia, Logo, Favicon, Endereço e Telefone.");
+    if (!companyName.trim() && !nomeFantasia.trim()) {
+      toast.error("Configuração Obrigatória", "Por favor, preencha o Nome da Empresa ou o Nome Fantasia do Ateliê.");
       return;
     }
+
+    const finalCompanyName = companyName.trim() || nomeFantasia.trim();
+    const finalNomeFantasia = nomeFantasia.trim() || companyName.trim();
+    const finalLogo = logo.trim() || '📿';
+    const finalFavicon = favicon.trim() || '📿';
+
     updateSettings({
-      companyName,
-      nomeFantasia,
-      razaoSocial,
-      cnpj,
-      inscricaoEstadual,
-      address,
-      phone,
-      whatsapp,
-      email,
-      website,
-      socialMedia,
-      logo,
-      favicon,
-      institutionalPhoto,
-      slogan,
-      phrases,
+      companyName: finalCompanyName,
+      nomeFantasia: finalNomeFantasia,
+      razaoSocial: razaoSocial.trim() || finalCompanyName,
+      cnpj: cnpj.trim(),
+      inscricaoEstadual: inscricaoEstadual.trim(),
+      address: address.trim(),
+      phone: phone.trim(),
+      whatsapp: whatsapp.trim(),
+      email: email.trim(),
+      website: website.trim(),
+      socialMedia: socialMedia.trim(),
+      logo: finalLogo,
+      favicon: finalFavicon,
+      institutionalPhoto: institutionalPhoto.trim(),
+      slogan: slogan.trim(),
+      phrases: phrases.trim(),
       primaryColor,
       firstSetup: false
     });
-    toast.success("Ateliê Configurado!", "Seus dados foram sincronizados globalmente e a navegação foi liberada.");
+    toast.success("Identidade Sincronizada!", "A identidade do seu ateliê foi atualizada e vinculada com sucesso ao operador.");
   };
 
   const handleSaveFinancial = (e: React.FormEvent) => {
@@ -169,86 +219,90 @@ export const SettingsView: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col md:flex-row gap-6 select-none font-sans max-w-5xl mx-auto animate-slide-in-up">
-      {/* Sidebar Navigation Tabs */}
-      <div className="w-full md:w-64 bg-white border border-slate-100 rounded-2xl p-4 space-y-1 shadow-sm shrink-0 h-fit">
+    <div className="space-y-6 select-none font-sans max-w-5xl mx-auto animate-slide-in-up">
+      <PageHeader
+        title="Configurações do Ateliê & Sistema"
+        description="Gestão de identidade corporativa, parâmetros de precificação, modelos de documentos e preferências de conta."
+      />
+      <div className="flex flex-col md:flex-row gap-6">
+        {/* Sidebar Navigation Tabs: Horizontal pill bar on mobile, vertical sidebar on desktop */}
+        <div className="w-full md:w-64 bg-white border border-slate-100 rounded-2xl p-1.5 md:p-4 flex flex-row md:flex-col overflow-x-auto md:overflow-visible no-scrollbar gap-1 md:space-y-1 shadow-sm shrink-0 h-fit">
         <button
+          type="button"
           onClick={() => setActiveTab('atelier')}
-          className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all text-left ${
+          className={`whitespace-nowrap shrink-0 md:shrink md:w-full flex items-center gap-2 md:gap-3 px-3.5 md:px-4 py-2.5 md:py-3 rounded-xl text-xs font-bold transition-all text-left cursor-pointer ${
             activeTab === 'atelier'
               ? 'bg-amber-500/10 text-amber-700'
               : 'text-slate-500 hover:bg-slate-50'
           }`}
         >
-          <Building size={16} /> Dados do Ateliê
+          <Building size={16} className="shrink-0" />
+          <span>Dados do Ateliê</span>
         </button>
 
         <button
+          type="button"
           onClick={() => setActiveTab('financial')}
-          className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all text-left ${
+          className={`whitespace-nowrap shrink-0 md:shrink md:w-full flex items-center gap-2 md:gap-3 px-3.5 md:px-4 py-2.5 md:py-3 rounded-xl text-xs font-bold transition-all text-left cursor-pointer ${
             activeTab === 'financial'
               ? 'bg-amber-500/10 text-amber-700'
               : 'text-slate-500 hover:bg-slate-50'
           }`}
         >
-          <DollarSign size={16} /> Motor Financeiro
+          <DollarSign size={16} className="shrink-0" />
+          <span>Motor Financeiro</span>
         </button>
 
         <button
+          type="button"
           onClick={() => setActiveTab('documents')}
-          className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all text-left ${
+          className={`whitespace-nowrap shrink-0 md:shrink md:w-full flex items-center gap-2 md:gap-3 px-3.5 md:px-4 py-2.5 md:py-3 rounded-xl text-xs font-bold transition-all text-left cursor-pointer ${
             activeTab === 'documents'
               ? 'bg-amber-500/10 text-amber-700'
               : 'text-slate-500 hover:bg-slate-50'
           }`}
         >
-          <FileText size={16} /> Documentos Emitidos
+          <FileText size={16} className="shrink-0" />
+          <span>Documentos Emitidos</span>
         </button>
 
         <button
+          type="button"
           onClick={() => setActiveTab('system')}
-          className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all text-left ${
+          className={`whitespace-nowrap shrink-0 md:shrink md:w-full flex items-center gap-2 md:gap-3 px-3.5 md:px-4 py-2.5 md:py-3 rounded-xl text-xs font-bold transition-all text-left cursor-pointer ${
             activeTab === 'system'
               ? 'bg-amber-500/10 text-amber-700'
               : 'text-slate-500 hover:bg-slate-50'
           }`}
         >
-          <Sliders size={16} /> Interface & Sistema
+          <Sliders size={16} className="shrink-0" />
+          <span>Interface & Sistema</span>
         </button>
 
         <button
+          type="button"
           onClick={() => setActiveTab('profile')}
-          className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all text-left ${
+          className={`whitespace-nowrap shrink-0 md:shrink md:w-full flex items-center gap-2 md:gap-3 px-3.5 md:px-4 py-2.5 md:py-3 rounded-xl text-xs font-bold transition-all text-left cursor-pointer ${
             activeTab === 'profile'
               ? 'bg-amber-500/10 text-amber-700'
               : 'text-slate-500 hover:bg-slate-50'
           }`}
         >
-          <User size={16} /> Meu Perfil
+          <User size={16} className="shrink-0" />
+          <span>Meu Perfil</span>
         </button>
 
-        {isAdminRole(user?.role) && (
-          <button
-            onClick={() => setActiveTab('users')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all text-left ${
-              activeTab === 'users'
-                ? 'bg-amber-500/10 text-amber-700'
-                : 'text-slate-500 hover:bg-slate-50'
-            }`}
-          >
-            <Shield size={16} /> Operadores & Permissões
-          </button>
-        )}
-
         <button
+          type="button"
           onClick={() => setActiveTab('subscription')}
-          className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all text-left ${
+          className={`whitespace-nowrap shrink-0 md:shrink md:w-full flex items-center gap-2 md:gap-3 px-3.5 md:px-4 py-2.5 md:py-3 rounded-xl text-xs font-bold transition-all text-left cursor-pointer ${
             activeTab === 'subscription'
               ? 'bg-amber-500/10 text-amber-700'
               : 'text-slate-500 hover:bg-slate-50'
           }`}
         >
-          <CreditCard size={16} /> Planos & Assinatura
+          <CreditCard size={16} className="shrink-0" />
+          <span>Assinatura</span>
         </button>
       </div>
 
@@ -258,9 +312,16 @@ export const SettingsView: React.FC = () => {
         {/* TAB 1: DADOS INSTITUCIONAIS DO ATELIÊ */}
         {activeTab === 'atelier' && (
           <div className="space-y-5">
-            <div className="border-b border-slate-100 pb-3">
-              <h3 className="font-serif font-bold text-base text-slate-900">Configurações de Identidade do Ateliê</h3>
-              <p className="text-[11px] text-slate-500">Substitui as variáveis globais de cabeçalho, relatórios e recibos do sistema.</p>
+            <div className="border-b border-slate-100 pb-3.5 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h3 className="font-serif font-bold text-base text-slate-900">Configurações de Identidade do Ateliê</h3>
+                <p className="text-[11px] text-slate-500">Substitui as variáveis globais de cabeçalho, relatórios e recibos do sistema.</p>
+              </div>
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-200/70 text-xs font-semibold text-amber-950">
+                <span className="w-2 h-2 rounded-full ring-1 ring-amber-300" style={{ backgroundColor: primaryColor || '#D4AF37' }} />
+                <span>Ateliê vinculado: <strong className="font-bold text-amber-900">{nomeFantasia || companyName || currentTenant?.name || 'Ateliê'}</strong></span>
+                <span className="text-[10px] text-amber-700/80">• Responsável: {user?.name || 'Artesão'}</span>
+              </div>
             </div>
 
             <form onSubmit={handleSaveAtelier} className="space-y-4 text-xs font-semibold">
@@ -962,17 +1023,13 @@ export const SettingsView: React.FC = () => {
           </div>
         )}
 
-        {/* TAB 6: USUÁRIOS E PERMISSÕES */}
-        {activeTab === 'users' && (
-          <UsersPermissionsView />
-        )}
-
-        {/* TAB 7: PLANOS & ASSINATURA */}
+        {/* TAB: ASSINATURA */}
         {activeTab === 'subscription' && (
-          <SubscriptionBillingView />
+          <SubscriptionBillingView onNavigate={onViewChange} />
         )}
 
       </div>
     </div>
+  </div>
   );
 };

@@ -29,7 +29,8 @@ const ROLE_PERMISSIONS: Record<UserRole, ResourcePermission[]> = {
 
 export class LocalPermissionRepository implements IPermissionRepository {
   async getUserPermissions(user: UserAccount): Promise<Record<ResourcePermission, boolean>> {
-    const defaultPerms = ROLE_PERMISSIONS[user.role] || ROLE_PERMISSIONS['authenticated'];
+    if (!user) return {} as Record<ResourcePermission, boolean>;
+    const defaultPerms = (user.role && ROLE_PERMISSIONS[user.role]) || ROLE_PERMISSIONS['authenticated'];
     const permMap: Partial<Record<ResourcePermission, boolean>> = {};
 
     const allPermKeys: ResourcePermission[] = [
@@ -60,7 +61,7 @@ export class LocalPermissionRepository implements IPermissionRepository {
   }
 
   async hasRole(user: UserAccount | null, roles: UserRole | UserRole[]): Promise<boolean> {
-    if (!user) return false;
+    if (!user || !user.role) return false;
     const roleList = Array.isArray(roles) ? roles : [roles];
     return roleList.includes(user.role);
   }

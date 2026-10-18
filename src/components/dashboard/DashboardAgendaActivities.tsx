@@ -14,7 +14,9 @@ import {
   ShoppingCart, 
   Layers, 
   FileText,
-  AlertCircle
+  AlertCircle,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { Order, FinancialTransaction, AgendaActivity, AuditLog } from '../../types/erp';
 import { useDb } from '../../context/DbContext';
@@ -57,6 +59,12 @@ export const DashboardAgendaActivities: React.FC<DashboardAgendaActivitiesProps>
   // Tab/Filter state
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'completed'>('all');
 
+  // Pagination states (prevents scroll-traps and validates navigation)
+  const [agendaPage, setAgendaPage] = useState(1);
+  const [auditPage, setAuditPage] = useState(1);
+  const agendaPerPage = 4;
+  const auditPerPage = 5;
+
   // Filter activities based on selected tab and sort chronologically by time
   const filteredActivities = useMemo(() => {
     let list = [...agendaActivities];
@@ -75,6 +83,18 @@ export const DashboardAgendaActivities: React.FC<DashboardAgendaActivitiesProps>
       return a.time.localeCompare(b.time);
     });
   }, [agendaActivities, statusFilter]);
+
+  const totalPagesAgenda = Math.max(1, Math.ceil(filteredActivities.length / agendaPerPage));
+  const paginatedActivities = useMemo(() => {
+    const current = Math.min(agendaPage, totalPagesAgenda);
+    return filteredActivities.slice((current - 1) * agendaPerPage, current * agendaPerPage);
+  }, [filteredActivities, agendaPage, totalPagesAgenda]);
+
+  const totalPagesAudit = Math.max(1, Math.ceil(auditLogs.length / auditPerPage));
+  const paginatedAuditLogs = useMemo(() => {
+    const current = Math.min(auditPage, totalPagesAudit);
+    return auditLogs.slice((current - 1) * auditPerPage, current * auditPerPage);
+  }, [auditLogs, auditPage, totalPagesAudit]);
 
   // Counts for tabs
   const counts = useMemo(() => {
@@ -205,7 +225,7 @@ export const DashboardAgendaActivities: React.FC<DashboardAgendaActivitiesProps>
             {/* Simple Tab Filters */}
             <div className="flex bg-slate-100 p-0.5 rounded-xl text-xs" id="agenda_tabs">
               <button
-                onClick={() => setStatusFilter('all')}
+                onClick={() => { setStatusFilter('all'); setAgendaPage(1); }}
                 className={`px-2.5 py-1 rounded-lg font-medium transition-all cursor-pointer ${
                   statusFilter === 'all' 
                     ? 'bg-white text-slate-900 shadow-xs' 
@@ -215,7 +235,7 @@ export const DashboardAgendaActivities: React.FC<DashboardAgendaActivitiesProps>
                 Todas ({counts.all})
               </button>
               <button
-                onClick={() => setStatusFilter('pending')}
+                onClick={() => { setStatusFilter('pending'); setAgendaPage(1); }}
                 className={`px-2.5 py-1 rounded-lg font-medium transition-all cursor-pointer ${
                   statusFilter === 'pending' 
                     ? 'bg-white text-amber-700 shadow-xs' 
@@ -225,7 +245,7 @@ export const DashboardAgendaActivities: React.FC<DashboardAgendaActivitiesProps>
                 Pendentes ({counts.pending})
               </button>
               <button
-                onClick={() => setStatusFilter('completed')}
+                onClick={() => { setStatusFilter('completed'); setAgendaPage(1); }}
                 className={`px-2.5 py-1 rounded-lg font-medium transition-all cursor-pointer ${
                   statusFilter === 'completed' 
                     ? 'bg-white text-emerald-700 shadow-xs' 
@@ -288,9 +308,9 @@ export const DashboardAgendaActivities: React.FC<DashboardAgendaActivitiesProps>
             </div>
           </form>
 
-          {/* Activities list */}
-          <div className="space-y-2 overflow-y-auto max-h-[220px] pr-1" id="agenda_activities_list">
-            {filteredActivities.map((item) => (
+          {/* Activities list with validated pagination */}
+          <div className="space-y-2" id="agenda_activities_list">
+            {paginatedActivities.map((item) => (
               <div 
                 key={item.id} 
                 className={`flex items-start gap-3 p-3 rounded-2xl border transition-all ${
@@ -377,13 +397,42 @@ export const DashboardAgendaActivities: React.FC<DashboardAgendaActivitiesProps>
             ))}
 
             {filteredActivities.length === 0 && (
-              <div className="flex flex-col items-center justify-center py-10 text-center space-y-2">
+              <div className="flex flex-col items-center justify-center py-8 text-center space-y-2">
                 <AlertCircle size={24} className="text-slate-300" />
                 <p className="text-[11px] text-slate-400 italic">
                   {statusFilter === 'all' ? 'Nenhum compromisso agendado.' : 
                    statusFilter === 'pending' ? 'Nenhum compromisso pendente!' : 
                    'Nenhum compromisso concluído ainda.'}
                 </p>
+              </div>
+            )}
+
+            {/* Pagination Controls for Agenda */}
+            {totalPagesAgenda > 1 && (
+              <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs">
+                <span className="text-[11px] text-slate-500">
+                  Página <strong className="text-slate-800">{agendaPage}</strong> de <strong className="text-slate-800">{totalPagesAgenda}</strong> ({filteredActivities.length} itens)
+                </span>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    disabled={agendaPage <= 1}
+                    onClick={() => setAgendaPage(p => Math.max(1, p - 1))}
+                    className="p-1 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                    title="Página Anterior"
+                  >
+                    <ChevronLeft size={14} />
+                  </button>
+                  <button
+                    type="button"
+                    disabled={agendaPage >= totalPagesAgenda}
+                    onClick={() => setAgendaPage(p => Math.min(totalPagesAgenda, p + 1))}
+                    className="p-1 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                    title="Próxima Página"
+                  >
+                    <ChevronRight size={14} />
+                  </button>
+                </div>
               </div>
             )}
           </div>
@@ -400,10 +449,13 @@ export const DashboardAgendaActivities: React.FC<DashboardAgendaActivitiesProps>
               <p className="text-[11px] text-slate-500">Log de auditoria em tempo real de rastreabilidade das operações</p>
             </div>
           </div>
+          <span className="text-[11px] font-mono text-slate-400 bg-slate-50 border border-slate-200/60 px-2 py-0.5 rounded-lg">
+            {auditLogs.length} eventos
+          </span>
         </div>
 
-        <div className="relative border-l border-slate-200 ml-3.5 space-y-4 max-h-[310px] overflow-y-auto pr-1" id="audit_timeline_list">
-          {auditLogs.slice(0, 10).map((log) => (
+        <div className="relative border-l border-slate-200 ml-3.5 space-y-4" id="audit_timeline_list">
+          {paginatedAuditLogs.map((log) => (
             <div key={log.id} className="relative pl-6 group">
               {/* Bullet indicator */}
               <span className="absolute -left-[5.5px] top-1.5 w-2.5 h-2.5 rounded-full bg-slate-200 group-hover:bg-amber-500 border-2 border-white transition-colors flex items-center justify-center shadow-xs" />
@@ -438,6 +490,35 @@ export const DashboardAgendaActivities: React.FC<DashboardAgendaActivitiesProps>
             <p className="text-center text-[11px] text-slate-400 italic py-12">Sem atividades registradas no log.</p>
           )}
         </div>
+
+        {/* Pagination Controls for Audit Log */}
+        {totalPagesAudit > 1 && (
+          <div className="flex items-center justify-between pt-3 border-t border-slate-100 text-xs">
+            <span className="text-[11px] text-slate-500">
+              Página <strong className="text-slate-800">{auditPage}</strong> de <strong className="text-slate-800">{totalPagesAudit}</strong> ({auditLogs.length} registros)
+            </span>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                disabled={auditPage <= 1}
+                onClick={() => setAuditPage(p => Math.max(1, p - 1))}
+                className="p-1 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                title="Página Anterior"
+              >
+                <ChevronLeft size={14} />
+              </button>
+              <button
+                type="button"
+                disabled={auditPage >= totalPagesAudit}
+                onClick={() => setAuditPage(p => Math.min(totalPagesAudit, p + 1))}
+                className="p-1 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                title="Próxima Página"
+              >
+                <ChevronRight size={14} />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
     </div>

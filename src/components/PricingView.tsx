@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useDb } from '../context/DbContext';
+import { useSubscription } from '../hooks/useSubscription';
 import { InventoryItem, Product, ProductPaymentVariation } from '../types/erp';
 import { calculateProductCostBreakdown } from '../utils/pricing';
 import { 
@@ -8,9 +9,15 @@ import {
   CreditCard, ShieldCheck, Clock, Package, Zap, Wrench, Briefcase, ChevronRight
 } from 'lucide-react';
 import { toast } from './Toast';
+import { PageHeader, Button, Badge } from './ui';
 
-export const PricingView: React.FC = () => {
-  const { products, inventory, settings, updateProduct, addProduct } = useDb();
+interface PricingViewProps {
+  onNavigate?: (view: string) => void;
+}
+
+export const PricingView: React.FC<PricingViewProps> = ({ onNavigate }) => {
+  const { products, inventory, settings, updateProduct, addProduct, updateSettings } = useDb();
+  const { isExpired, isUrgent, formattedRemainingTime } = useSubscription();
 
   // Selected existing product to clone or edit
   const [selectedProductId, setSelectedProductId] = useState('');
@@ -70,10 +77,23 @@ export const PricingView: React.FC = () => {
   useEffect(() => {
     if (settings) {
       if (settings.laborHourlyRate) setLaborHourlyRate(settings.laborHourlyRate);
+      if (settings.minMarginPercent) setMinMargin(settings.minMarginPercent);
+      if (settings.idealMarginPercent) setIdealMargin(settings.idealMarginPercent);
       if (settings.defaultMarginPercent) setTargetMarginPercent(settings.defaultMarginPercent);
       if (settings.taxPercent !== undefined) setCustomFeePix(settings.taxPercent);
     }
   }, [settings]);
+
+  const handleSaveGlobalSettings = () => {
+    updateSettings({
+      laborHourlyRate,
+      minMarginPercent: minMargin,
+      idealMarginPercent: idealMargin,
+      defaultMarginPercent: targetMarginPercent,
+      indirectCosts: costEmbalagem + costEnergia + costFerramentas + costOperacional
+    });
+    toast.success("Parâmetros Salvos", "Parâmetros globais do ateliê atualizados no sistema.");
+  };
 
   // Derived production time in minutes
   const productionTimeMin = useMemo(() => {
@@ -261,6 +281,13 @@ export const PricingView: React.FC = () => {
 
   // Save or Apply Product Pricing
   const handleApplyToProduct = () => {
+    if (isExpired) {
+      toast.warning(
+        "Modo Limitado Ativo",
+        "Sua assinatura de 30 dias expirou. Renove sua assinatura para salvar alterações e novos produtos."
+      );
+      return;
+    }
     const roundedBasePrice = Math.round(basePriceFinal * 100) / 100;
 
     const formattedPaymentVariations: ProductPaymentVariation[] = paymentMethodDetails.map(m => ({
@@ -318,62 +345,77 @@ export const PricingView: React.FC = () => {
   return (
     <div className="space-y-6 animate-slide-in-up text-slate-800">
       
-      {/* Top Header Card & Product Switcher */}
-      <div className="bg-white border border-slate-200/80 p-5 rounded-2xl shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <h3 className="font-serif font-bold text-base text-slate-900 flex items-center gap-2">
-              <Calculator size={20} className="text-amber-500" />
-              Motor de Precificação Inteligente
-            </h3>
-            <span className="px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 text-[10px] font-bold uppercase tracking-wider border border-amber-200">
-              Custo Total & DRE
-            </span>
+      {/* Expired Subscription Banner if redirected to pricing */}
+      {isExpired && (
+        <div className="bg-red-50 border-2 border-red-300 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+          <div className="flex items-start gap-2.5">
+            <AlertTriangle size={20} className="text-red-600 shrink-0 mt-0.5" />
+            <div>
+              <h4 className="font-bold text-xs text-red-950">
+                Sua Assinatura Expirou — Redirecionado para Regularização de Planos
+              </h4>
+              <p className="text-[11px] text-red-800 mt-0.5 leading-relaxed">
+                Sua assinatura de 30 dias expirou. Seus dados estão seguros, mas novas precificações e produtos estão temporariamente bloqueados. Renove seu ciclo (mensal, trimestral, semestral ou anual com desconto) para liberar todas as operações.
+              </p>
+            </div>
           </div>
-          <p className="text-xs text-slate-500 mt-1">
-            Simule e estruture todos os custos (Insumos, Perda, Mão de Obra e Custos Indiretos) e defina variações de preço por meio de pagamento.
-          </p>
+          {onNavigate && (
+            <button
+              type="button"
+              onClick={() => onNavigate('subscription')}
+              className="px-4 py-2 bg-red-700 hover:bg-red-800 text-white rounded-xl text-xs font-bold shrink-0 transition-colors cursor-pointer shadow-xs self-start sm:self-auto"
+            >
+              Ver Opções de Renovação
+            </button>
+          )}
         </div>
+      )}
 
-        {/* Clone or Select Existing Product */}
-        <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center shrink-0">
-          <select
-            value={selectedProductId}
-            onChange={(e) => handleProductLoad(e.target.value)}
-            className="px-3.5 py-2 text-xs rounded-xl border border-slate-200 bg-slate-50 text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500/10 cursor-pointer font-medium max-w-xs"
-          >
-            <option value="">-- Criar Novo Produto / Simulação --</option>
-            {activeProducts.map(p => (
-              <option key={p.id} value={p.id}>
-                {p.name} (Base: R$ {p.sellingPrice.toFixed(2)})
-              </option>
-            ))}
-          </select>
+      {/* PageHeader & Product Switcher */}
+      <PageHeader
+        title="Motor de Precificação Inteligente"
+        description="Simule e estruture todos os custos (Insumos, Perda, Mão de Obra e Custos Indiretos) e defina variações de preço por meio de pagamento."
+        actions={
+          <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+            <select
+              value={selectedProductId}
+              onChange={(e) => handleProductLoad(e.target.value)}
+              className="px-3.5 py-2 text-xs rounded-xl border border-slate-200 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500/20 cursor-pointer font-medium max-w-xs"
+            >
+              <option value="">-- Criar Novo Produto / Simulação --</option>
+              {activeProducts.map(p => (
+                <option key={p.id} value={p.id}>
+                  {p.name} (Base: R$ {p.sellingPrice.toFixed(2)})
+                </option>
+              ))}
+            </select>
 
-          <button
-            onClick={() => {
-              setSelectedProductId('');
-              setProdName('Novo Terço Customizado');
-              setProdCategory('Terços de Noiva');
-              setProdSku('SKU-' + Math.floor(100000 + Math.random() * 900000));
-              setProdDescription('Produto precificado pelo Motor de Precificação');
-              setSelectedInsumos([]);
-              setLaborTimeInput('45');
-              setLaborTimeUnit('min');
-              setOverridePriceStr('');
-              setCustomPricePix('');
-              setCustomPriceCard1x('');
-              setCustomPriceCard12x('');
-              setCustomPriceMarketplace('');
-              toast.info("Simulação Limpa", "Pronto para criar uma nova precificação do zero.");
-            }}
-            className="px-4 py-2 text-xs font-bold border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-xl cursor-pointer transition-all active:scale-95 shrink-0 flex items-center justify-center gap-1.5"
-          >
-            <RefreshCw size={13} />
-            Limpar
-          </button>
-        </div>
-      </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setSelectedProductId('');
+                setProdName('Novo Terço Customizado');
+                setProdCategory('Terços de Noiva');
+                setProdSku('SKU-' + Math.floor(100000 + Math.random() * 900000));
+                setProdDescription('Produto precificado pelo Motor de Precificação');
+                setSelectedInsumos([]);
+                setLaborTimeInput('45');
+                setLaborTimeUnit('min');
+                setOverridePriceStr('');
+                setCustomPricePix('');
+                setCustomPriceCard1x('');
+                setCustomPriceCard12x('');
+                setCustomPriceMarketplace('');
+                toast.info("Simulação Limpa", "Pronto para criar uma nova precificação do zero.");
+              }}
+              leftIcon={<RefreshCw size={13} />}
+            >
+              Limpar
+            </Button>
+          </div>
+        }
+      />
 
       {/* Main Grid: Left Composition & Costs | Right Pricing & Payment Method Table */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -414,7 +456,7 @@ export const PricingView: React.FC = () => {
                   <option value="Terços Comuns">Terços Comuns</option>
                   <option value="Pulseiras">Pulseiras</option>
                   <option value="Dezenas e Chaveiros">Dezenas e Chaveiros</option>
-                  <option value="Joias Religiosas">Joias Religiosas</option>
+                  <option value="Artigos Religiosos">Artigos Religiosos</option>
                   <option value="Outros">Outros</option>
                 </select>
               </div>
@@ -469,8 +511,11 @@ export const PricingView: React.FC = () => {
                 </span>
               </div>
 
-              <div className="flex items-end gap-2 p-3 bg-slate-50/80 rounded-2xl border border-slate-200">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-end gap-2.5 p-3 bg-slate-50/80 rounded-2xl border border-slate-200">
                 <div className="flex-1">
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 sm:hidden">
+                    Selecionar Insumo
+                  </label>
                   <select
                     value={tempMatId}
                     onChange={(e) => setTempMatId(e.target.value)}
@@ -485,25 +530,30 @@ export const PricingView: React.FC = () => {
                   </select>
                 </div>
 
-                <div className="w-24">
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0.01"
-                    value={tempQty}
-                    onChange={(e) => setTempQty(Number(e.target.value))}
-                    placeholder="Qtd"
-                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-white text-slate-850 text-center font-bold focus:outline-none"
-                  />
-                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-full sm:w-24">
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 sm:hidden">
+                      Quantidade
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      value={tempQty}
+                      onChange={(e) => setTempQty(Number(e.target.value))}
+                      placeholder="Qtd"
+                      className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-white text-slate-850 text-center font-bold focus:outline-none"
+                    />
+                  </div>
 
-                <button
-                  type="button"
-                  onClick={handleAddMaterialSim}
-                  className="px-4 py-2 bg-slate-900 text-white font-bold text-xs rounded-xl hover:bg-slate-800 transition-colors h-9 cursor-pointer active:scale-95 shrink-0"
-                >
-                  + Incluir
-                </button>
+                  <button
+                    type="button"
+                    onClick={handleAddMaterialSim}
+                    className="flex-1 sm:flex-none px-4 py-2 bg-slate-900 text-white font-bold text-xs rounded-xl hover:bg-slate-800 transition-colors h-9 cursor-pointer active:scale-95 shrink-0 self-end"
+                  >
+                    + Incluir
+                  </button>
+                </div>
               </div>
 
               {/* Composition Itemized Table */}
@@ -898,6 +948,17 @@ export const PricingView: React.FC = () => {
             </div>
           </div>
 
+        </div>
+
+        <div className="flex justify-end pt-3 border-t border-slate-100">
+          <button
+            type="button"
+            onClick={handleSaveGlobalSettings}
+            className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-md cursor-pointer transition-all active:scale-95 flex items-center gap-2"
+          >
+            <CheckCircle2 size={15} className="text-amber-400" />
+            Salvar Parâmetros Globais do Ateliê
+          </button>
         </div>
       </div>
 

@@ -55,6 +55,9 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(({
 }, ref) => {
   const isDisabled = disabled || isLoading;
 
+  const variantClass = (variant && variantStyles[variant]) || variantStyles.primary;
+  const sizeClass = (size && sizeStyles[size]) || sizeStyles.md;
+
   return (
     <button
       ref={ref}
@@ -64,8 +67,8 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(({
         inline-flex items-center justify-center font-medium transition-all duration-150 select-none cursor-pointer
         focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none active:scale-[0.98]
         ${fullWidth ? 'w-full' : ''}
-        ${variantStyles[variant]}
-        ${sizeStyles[size]}
+        ${variantClass}
+        ${sizeClass}
         ${className}
       `}
       {...props}

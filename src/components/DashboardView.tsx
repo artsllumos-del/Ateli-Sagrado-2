@@ -3,7 +3,7 @@ import { useDb } from '../context/DbContext';
 import { Settings2, RotateCcw, Clock, Eye, EyeOff, ChevronUp, ChevronDown, Check, X, Sparkles, LayoutGrid } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from './Toast';
-import { Modal, Tabs, Button, Skeleton } from './ui';
+import { Tabs, Button, Skeleton } from './ui';
 
 // Sub-widgets imports
 import { DashboardHeader, BannerConfig, DEFAULT_BANNER } from './dashboard/DashboardHeader';
@@ -50,7 +50,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onViewChange, onQu
   const [selectedPeriod, setSelectedPeriod] = useState<DashboardPeriod>('mes');
 
   // UI state
-  const [showCustomizeModal, setShowCustomizeModal] = useState(false);
+  const [showCustomizePanel, setShowCustomizePanel] = useState(false);
   const [activeTab, setActiveTab] = useState<'widgets' | 'banner' | 'goals'>('widgets');
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState('');
@@ -335,13 +335,293 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onViewChange, onQu
           </button>
 
           <button
-            onClick={() => setShowCustomizeModal(true)}
-            className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-md"
+            onClick={() => setShowCustomizePanel(prev => !prev)}
+            className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-md transition-all ${
+              showCustomizePanel 
+                ? 'bg-amber-600 text-white ring-2 ring-amber-400' 
+                : 'bg-slate-900 hover:bg-slate-800 text-white'
+            }`}
+            title="Ajustar layout e configurações na página sem pop-up"
           >
-            <Settings2 size={13} /> Personalizar
+            <Settings2 size={13} /> {showCustomizePanel ? 'Fechar Ajustes' : 'Personalizar'}
           </button>
         </div>
       </div>
+
+      {/* INLINE CUSTOMIZATION PANEL (No intrusive pop-up to preserve page scroll & user workflow) */}
+      <AnimatePresence>
+        {showCustomizePanel && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="overflow-hidden mb-6"
+            id="painel-personalizacao-inline"
+          >
+            <div className="bg-white border-2 border-amber-400/70 rounded-3xl p-5 sm:p-6 shadow-lg space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 flex items-center justify-center shrink-0">
+                    <LayoutGrid size={16} />
+                  </div>
+                  <div>
+                    <h3 className="font-serif font-bold text-base text-slate-900 flex items-center gap-2">
+                      Personalizar Painel Executivo
+                      <span className="text-[10px] font-sans font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">
+                        Edição em Tempo Real
+                      </span>
+                    </h3>
+                    <p className="text-xs text-slate-500">
+                      Reorganize widgets, ajuste larguras e configure banners e metas diretamente na página (sem pop-up).
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 self-end sm:self-auto">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    leftIcon={<RotateCcw size={13} />}
+                    onClick={handleResetLayout}
+                  >
+                    Restaurar Padrões
+                  </Button>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={() => setShowCustomizePanel(false)}
+                  >
+                    Concluir Ajustes
+                  </Button>
+                </div>
+              </div>
+
+              {/* Tabs navigation */}
+              <div className="pt-1">
+                <Tabs
+                  variant="pills"
+                  size="sm"
+                  tabs={[
+                    { id: 'widgets', label: 'Organização (Widgets)' },
+                    { id: 'banner', label: 'Personalizar Banner' },
+                    { id: 'goals', label: 'Definir Metas do Mês' },
+                  ]}
+                  activeTab={activeTab}
+                  onChange={(id) => setActiveTab(id as any)}
+                />
+              </div>
+
+              {/* Tab Content */}
+              <div className="space-y-4 text-xs pt-1">
+                {/* TAB 1: ORGANIZAR WIDGETS */}
+                {activeTab === 'widgets' && (
+                  <div className="space-y-3">
+                    <p className="text-slate-500 leading-relaxed">
+                      Ative ou desative seções, reordene sua prioridade na página e ajuste se devem ocupar metade (50%) ou a largura inteira (100%) da tela.
+                    </p>
+
+                    <div className="space-y-2 border border-slate-100 rounded-xl p-2.5 bg-slate-50/50">
+                      {widgets.map((widget, idx) => (
+                        <div
+                          key={widget.id}
+                          className={`flex items-center justify-between p-3 rounded-lg border bg-white shadow-3xs ${
+                            widget.pinned ? 'border-amber-200 bg-amber-50/5' : 'border-slate-100'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => handleTogglePin(widget.id)}
+                              className={`p-1 rounded cursor-pointer ${
+                                widget.pinned ? 'text-amber-500 bg-amber-50' : 'text-slate-300 hover:text-slate-500'
+                              }`}
+                              title={widget.pinned ? 'Desafixar do topo' : 'Fixar no topo'}
+                            >
+                              <Sparkles size={13} />
+                            </button>
+                            <span className="font-bold text-slate-800">{widget.label}</span>
+                          </div>
+
+                          <div className="flex items-center gap-3">
+                            {/* Sizing dropdown */}
+                            <select
+                              value={widget.width}
+                              onChange={(e) => {
+                                const updated = widgets.map(w => w.id === widget.id ? { ...w, width: e.target.value as any } : w);
+                                saveWidgetsToLocal(updated);
+                              }}
+                              className="text-[10px] bg-slate-50 border border-slate-200 rounded px-1.5 py-0.5"
+                            >
+                              <option value="half">50% Largura</option>
+                              <option value="full">100% Largura</option>
+                            </select>
+
+                            {/* Visibility Toggle */}
+                            <button
+                              onClick={() => {
+                                const updated = widgets.map(w => w.id === widget.id ? { ...w, visible: !w.visible } : w);
+                                saveWidgetsToLocal(updated);
+                              }}
+                              className={`p-1.5 rounded cursor-pointer ${
+                                widget.visible ? 'text-slate-800 bg-slate-100 hover:bg-slate-200' : 'text-slate-300 hover:text-slate-400'
+                              }`}
+                              title={widget.visible ? 'Ocultar widget' : 'Exibir widget'}
+                            >
+                              {widget.visible ? <Eye size={13} /> : <EyeOff size={13} />}
+                            </button>
+
+                            {/* Position controls */}
+                            <div className="flex items-center gap-0.5 border-l border-slate-150 pl-2">
+                              <button
+                                disabled={idx === 0}
+                                onClick={() => handleMoveWidget(idx, 'up')}
+                                className="p-1 text-slate-400 hover:text-slate-800 disabled:opacity-30 cursor-pointer"
+                                title="Mover para cima"
+                              >
+                                <ChevronUp size={13} />
+                              </button>
+                              <button
+                                disabled={idx === widgets.length - 1}
+                                onClick={() => handleMoveWidget(idx, 'down')}
+                                className="p-1 text-slate-400 hover:text-slate-800 disabled:opacity-30 cursor-pointer"
+                                title="Mover para baixo"
+                              >
+                                <ChevronDown size={13} />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* TAB 2: PERSONALIZAR BANNER */}
+                {activeTab === 'banner' && (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                      <span className="font-bold text-slate-800">Status do Banner</span>
+                      <label className="relative inline-flex items-center cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={bannerConfig.showBanner}
+                          onChange={(e) => saveBannerToLocal({ ...bannerConfig, showBanner: e.target.checked })}
+                          className="sr-only peer"
+                        />
+                        <div className="w-8 h-4 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-amber-500" />
+                        <span className="ml-2 text-[11px] font-bold text-slate-500">Exibir Banner</span>
+                      </label>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="font-bold text-slate-700">Título Principal</label>
+                        <input
+                          type="text"
+                          value={bannerConfig.title}
+                          onChange={(e) => saveBannerToLocal({ ...bannerConfig, title: e.target.value })}
+                          className="w-full text-xs rounded-lg px-2.5 py-1.5 border border-slate-200 focus:ring-1 focus:ring-amber-500"
+                          placeholder="Ex: Ateliê Sagrado"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="font-bold text-slate-700">Cor de Destaque (Accent)</label>
+                        <div className="flex items-center gap-1.5">
+                          {['#D4A039', '#B5563D', '#4C7FB0', '#446C94', '#3F9461'].map(color => (
+                            <button
+                              key={color}
+                              type="button"
+                              onClick={() => saveBannerToLocal({ ...bannerConfig, highlightColor: color })}
+                              className={`w-6 h-6 rounded-full border border-slate-300 cursor-pointer flex items-center justify-center transition-all ${
+                                bannerConfig.highlightColor === color ? 'ring-2 ring-slate-900 scale-105' : ''
+                              }`}
+                              style={{ backgroundColor: color }}
+                            >
+                              {bannerConfig.highlightColor === color && <Check size={11} className="text-white" />}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="space-y-1.5 md:col-span-2">
+                        <label className="font-bold text-slate-700">Texto de Descrição</label>
+                        <textarea
+                          value={bannerConfig.description}
+                          onChange={(e) => saveBannerToLocal({ ...bannerConfig, description: e.target.value })}
+                          className="w-full text-xs rounded-lg px-2.5 py-1.5 border border-slate-200 h-16 focus:ring-1 focus:ring-amber-500"
+                          placeholder="Texto descritivo do ateliê..."
+                        />
+                      </div>
+
+                      <div className="space-y-1.5 md:col-span-2">
+                        <label className="font-bold text-slate-700 font-mono">URL da Imagem de Fundo (Opcional)</label>
+                        <input
+                          type="text"
+                          value={bannerConfig.bgImage}
+                          onChange={(e) => saveBannerToLocal({ ...bannerConfig, bgImage: e.target.value })}
+                          className="w-full text-xs rounded-lg px-2.5 py-1.5 border border-slate-200 focus:ring-1 focus:ring-amber-500"
+                          placeholder="https://images.unsplash.com/photo-..."
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* TAB 3: CONFIGURAR METAS */}
+                {activeTab === 'goals' && (
+                  <div className="space-y-4">
+                    <p className="text-slate-500 leading-relaxed pb-2 border-b border-slate-100">
+                      Defina as metas mensais para calcular as barras de progresso operacionais. Os cálculos de porcentagem serão atualizados instantaneamente.
+                    </p>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="font-bold text-slate-700">Meta de Faturamento (R$)</label>
+                        <input
+                          type="number"
+                          value={goals.faturamento}
+                          onChange={(e) => saveGoalsToLocal({ ...goals, faturamento: Number(e.target.value) })}
+                          className="w-full text-xs rounded-lg px-2.5 py-1.5 border border-slate-200 focus:ring-1 focus:ring-amber-500"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="font-bold text-slate-700">Meta de Lucro Líquido (R$)</label>
+                        <input
+                          type="number"
+                          value={goals.lucro}
+                          onChange={(e) => saveGoalsToLocal({ ...goals, lucro: Number(e.target.value) })}
+                          className="w-full text-xs rounded-lg px-2.5 py-1.5 border border-slate-200 focus:ring-1 focus:ring-amber-500"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="font-bold text-slate-700">Meta de Pedidos Vendidos</label>
+                        <input
+                          type="number"
+                          value={goals.vendas}
+                          onChange={(e) => saveGoalsToLocal({ ...goals, vendas: Number(e.target.value) })}
+                          className="w-full text-xs rounded-lg px-2.5 py-1.5 border border-slate-200 focus:ring-1 focus:ring-amber-500"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="font-bold text-slate-700">Meta de Peças Concluídas</label>
+                        <input
+                          type="number"
+                          value={goals.producao}
+                          onChange={(e) => saveGoalsToLocal({ ...goals, producao: Number(e.target.value) })}
+                          className="w-full text-xs rounded-lg px-2.5 py-1.5 border border-slate-200 focus:ring-1 focus:ring-amber-500"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Header and Banner */}
       <DashboardHeader
@@ -435,261 +715,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onViewChange, onQu
           );
         })}
       </div>
-
-      {/* MASTER CUSTOMIZATION MODAL */}
-      <Modal
-        isOpen={showCustomizeModal}
-        onClose={() => setShowCustomizeModal(false)}
-        title={
-          <div className="flex items-center gap-2">
-            <LayoutGrid size={18} className="text-amber-500 shrink-0" />
-            <span>Personalizar Painel Executivo</span>
-          </div>
-        }
-        subtitle="Ajuste o layout, reordene widgets e configure o banner ou metas"
-        size="lg"
-        footer={
-          <div className="flex items-center justify-between w-full">
-            <Button
-              variant="ghost"
-              size="sm"
-              leftIcon={<RotateCcw size={13} />}
-              onClick={handleResetLayout}
-            >
-              Restaurar Padrões
-            </Button>
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={() => setShowCustomizeModal(false)}
-            >
-              Confirmar Configuração
-            </Button>
-          </div>
-        }
-      >
-        {/* Modal Tabs navigation */}
-        <div className="mb-4">
-          <Tabs
-            variant="pills"
-            size="sm"
-            tabs={[
-              { id: 'widgets', label: 'Organização (Widgets)' },
-              { id: 'banner', label: 'Personalizar Banner' },
-              { id: 'goals', label: 'Definir Metas do Mês' },
-            ]}
-            activeTab={activeTab}
-            onChange={(id) => setActiveTab(id as any)}
-          />
-        </div>
-
-        {/* Scrollable Content */}
-        <div className="space-y-4 text-xs">
-              
-              {/* TAB 1: ORGANIZAR WIDGETS */}
-              {activeTab === 'widgets' && (
-                <div className="space-y-3">
-                  <p className="text-slate-500 pb-1 leading-relaxed">
-                    Ative ou desative seções, reordene sua prioridade na página e ajuste se devem ocupar metade (50%) ou a largura inteira (100%) da tela.
-                  </p>
-
-                  <div className="space-y-2 border border-slate-100 rounded-xl p-2.5 bg-slate-50/50">
-                    {widgets.map((widget, idx) => (
-                      <div
-                        key={widget.id}
-                        className={`flex items-center justify-between p-3 rounded-lg border bg-white shadow-3xs ${
-                          widget.pinned ? 'border-amber-200 bg-amber-50/5' : 'border-slate-100'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => handleTogglePin(widget.id)}
-                            className={`p-1 rounded cursor-pointer ${
-                              widget.pinned ? 'text-amber-500 bg-amber-50' : 'text-slate-300 hover:text-slate-500'
-                            }`}
-                            title={widget.pinned ? 'Desafixar do topo' : 'Fixar no topo'}
-                          >
-                            <Sparkles size={13} />
-                          </button>
-                          <span className="font-bold text-slate-800">{widget.label}</span>
-                        </div>
-
-                        <div className="flex items-center gap-3">
-                          {/* Sizing dropdown */}
-                          <select
-                            value={widget.width}
-                            onChange={(e) => {
-                              const updated = widgets.map(w => w.id === widget.id ? { ...w, width: e.target.value as any } : w);
-                              saveWidgetsToLocal(updated);
-                            }}
-                            className="text-[10px] bg-slate-50 border border-slate-200 rounded px-1.5 py-0.5"
-                          >
-                            <option value="half">50% Largura</option>
-                            <option value="full">100% Largura</option>
-                          </select>
-
-                          {/* Visibility Toggle */}
-                          <button
-                            onClick={() => {
-                              const updated = widgets.map(w => w.id === widget.id ? { ...w, visible: !w.visible } : w);
-                              saveWidgetsToLocal(updated);
-                            }}
-                            className={`p-1.5 rounded cursor-pointer ${
-                              widget.visible ? 'text-slate-800 bg-slate-100 hover:bg-slate-200' : 'text-slate-300 hover:text-slate-400'
-                            }`}
-                          >
-                            {widget.visible ? <Eye size={13} /> : <EyeOff size={13} />}
-                          </button>
-
-                          {/* Position controls */}
-                          <div className="flex items-center gap-0.5 border-l border-slate-150 pl-2">
-                            <button
-                              disabled={idx === 0}
-                              onClick={() => handleMoveWidget(idx, 'up')}
-                              className="p-1 text-slate-400 hover:text-slate-800 disabled:opacity-30 cursor-pointer"
-                            >
-                              <ChevronUp size={13} />
-                            </button>
-                            <button
-                              disabled={idx === widgets.length - 1}
-                              onClick={() => handleMoveWidget(idx, 'down')}
-                              className="p-1 text-slate-400 hover:text-slate-800 disabled:opacity-30 cursor-pointer"
-                            >
-                              <ChevronDown size={13} />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* TAB 2: PERSONALIZAR BANNER */}
-              {activeTab === 'banner' && (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                    <span className="font-bold text-slate-800">Status do Banner</span>
-                    <label className="relative inline-flex items-center cursor-pointer select-none">
-                      <input
-                        type="checkbox"
-                        checked={bannerConfig.showBanner}
-                        onChange={(e) => saveBannerToLocal({ ...bannerConfig, showBanner: e.target.checked })}
-                        className="sr-only peer"
-                      />
-                      <div className="w-8 h-4 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-amber-500" />
-                      <span className="ml-2 text-[11px] font-bold text-slate-500">Exibir Banner</span>
-                    </label>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <label className="font-bold text-slate-700">Título Principal</label>
-                      <input
-                        type="text"
-                        value={bannerConfig.title}
-                        onChange={(e) => saveBannerToLocal({ ...bannerConfig, title: e.target.value })}
-                        className="w-full"
-                        placeholder="Ex: Ateliê Sagrado"
-                      />
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="font-bold text-slate-700">Cor de Destaque (Accent)</label>
-                      <div className="flex items-center gap-1.5">
-                        {['#D4A039', '#B5563D', '#4C7FB0', '#446C94', '#3F9461'].map(color => (
-                          <button
-                            key={color}
-                            type="button"
-                            onClick={() => saveBannerToLocal({ ...bannerConfig, highlightColor: color })}
-                            className={`w-6 h-6 rounded-full border border-slate-300 cursor-pointer flex items-center justify-center transition-all ${
-                              bannerConfig.highlightColor === color ? 'ring-2 ring-slate-900 scale-105' : ''
-                            }`}
-                            style={{ backgroundColor: color }}
-                          >
-                            {bannerConfig.highlightColor === color && <Check size={11} className="text-white" />}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="space-y-1.5 md:col-span-2">
-                      <label className="font-bold text-slate-700">Texto de Descrição</label>
-                      <textarea
-                        value={bannerConfig.description}
-                        onChange={(e) => saveBannerToLocal({ ...bannerConfig, description: e.target.value })}
-                        className="w-full text-xs rounded-lg px-2.5 py-1.5 border border-slate-200 h-16 focus:ring-2 focus:ring-amber-500/20"
-                        placeholder="Texto descritivo do ateliê..."
-                      />
-                    </div>
-
-                    <div className="space-y-1.5 md:col-span-2">
-                      <label className="font-bold text-slate-700 font-mono">URL da Imagem de Fundo (Opcional)</label>
-                      <input
-                        type="text"
-                        value={bannerConfig.bgImage}
-                        onChange={(e) => saveBannerToLocal({ ...bannerConfig, bgImage: e.target.value })}
-                        className="w-full"
-                        placeholder="https://images.unsplash.com/photo-..."
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* TAB 3: CONFIGURAR METAS */}
-              {activeTab === 'goals' && (
-                <div className="space-y-4">
-                  <p className="text-slate-500 leading-relaxed pb-2 border-b border-slate-100">
-                    Defina as metas mensais para calcular as barras de progresso operacionais. Os cálculos de porcentagem serão atualizados instantaneamente.
-                  </p>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <label className="font-bold text-slate-700">Meta de Faturamento (R$)</label>
-                      <input
-                        type="number"
-                        value={goals.faturamento}
-                        onChange={(e) => saveGoalsToLocal({ ...goals, faturamento: Number(e.target.value) })}
-                        className="w-full"
-                      />
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="font-bold text-slate-700">Meta de Lucro Líquido (R$)</label>
-                      <input
-                        type="number"
-                        value={goals.lucro}
-                        onChange={(e) => saveGoalsToLocal({ ...goals, lucro: Number(e.target.value) })}
-                        className="w-full"
-                      />
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="font-bold text-slate-700">Meta de Pedidos Vendidos</label>
-                      <input
-                        type="number"
-                        value={goals.vendas}
-                        onChange={(e) => saveGoalsToLocal({ ...goals, vendas: Number(e.target.value) })}
-                        className="w-full"
-                      />
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="font-bold text-slate-700">Meta de Peças Concluídas</label>
-                      <input
-                        type="number"
-                        value={goals.producao}
-                        onChange={(e) => saveGoalsToLocal({ ...goals, producao: Number(e.target.value) })}
-                        className="w-full"
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-
-        </div>
-      </Modal>
 
     </div>
   );

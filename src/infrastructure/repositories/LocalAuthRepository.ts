@@ -51,6 +51,7 @@ export class LocalAuthRepository implements IAuthRepository {
   }
 
   private syncAsUser(user: UserAccount): void {
+    if (!user) return;
     const isAdmin = user.role === 'admin' || user.roleLabel?.toLowerCase().includes('admin');
     const isVendas = user.roleLabel?.toLowerCase().includes('vendedor') || user.roleLabel?.toLowerCase().includes('comercial');
     const isArtesao = user.roleLabel?.toLowerCase().includes('artes') || user.roleLabel?.toLowerCase().includes('fábrica') || user.roleLabel?.toLowerCase().includes('produção');

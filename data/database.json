@@ -2,11 +2,11 @@
   "tenants": [
     {
       "id": "tenant_atelie_sagrado",
-      "name": "Ateliê Sagrado (Matriz)",
+      "name": "Ateliê Sagrado",
       "slug": "matriz",
       "document": "12.345.678/0001-90",
       "razaoSocial": "Ateliê Sagrado Arte Sacra LTDA",
-      "nomeFantasia": "Ateliê Sagrado - Matriz",
+      "nomeFantasia": "Ateliê Sagrado",
       "email": "contato@ateliesagrado.com.br",
       "phone": "(11) 98765-4321",
       "address": "Rua das Flores, 120 - Centro, São Paulo/SP",
@@ -512,6 +512,13 @@
     }
   ],
   "auditLogs": [
+    {
+      "id": "l1789991497327niqu",
+      "user": "admin@atelie.com",
+      "action": "Login efetuado",
+      "timestamp": "2026-09-21T11:51:37.327Z",
+      "details": "Acesso ao sistema como ADMIN na organização tenant_atelie_sagrado"
+    },
     {
       "id": "l17897639216996f0i",
       "user": "Webhook Gateway",

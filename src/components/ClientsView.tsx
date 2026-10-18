@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useDb } from '../context/DbContext';
+import { useSubscription } from '../hooks/useSubscription';
 import { Client, ClientType, ClientAddress } from '../types/erp';
 import { 
   Search, Plus, Edit3, Trash2, X, Users, MapPin, Phone, Mail, 
@@ -8,6 +9,7 @@ import {
 } from 'lucide-react';
 import { toast } from './Toast';
 import { Pagination } from './Pagination';
+import { ConfirmDialog, PageHeader, FilterBar, EmptyState, Button, Badge } from './ui';
 
 // Brazilian Zip Code (CEP) API fetch helper
 const fetchCepData = async (cep: string) => {
@@ -58,6 +60,7 @@ const fetchCnpjData = async (cnpj: string) => {
 
 export const ClientsView: React.FC = () => {
   const { clients, orders, quotes, addClient, updateClient, deleteClient } = useDb();
+  const { isExpired } = useSubscription();
 
   // Screen state: 'list' | 'add' | 'edit' | 'detail' | 'delete-confirm'
   const [activeScreen, setActiveScreen] = useState<'list' | 'add' | 'edit' | 'detail' | 'delete-confirm'>('list');
@@ -68,6 +71,7 @@ export const ClientsView: React.FC = () => {
 
   // Client selected for detail, edit or deletion
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
 
   // Form Fields
   const [formType, setFormType] = useState<ClientType>('PF');
@@ -146,6 +150,11 @@ export const ClientsView: React.FC = () => {
 
   // Navigations
   const handleOpenAdd = () => {
+    if (isExpired) {
+      toast.error("Assinatura Expirada", "O cadastro de novos contatos requer regularização da assinatura. Seus clientes, pedidos e histórico continuam 100% preservados.");
+      return;
+    }
+
     setFormType('PF');
     setFormData({
       name: '',
@@ -203,8 +212,7 @@ export const ClientsView: React.FC = () => {
   };
 
   const handleDeleteTrigger = (client: Client) => {
-    setSelectedClient(client);
-    setActiveScreen('delete-confirm');
+    setClientToDelete(client);
   };
 
   // CNPJ API Search handler
@@ -456,38 +464,44 @@ export const ClientsView: React.FC = () => {
       {/* 1. LIST SCREEN */}
       {activeScreen === 'list' && (
         <div className="space-y-6 animate-slide-in-up">
-          {/* Header & Filter Bar */}
-          <div className="bg-white border border-slate-150 p-4 rounded-2xl shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="flex flex-1 flex-col sm:flex-row items-stretch sm:items-center gap-3">
-              <div className="relative flex-1 max-w-md">
-                <input
-                  type="text"
-                  placeholder="Buscar por nome, e-mail, telefone, CPF, CNPJ..."
-                  value={search}
-                  onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
-                  className="w-full pl-9 pr-4 py-2 text-xs rounded-xl border border-slate-200 bg-slate-50 text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
-                />
-                <Search size={14} className="absolute left-3.5 top-3 text-slate-400" />
+          {/* Subscription Guard Notice */}
+          {isExpired && (
+            <div className="p-4 rounded-2xl bg-rose-50 border border-rose-300 text-rose-900 text-xs flex items-center justify-between">
+              <div>
+                <strong className="font-bold">Modo Somente-Leitura (Assinatura Expirada):</strong> Todos os seus clientes, contatos e endereços continuam 100% preservados. O cadastro de novos clientes está pausado até a regularização do plano.
               </div>
-
-              <select
-                value={selectedType}
-                onChange={(e) => { setSelectedType(e.target.value as any); setCurrentPage(1); }}
-                className="px-3.5 py-2 text-xs rounded-xl border border-slate-200 bg-slate-50 text-slate-700 focus:outline-none cursor-pointer"
-              >
-                <option value="all">Pessoa Física & Jurídica</option>
-                <option value="PF">Apenas Pessoa Física (PF)</option>
-                <option value="PJ">Apenas Pessoa Jurídica (PJ)</option>
-              </select>
             </div>
+          )}
 
-            <button
-              onClick={handleOpenAdd}
-              className="px-4 py-2 rounded-xl bg-slate-900 text-white hover:bg-slate-800 text-xs font-bold transition-all shadow-md flex items-center gap-2 cursor-pointer"
-            >
-              <Plus size={14} /> Novo Cliente
-            </button>
-          </div>
+          {/* PageHeader & FilterBar */}
+          <PageHeader
+            title="Clientes & Paróquias"
+            description="Gestão integrada de fiéis, congregações, contatos e histórico de encomendas"
+            actions={
+              <Button
+                variant="primary"
+                onClick={handleOpenAdd}
+                disabled={isExpired}
+                icon={<Plus size={15} />}
+                title={isExpired ? 'Assinatura expirada: regularize para cadastrar novos clientes' : 'Novo Cliente'}
+              >
+                Novo Cliente
+              </Button>
+            }
+          />
+
+          <FilterBar
+            searchQuery={search}
+            onSearchChange={(q) => { setSearch(q); setCurrentPage(1); }}
+            searchPlaceholder="Buscar por nome, e-mail, telefone, CPF, CNPJ..."
+            segmentedOptions={[
+              { id: 'all', label: 'Todos os Clientes' },
+              { id: 'PF', label: 'Pessoa Física (PF)' },
+              { id: 'PJ', label: 'Pessoa Jurídica (PJ)' },
+            ]}
+            selectedSegment={selectedType}
+            onSegmentChange={(id) => { setSelectedType(id as any); setCurrentPage(1); }}
+          />
 
           {/* Grid list of Clients */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -500,11 +514,9 @@ export const ClientsView: React.FC = () => {
                   <div>
                     {/* Badge type header */}
                     <div className="flex justify-between items-center">
-                      <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-black tracking-wider ${
-                        client.type === 'PJ' ? 'bg-indigo-500/10 text-indigo-700' : 'bg-emerald-500/10 text-emerald-700'
-                      }`}>
-                        {client.type === 'PJ' ? 'PESSOA JURÍDICA' : 'PESSOA FÍSICA'}
-                      </span>
+                      <Badge variant={client.type === 'PJ' ? 'info' : 'emerald'} size="sm">
+                        {client.type === 'PJ' ? 'Pessoa Jurídica' : 'Pessoa Física'}
+                      </Badge>
                       <span className="text-[10px] font-mono text-slate-400">
                         ID: {client.id.substring(7, 11)}
                       </span>
@@ -596,8 +608,14 @@ export const ClientsView: React.FC = () => {
             })}
 
             {filteredClients.length === 0 && (
-              <div className="col-span-1 md:col-span-2 lg:col-span-3 py-16 text-center text-slate-450 font-serif">
-                Nenhum cliente artesanal cadastrado com esses parâmetros de busca.
+              <div className="col-span-1 md:col-span-2 lg:col-span-3">
+                <EmptyState
+                  icon={<Users size={32} className="text-slate-400" />}
+                  title="Nenhum cliente encontrado"
+                  description={search || selectedType !== 'all' ? "Tente ajustar os filtros ou termo de busca." : "Comece cadastrando seu primeiro cliente ou comunidade religiosa."}
+                  actionLabel={!isExpired && !search ? "Cadastrar Primeiro Cliente" : undefined}
+                  onAction={!isExpired && !search ? handleOpenAdd : undefined}
+                />
               </div>
             )}
           </div>
@@ -619,7 +637,7 @@ export const ClientsView: React.FC = () => {
 
       {/* 2. ADD / EDIT SCREEN */}
       {(activeScreen === 'add' || activeScreen === 'edit') && (
-        <div className="bg-white border border-slate-150 rounded-2xl p-6 space-y-6 shadow-xs max-w-4xl mx-auto animate-slide-in-up">
+        <div className="bg-white border border-slate-150 rounded-2xl p-4 sm:p-6 space-y-6 shadow-xs max-w-4xl mx-auto animate-slide-in-up">
           {/* Page Title & Back Button */}
           <div className="flex items-center justify-between pb-4 border-b border-slate-100">
             <div className="flex items-center gap-3">
@@ -630,7 +648,7 @@ export const ClientsView: React.FC = () => {
                 <ArrowLeft size={16} />
               </button>
               <div>
-                <h3 className="font-serif font-bold text-lg text-slate-900">
+                <h3 className="font-serif font-bold text-base sm:text-lg text-slate-900">
                   {activeScreen === 'add' ? 'Cadastrar Novo Cliente' : 'Editar Ficha Cadastral'}
                 </h3>
                 <p className="text-[10.5px] text-slate-500">Mantenha seu CRM de vendas atualizado</p>
@@ -703,7 +721,7 @@ export const ClientsView: React.FC = () => {
                   <>
                     <div className="md:col-span-2">
                       <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1.5">CNPJ</label>
-                      <div className="flex gap-2">
+                      <div className="flex flex-col sm:flex-row gap-2">
                         <input
                           type="text"
                           value={formData.cnpj}
@@ -715,7 +733,7 @@ export const ClientsView: React.FC = () => {
                           type="button"
                           onClick={handleCnpjSearch}
                           disabled={isSearchingCnpj}
-                          className="px-4 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold flex items-center gap-1.5 shadow-3xs cursor-pointer disabled:opacity-50"
+                          className="px-4 py-2 sm:py-0 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold flex items-center justify-center gap-1.5 shadow-3xs cursor-pointer disabled:opacity-50"
                         >
                           {isSearchingCnpj ? (
                             <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -1016,17 +1034,17 @@ export const ClientsView: React.FC = () => {
             </div>
 
             {/* Form submit/cancel footer buttons */}
-            <div className="pt-5 border-t border-slate-100 flex items-center justify-end gap-3 bg-slate-50 p-4 -mx-6 -mb-6 rounded-b-2xl mt-4">
+            <div className="pt-5 border-t border-slate-100 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2.5 sm:gap-3 bg-slate-50 p-4 -mx-4 sm:-mx-6 -mb-4 sm:-mb-6 rounded-b-2xl mt-4">
               <button
                 type="button"
                 onClick={() => setActiveScreen('list')}
-                className="px-4 py-2.5 border border-slate-200 hover:bg-slate-100 rounded-xl font-bold text-slate-500 cursor-pointer transition-all active:scale-95"
+                className="w-full sm:w-auto px-4 py-2.5 border border-slate-200 hover:bg-slate-100 rounded-xl font-bold text-slate-500 cursor-pointer transition-all active:scale-95 text-center"
               >
                 Cancelar
               </button>
               <button
                 type="submit"
-                className="px-6 py-2.5 bg-gradient-to-br from-ink-900 to-slate-800 text-white hover:opacity-95 rounded-xl font-bold cursor-pointer transition-all active:scale-95 shadow-md flex items-center gap-2"
+                className="w-full sm:w-auto px-6 py-2.5 bg-gradient-to-br from-ink-900 to-slate-800 text-white hover:opacity-95 rounded-xl font-bold cursor-pointer transition-all active:scale-95 shadow-md flex items-center justify-center gap-2 text-center"
               >
                 {activeScreen === 'add' ? 'Adicionar Novo Cliente' : 'Salvar Alterações'}
               </button>
@@ -1240,45 +1258,35 @@ export const ClientsView: React.FC = () => {
       )}
 
 
-      {/* 4. DELETE / ARCHIVE CONFIRMATION SCREEN */}
-      {activeScreen === 'delete-confirm' && selectedClient && (
-        <div className="bg-white border border-slate-150 rounded-2xl p-6 shadow-xs max-w-md mx-auto space-y-5 animate-scale-in">
-          <div className="flex items-center gap-3 text-rose-650">
-            <div className="p-2.5 bg-rose-50 rounded-xl border border-rose-100">
-              <AlertTriangle size={24} />
+      {/* 4. DELETE / ARCHIVE CONFIRMATION DIALOG */}
+      <ConfirmDialog
+        isOpen={Boolean(clientToDelete)}
+        onClose={() => setClientToDelete(null)}
+        onConfirm={() => {
+          if (clientToDelete) {
+            deleteClient(clientToDelete.id);
+            toast.warning("Cliente arquivado", `Contato "${clientToDelete.name}" foi arquivado.`);
+            setClientToDelete(null);
+          }
+        }}
+        title="Confirmar Arquivamento"
+        description={
+          clientToDelete ? (
+            <div className="space-y-2">
+              <p>
+                Deseja realmente arquivar o cliente <strong className="text-slate-800">"{clientToDelete.name}"</strong>? O registro não será mais exibido nas listas ativas de pedidos e orçamentos.
+              </p>
+              <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-150 text-[11px] text-slate-600">
+                <span>Compras acumuladas: <strong>R$ {getClientStats(clientToDelete.id).totalSpent.toFixed(2)}</strong></span>
+                <span className="mx-2">•</span>
+                <span>Pedidos: <strong>{getClientStats(clientToDelete.id).ordersCount}</strong></span>
+              </div>
             </div>
-            <div>
-              <h3 className="font-serif font-bold text-base text-slate-900">Confirmar Arquivamento</h3>
-              <p className="text-[10.5px] text-slate-450">CRM e Controle Logístico Ativo</p>
-            </div>
-          </div>
-
-          <p className="text-xs text-slate-500 leading-relaxed">
-            Deseja realmente arquivar o cliente <strong className="text-slate-800 font-serif">"{selectedClient.name}"</strong>? O registro não será mais exibido nas listas ativas de pedidos e orçamentos.
-          </p>
-
-          <div className="p-3 bg-slate-50 rounded-xl border border-slate-150 text-[11px] text-slate-600">
-            <strong>Dossiê resumido:</strong>
-            <p className="mt-1">Compras acumuladas: R$ {getClientStats(selectedClient.id).totalSpent.toFixed(2)}</p>
-            <p>Pedidos vinculados: {getClientStats(selectedClient.id).ordersCount}</p>
-          </div>
-
-          <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">
-            <button
-              onClick={() => setActiveScreen('list')}
-              className="px-4 py-2 border border-slate-200 hover:bg-slate-50 rounded-xl text-xs font-bold text-slate-500 cursor-pointer transition-all active:scale-95"
-            >
-              Cancelar
-            </button>
-            <button
-              onClick={handleConfirmDelete}
-              className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold cursor-pointer transition-all active:scale-95 shadow-md"
-            >
-              Confirmar e Arquivar
-            </button>
-          </div>
-        </div>
-      )}
+          ) : null
+        }
+        confirmText="Confirmar e Arquivar"
+        variant="danger"
+      />
 
     </div>
   );

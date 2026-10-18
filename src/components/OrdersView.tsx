@@ -6,7 +6,9 @@ import {
   ArrowLeft, Printer, Share2, Check, Copy, MessageSquare, AlertTriangle, Shield, X, Ban
 } from 'lucide-react';
 import { toast } from './Toast';
+import { useSubscription } from '../hooks/useSubscription';
 import { Pagination } from './Pagination';
+import { PageHeader, FilterBar, EmptyState, Button, Badge, ConfirmDialog } from './ui';
 import { jsPDF } from 'jspdf';
 import { getPdfThemeColors } from '../utils/theme';
 import { loadLogoBase64 } from '../utils/pdf';
@@ -21,6 +23,7 @@ export interface OrdersViewProps {
 
 export const OrdersView: React.FC<OrdersViewProps> = ({ initialFilter }) => {
   const { orders, clients, products, addOrder, updateOrder, deleteOrder, cancelOrder, settings } = useDb();
+  const { isExpired, currentPlan } = useSubscription();
 
   // Screen State: 'list' | 'add' | 'edit' | 'detail' | 'print' | 'share'
   const [activeScreen, setActiveScreen] = useState<'list' | 'add' | 'edit' | 'detail' | 'print' | 'share'>('list');
@@ -313,6 +316,16 @@ export const OrdersView: React.FC<OrdersViewProps> = ({ initialFilter }) => {
 
   // Navigations & Page transitions
   const handleOpenAdd = () => {
+    if (isExpired) {
+      toast.error("Assinatura Expirada", "A criação de novos pedidos requer regularização da assinatura. Seus dados continuam 100% preservados.");
+      return;
+    }
+    const maxOrders = currentPlan?.limits?.maxOrdersPerMonth ?? 999;
+    if (maxOrders > 0 && maxOrders < 999 && orders.length >= maxOrders) {
+      toast.error("Limite Mensal Atingido", `Seu plano permite até ${maxOrders} pedidos por mês. Faça upgrade para continuar.`);
+      return;
+    }
+
     setClientId(activeClients[0]?.id || '');
     setDueDate(new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]); // 10 days out
     setStatus('received');
@@ -502,44 +515,48 @@ export const OrdersView: React.FC<OrdersViewProps> = ({ initialFilter }) => {
       {/* 1. LIST SCREEN */}
       {activeScreen === 'list' && (
         <div className="space-y-6">
-          {/* Header & Filter Controls Bar */}
-          <div className="bg-white border border-slate-100 p-5 rounded-2xl shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="flex flex-1 flex-col sm:flex-row items-stretch sm:items-center gap-3">
-              <div className="relative flex-1 max-w-md">
-                <input
-                  type="text"
-                  placeholder="Buscar por cliente ou código PED-..."
-                  value={search}
-                  onChange={(e) => { setSearch(e.target.value); setOrdersPage(1); }}
-                  className="w-full pl-9 pr-4 py-2.5 text-xs rounded-xl border border-slate-200 bg-slate-50 text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:bg-white"
-                />
-                <Search size={14} className="absolute left-3.5 top-3.5 text-slate-400" />
+          {/* Subscription Guard Notice */}
+          {isExpired && (
+            <div className="p-4 rounded-2xl bg-rose-50 border border-rose-300 text-rose-900 text-xs flex items-center justify-between">
+              <div>
+                <strong className="font-bold">Modo Somente-Leitura (Assinatura Expirada):</strong> Todos os seus pedidos, clientes e histórico continuam 100% preservados. A criação de novos pedidos está pausada até a regularização do plano.
               </div>
-
-              <select
-                value={selectedStatus}
-                onChange={(e) => { setSelectedStatus(e.target.value); setOrdersPage(1); }}
-                className="px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 bg-slate-50 text-slate-700 focus:outline-none cursor-pointer font-medium"
-              >
-                <option value="all">Todos os Status</option>
-                <option value="delayed">⚠️ Atrasados (Vencidos)</option>
-                <option value="received">Recebido</option>
-                <option value="approved">Aprovado / Separação</option>
-                <option value="production">Em Produção</option>
-                <option value="finishing">Em Acabamento</option>
-                <option value="packing">Embalagem</option>
-                <option value="ready">Pronto para Entrega</option>
-                <option value="completed">Concluído</option>
-              </select>
             </div>
+          )}
 
-            <button
-              onClick={handleOpenAdd}
-              className="px-4 py-2.5 rounded-xl bg-slate-900 text-white hover:bg-slate-800 text-xs font-bold transition-all shadow-md flex items-center gap-2 cursor-pointer self-start md:self-auto active:scale-95"
-            >
-              <Plus size={14} /> Novo Pedido
-            </button>
-          </div>
+          {/* PageHeader & FilterBar */}
+          <PageHeader
+            title="Pedidos de Venda & Encomendas"
+            description="Acompanhamento de pedidos, etapas de produção artesanal, prazos e faturamento"
+            actions={
+              <Button
+                variant="primary"
+                onClick={handleOpenAdd}
+                disabled={isExpired}
+                icon={<Plus size={15} />}
+                title={isExpired ? 'Assinatura expirada: regularize para criar novos pedidos' : 'Novo Pedido'}
+              >
+                Novo Pedido
+              </Button>
+            }
+          />
+
+          <FilterBar
+            searchQuery={search}
+            onSearchChange={(q) => { setSearch(q); setOrdersPage(1); }}
+            searchPlaceholder="Buscar por cliente ou código..."
+            segmentedOptions={[
+              { id: 'all', label: 'Todos' },
+              { id: 'delayed', label: '⚠️ Atrasados' },
+              { id: 'received', label: 'Recebido' },
+              { id: 'production', label: 'Produção' },
+              { id: 'finishing', label: 'Acabamento' },
+              { id: 'ready', label: 'Pronto' },
+              { id: 'completed', label: 'Concluído' },
+            ]}
+            selectedSegment={selectedStatus}
+            onSegmentChange={(id) => { setSelectedStatus(id); setOrdersPage(1); }}
+          />
 
           {/* Grid list of Orders */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -629,12 +646,12 @@ export const OrdersView: React.FC<OrdersViewProps> = ({ initialFilter }) => {
                   </div>
 
                   {/* Pricing and Bottom Action Drawer */}
-                  <div className="pt-4.5 border-t border-slate-100 flex items-center justify-between">
+                  <div className="pt-4.5 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2.5">
                     <span className="text-sm font-black text-slate-900 font-mono">
                       R$ {order.totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </span>
 
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5 flex-wrap">
                       {/* Timeline Detail Screen */}
                       <button
                         onClick={() => { setSelectedOrder(order); setActiveScreen('detail'); }}
@@ -733,8 +750,14 @@ export const OrdersView: React.FC<OrdersViewProps> = ({ initialFilter }) => {
             })}
 
             {filteredOrders.length === 0 && (
-              <div className="col-span-2 py-20 text-center text-slate-450 italic border-2 border-dashed border-slate-200 rounded-2xl bg-white">
-                Nenhum pedido de venda registrado para os filtros especificados.
+              <div className="col-span-1 md:col-span-2">
+                <EmptyState
+                  icon={<ShoppingBag size={32} className="text-slate-400" />}
+                  title="Nenhum pedido encontrado"
+                  description={search || selectedStatus !== 'all' ? "Tente ajustar os filtros ou termo de busca." : "Inicie sua produção registrando um novo pedido artesanal."}
+                  actionLabel={!isExpired && !search ? "Novo Pedido" : undefined}
+                  onAction={!isExpired && !search ? handleOpenAdd : undefined}
+                />
               </div>
             )}
           </div>
@@ -821,7 +844,7 @@ export const OrdersView: React.FC<OrdersViewProps> = ({ initialFilter }) => {
             {/* Item selector sandbox */}
             <div className="pt-4 border-t border-slate-100">
               <h4 className="font-bold text-xs text-slate-850 uppercase tracking-wider mb-3 flex items-center gap-1.5">
-                <ShoppingBag size={14} className="text-amber-500" /> Joias e Terços do Pedido
+                <ShoppingBag size={14} className="text-amber-500" /> Artigos Religiosos e Terços do Pedido
               </h4>
 
               <div className="bg-slate-50 p-4 border border-slate-150 rounded-xl flex flex-col sm:flex-row items-stretch sm:items-end gap-3 mb-4">
@@ -981,7 +1004,7 @@ export const OrdersView: React.FC<OrdersViewProps> = ({ initialFilter }) => {
             {/* Workspace section */}
             <div className="pt-4 border-t border-slate-100">
               <h4 className="font-bold text-xs text-slate-850 uppercase tracking-wider mb-3 flex items-center gap-1.5">
-                <ShoppingBag size={14} className="text-amber-500" /> Joias e Terços do Pedido
+                <ShoppingBag size={14} className="text-amber-500" /> Artigos Religiosos e Terços do Pedido
               </h4>
 
               <div className="bg-slate-50 p-4 border border-slate-150 rounded-xl flex flex-col sm:flex-row items-stretch sm:items-end gap-3 mb-4">
@@ -1261,7 +1284,7 @@ export const OrdersView: React.FC<OrdersViewProps> = ({ initialFilter }) => {
               <table className="w-full text-xs text-left border-collapse">
                 <thead>
                   <tr className="border-b border-slate-200 text-slate-500 font-bold bg-slate-50/50">
-                    <th className="py-2.5 px-3">Joia / Produto</th>
+                    <th className="py-2.5 px-3">Artigo Religioso / Produto</th>
                     <th className="py-2.5 px-3 text-center">Quantidade</th>
                     <th className="py-2.5 px-3 text-right">Valor Unitário</th>
                     <th className="py-2.5 px-3 text-right">Total</th>

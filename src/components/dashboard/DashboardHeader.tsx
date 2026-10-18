@@ -177,32 +177,24 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
       {/* 2. Customizable Banner / Banner Personalizável */}
       {bannerConfig.showBanner && (
         <div
-          className="relative overflow-hidden p-8 sm:p-10 rounded-2xl border border-slate-150 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-8"
+          className="relative overflow-hidden p-6 sm:p-8 rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-6"
           style={{
-            backgroundColor: bannerConfig.bgImage ? 'transparent' : '#FFFDF9',
-            backgroundImage: bannerConfig.bgImage ? `linear-gradient(rgba(255,253,249,0.92), rgba(255,253,249,0.95)), url(${bannerConfig.bgImage})` : 'none',
+            backgroundColor: bannerConfig.bgImage ? 'transparent' : '#FFFFFF',
+            backgroundImage: bannerConfig.bgImage ? `linear-gradient(rgba(255,255,255,0.92), rgba(255,255,255,0.96)), url(${bannerConfig.bgImage})` : 'none',
             backgroundSize: 'cover',
             backgroundPosition: 'center',
-            borderColor: bannerConfig.highlightColor ? `${bannerConfig.highlightColor}20` : 'rgba(212,160,57,0.15)'
           }}
         >
-          {/* Accent blur elements */}
-          <div 
-            className="absolute top-0 right-0 w-96 h-96 rounded-full blur-3xl pointer-events-none opacity-40"
-            style={{ backgroundColor: bannerConfig.highlightColor || '#D4A039' }}
-          />
-          <div className="absolute bottom-0 left-0 w-72 h-72 bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
-
-          <div className="space-y-3.5 relative z-10 max-w-xl">
+          <div className="space-y-2.5 relative z-10 max-w-xl">
             <span 
-              className="inline-flex items-center px-3 py-1 text-[10px] font-bold tracking-widest uppercase rounded-full border"
+              className="inline-flex items-center px-2.5 py-1 text-[10px] font-bold tracking-wider uppercase rounded-md border"
               style={{
                 borderColor: `${bannerConfig.highlightColor}35`,
-                backgroundColor: `${bannerConfig.highlightColor}08`,
+                backgroundColor: `${bannerConfig.highlightColor}10`,
                 color: bannerConfig.highlightColor || '#D4A039'
               }}
             >
-              <Sparkles size={11} className="mr-1 animate-pulse" /> Ateliê de Artes Sacras & Joias
+              <Sparkles size={11} className="mr-1.5" /> Ateliê de Artes Sacras & Artigos Religiosos
             </span>
             <h2 className="text-2xl sm:text-3xl font-serif font-semibold tracking-tight text-slate-900">
               {bannerConfig.title || "Gestão Ateliê Sagrado"}
@@ -217,7 +209,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
             {bannerConfig.showBtn1 && (
               <button
                 onClick={() => handleAction(bannerConfig.btn1Icon)}
-                className="px-5 py-3 text-white font-semibold text-xs rounded-xl active:scale-98 transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md hover:brightness-105"
+                className="px-4.5 py-2.5 text-white font-semibold text-xs rounded-xl active:scale-[0.98] transition-control flex items-center justify-center gap-2 cursor-pointer shadow-2xs hover:shadow-xs"
                 style={{ backgroundColor: bannerConfig.highlightColor || '#D4A039' }}
               >
                 {bannerConfig.btn1Text}
@@ -226,7 +218,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
             {bannerConfig.showBtn2 && (
               <button
                 onClick={() => handleAction(bannerConfig.btn2Icon)}
-                className="px-5 py-3 bg-white text-slate-900 hover:bg-slate-50 font-semibold text-xs rounded-xl active:scale-98 transition-all flex items-center justify-center gap-2 cursor-pointer border border-slate-200 shadow-xs"
+                className="px-4.5 py-2.5 bg-white text-slate-800 hover:bg-slate-50 hover:text-slate-900 font-semibold text-xs rounded-xl active:scale-[0.98] transition-control flex items-center justify-center gap-2 cursor-pointer border border-slate-200 shadow-2xs hover:border-slate-300"
               >
                 {bannerConfig.btn2Text}
               </button>
@@ -234,7 +226,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
             {bannerConfig.showBtn3 && (
               <button
                 onClick={() => handleAction(bannerConfig.btn3Icon)}
-                className="px-5 py-3 bg-white text-slate-900 hover:bg-slate-50 font-semibold text-xs rounded-xl active:scale-98 transition-all flex items-center justify-center gap-2 cursor-pointer border border-slate-200 shadow-xs"
+                className="px-4.5 py-2.5 bg-white text-slate-800 hover:bg-slate-50 hover:text-slate-900 font-semibold text-xs rounded-xl active:scale-[0.98] transition-control flex items-center justify-center gap-2 cursor-pointer border border-slate-200 shadow-2xs hover:border-slate-300"
               >
                 {bannerConfig.btn3Text}
               </button>
@@ -242,7 +234,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
             {bannerConfig.showBtn4 && (
               <button
                 onClick={() => handleAction(bannerConfig.btn4Icon)}
-                className="px-5 py-3 bg-slate-900 text-white hover:bg-slate-800 font-semibold text-xs rounded-xl active:scale-98 transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md"
+                className="px-4.5 py-2.5 bg-slate-900 text-white hover:bg-slate-800 font-semibold text-xs rounded-xl active:scale-[0.98] transition-control flex items-center justify-center gap-2 cursor-pointer shadow-2xs hover:shadow-xs"
               >
                 {bannerConfig.btn4Text}
               </button>

@@ -23,7 +23,8 @@ import { Order, InventoryItem, Quote, FinancialTransaction, ProductionTask } fro
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { useDb } from '../../context/DbContext';
 import { roundCurrency, safeNumber, safeDiv } from '../../utils/finance';
-import { Modal, Button, Badge } from '../ui';
+import { Button, Badge } from '../ui';
+import { motion, AnimatePresence } from 'motion/react';
 
 export type DashboardPeriod = 'hoje' | '7d' | 'mes' | 'ano' | 'todos';
 
@@ -543,7 +544,7 @@ export const DashboardKpis: React.FC<DashboardKpisProps> = ({
   }, [kpis, kpiCategoryFilter]);
 
   const handleKpiCardClick = (kpi: KpiItem) => {
-    setSelectedKpi(kpi);
+    setSelectedKpi(prev => prev?.id === kpi.id ? null : kpi);
   };
 
   const handleDirectDrillDown = (e: React.MouseEvent, kpi: KpiItem) => {
@@ -602,7 +603,11 @@ export const DashboardKpis: React.FC<DashboardKpisProps> = ({
           <div
             key={kpi.id}
             onClick={() => handleKpiCardClick(kpi)}
-            className="erp-card erp-card-hover p-3.5 sm:p-4 cursor-pointer flex flex-col justify-between h-36 group relative overflow-hidden"
+            className={`erp-card erp-card-hover p-3.5 sm:p-4 cursor-pointer flex flex-col justify-between h-36 group relative overflow-hidden transition-all ${
+              selectedKpi?.id === kpi.id
+                ? 'ring-2 ring-amber-500 border-amber-400 bg-amber-50/20 shadow-md'
+                : ''
+            }`}
           >
             <div className="flex items-start justify-between gap-1">
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider line-clamp-1">
@@ -627,8 +632,10 @@ export const DashboardKpis: React.FC<DashboardKpisProps> = ({
             </div>
 
             <div className="flex items-center justify-between pt-1 border-t border-slate-100">
-              <span className="text-[9px] font-bold text-slate-400 group-hover:text-slate-700 flex items-center gap-1 select-none transition-colors">
-                <Eye size={10} /> Auditar
+              <span className={`text-[9px] font-bold flex items-center gap-1 select-none transition-colors ${
+                selectedKpi?.id === kpi.id ? 'text-amber-800' : 'text-slate-400 group-hover:text-slate-700'
+              }`}>
+                <Eye size={10} /> {selectedKpi?.id === kpi.id ? 'Inspecionando' : 'Auditar'}
               </span>
               <button
                 type="button"
@@ -643,84 +650,119 @@ export const DashboardKpis: React.FC<DashboardKpisProps> = ({
         ))}
       </div>
 
-      {/* Audited KPI Drill-Down Modal */}
-      <Modal
-        isOpen={!!selectedKpi}
-        onClose={() => setSelectedKpi(null)}
-        title={
-          selectedKpi ? (
-            <div className="flex items-center gap-2">
-              <span>{selectedKpi.title}</span>
-              <Badge variant="neutral" size="sm">Auditado ERP</Badge>
-            </div>
-          ) : ''
-        }
-        subtitle="Detalhamento da métrica e rastreabilidade nos registros"
-        size="md"
-        footer={
-          selectedKpi ? (
-            <div className="flex items-center justify-between w-full">
-              <span className="text-[11px] text-slate-500 flex items-center gap-1">
-                <CheckCircle2 size={13} className="text-emerald-600" /> Sincronizado em tempo real
-              </span>
-              <Button
-                variant="primary"
-                size="sm"
-                rightIcon={<ArrowRight size={13} />}
-                onClick={() => {
-                  onViewChange(selectedKpi.targetView, selectedKpi.targetParams);
-                  setSelectedKpi(null);
-                }}
-              >
-                Abrir Registros Filtrados
-              </Button>
-            </div>
-          ) : undefined
-        }
-      >
+      {/* Audited KPI Drill-Down Inline Panel (No pop-up to preserve page scroll & user focus) */}
+      <AnimatePresence>
         {selectedKpi && (
-          <div className="space-y-4 text-xs">
-            <div className="flex items-baseline justify-between p-3.5 bg-slate-50 rounded-xl border border-slate-200/80">
-              <div>
-                <span className="text-[10px] uppercase font-bold text-slate-400 block">Valor Consolidado</span>
-                <span className="text-2xl font-serif font-black text-slate-900">{selectedKpi.value}</span>
-              </div>
-              <span className={`px-2.5 py-1 text-xs font-bold rounded-full border ${selectedKpi.statusColor}`}>
-                {selectedKpi.trendPercent}
-              </span>
-            </div>
-
-            <div className="space-y-2 text-xs text-slate-600 leading-relaxed bg-white p-3.5 rounded-xl border border-slate-200/80">
-              <p><strong className="text-slate-900">Descrição:</strong> {selectedKpi.description}</p>
-              <div className="pt-2 border-t border-slate-100 space-y-1">
-                <p className="text-[11px] text-slate-500">
-                  <strong className="text-slate-700">Origem real dos dados:</strong> {selectedKpi.sourceText}
-                </p>
-                <p className="text-[11px] text-slate-500">
-                  <strong className="text-slate-700">Fórmula de cálculo:</strong> {selectedKpi.calculationText}
-                </p>
-              </div>
-            </div>
-
-            {/* Chart */}
-            {selectedKpi.chartData && selectedKpi.chartData.length > 0 && (
-              <div className="bg-slate-50 border border-slate-200/80 p-4 rounded-xl">
-                <h5 className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-2">Comportamento Recente</h5>
-                <div className="h-28">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={selectedKpi.chartData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
-                      <XAxis dataKey="name" stroke="#94a3b8" fontSize={9} tickLine={false} />
-                      <YAxis stroke="#94a3b8" fontSize={9} tickLine={false} />
-                      <Tooltip contentStyle={{ fontSize: '11px', borderRadius: '8px', border: '1px solid #e2e8f0' }} />
-                      <Area type="monotone" dataKey="valor" stroke="#D4A039" fill="#FDF6E2" strokeWidth={2} />
-                    </AreaChart>
-                  </ResponsiveContainer>
+          <motion.div
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            className="bg-white border-2 border-amber-300/80 rounded-2xl p-5 sm:p-6 shadow-md space-y-4"
+            id="kpi-inline-drilldown"
+          >
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-3">
+                <div className={`w-9 h-9 rounded-xl flex items-center justify-center border ${selectedKpi.statusColor}`}>
+                  {selectedKpi.icon}
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h4 className="font-serif font-bold text-base sm:text-lg text-slate-900">
+                      {selectedKpi.title}
+                    </h4>
+                    <Badge variant="neutral" size="sm">Auditado ERP</Badge>
+                  </div>
+                  <p className="text-xs text-slate-500">
+                    Detalhamento analítico da métrica e rastreabilidade nos registros (inspeção inline sem pop-up)
+                  </p>
                 </div>
               </div>
-            )}
-          </div>
+
+              <div className="flex items-center gap-2 self-end sm:self-auto">
+                <Button
+                  variant="primary"
+                  size="sm"
+                  rightIcon={<ArrowRight size={13} />}
+                  onClick={() => {
+                    onViewChange(selectedKpi.targetView, selectedKpi.targetParams);
+                    setSelectedKpi(null);
+                  }}
+                >
+                  Abrir Registros Filtrados
+                </Button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedKpi(null)}
+                  className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                  title="Fechar Inspeção"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 text-xs">
+              {/* Value & Info */}
+              <div className="lg:col-span-4 space-y-3">
+                <div className="flex items-baseline justify-between p-4 bg-slate-50/80 rounded-xl border border-slate-200/80">
+                  <div>
+                    <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
+                      Valor Consolidado
+                    </span>
+                    <span className="text-2xl sm:text-3xl font-serif font-black text-slate-900">
+                      {selectedKpi.value}
+                    </span>
+                  </div>
+                  <span className={`px-2.5 py-1 text-xs font-bold rounded-full border ${selectedKpi.statusColor}`}>
+                    {selectedKpi.trendPercent}
+                  </span>
+                </div>
+
+                <div className="space-y-2 bg-white p-4 rounded-xl border border-slate-200/80 text-slate-600 leading-relaxed">
+                  <p><strong className="text-slate-900">Descrição:</strong> {selectedKpi.description}</p>
+                  <div className="pt-2 border-t border-slate-100 space-y-1">
+                    <p className="text-[11px] text-slate-500">
+                      <strong className="text-slate-700">Origem real dos dados:</strong> {selectedKpi.sourceText}
+                    </p>
+                    <p className="text-[11px] text-slate-500">
+                      <strong className="text-slate-700">Fórmula de cálculo:</strong> {selectedKpi.calculationText}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Chart */}
+              <div className="lg:col-span-8 bg-slate-50/80 border border-slate-200/80 p-4 rounded-xl flex flex-col justify-between">
+                <div className="flex items-center justify-between mb-2">
+                  <h5 className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+                    Comportamento Recente ({periodLabel})
+                  </h5>
+                  <span className="text-[10px] text-slate-400 flex items-center gap-1 font-medium">
+                    <CheckCircle2 size={12} className="text-emerald-600" /> Sincronizado em tempo real
+                  </span>
+                </div>
+
+                {selectedKpi.chartData && selectedKpi.chartData.length > 0 ? (
+                  <div className="h-36 sm:h-40 w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={selectedKpi.chartData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+                        <XAxis dataKey="name" stroke="#94a3b8" fontSize={9} tickLine={false} />
+                        <YAxis stroke="#94a3b8" fontSize={9} tickLine={false} />
+                        <Tooltip contentStyle={{ fontSize: '11px', borderRadius: '8px', border: '1px solid #e2e8f0' }} />
+                        <Area type="monotone" dataKey="valor" stroke="#D4A039" fill="#FDF6E2" strokeWidth={2} />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                ) : (
+                  <div className="h-36 flex items-center justify-center text-slate-400 text-xs italic">
+                    Sem movimentações suficientes no período selecionado.
+                  </div>
+                )}
+              </div>
+            </div>
+          </motion.div>
         )}
-      </Modal>
+      </AnimatePresence>
     </div>
   );
 };
