@@ -334,6 +334,18 @@ export const QuotesView: React.FC = () => {
     toast.success("Sucesso!", `Orçamento convertido em Pedido! Produção iniciada.`);
   };
 
+  const handleStatusChange = (q: Quote, newStatus: QuoteStatus) => {
+    updateQuote(q.id, { status: newStatus });
+    if (newStatus === 'rejected') {
+      toast.info(
+        "Reservas Liberadas",
+        `O orçamento ${q.quoteNumber || `Q-${q.id.substring(6, 11).toUpperCase()}`} foi rejeitado. As matérias-primas reservadas retornaram ao saldo disponível!`
+      );
+    } else {
+      toast.success("Status Atualizado", `Orçamento atualizado para "${newStatus}".`);
+    }
+  };
+
   const handleDuplicate = (id: string) => {
     duplicateQuote(id);
     toast.success("Duplicado!", "Orçamento duplicado com status 'Pendente'.");
@@ -669,18 +681,24 @@ export const QuotesView: React.FC = () => {
                       <span className="font-mono font-bold text-xs text-slate-500">
                         Q-{q.id.substring(6, 11).toUpperCase()}
                       </span>
-                      <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold ${
-                        q.status === 'converted' ? 'bg-emerald-500/10 text-emerald-600' :
-                        q.status === 'approved' ? 'bg-blue-500/10 text-blue-600' :
-                        q.status === 'rejected' ? 'bg-rose-500/10 text-rose-600' :
-                        q.status === 'analysis' ? 'bg-indigo-500/10 text-indigo-550' :
-                        'bg-amber-500/10 text-amber-600'
-                      }`}>
-                        {q.status === 'converted' ? 'CONVERTIDO' :
-                         q.status === 'approved' ? 'APROVADO' :
-                         q.status === 'rejected' ? 'REJEITADO' :
-                         q.status === 'analysis' ? 'ANÁLISE' : 'PENDENTE'}
-                      </span>
+                      <select
+                        value={q.status}
+                        onChange={(e) => handleStatusChange(q, e.target.value as QuoteStatus)}
+                        disabled={q.status === 'converted'}
+                        className={`px-2 py-0.5 text-[9.5px] font-bold rounded-lg border cursor-pointer focus:outline-none ${
+                          q.status === 'converted' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                          q.status === 'approved' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                          q.status === 'rejected' ? 'bg-rose-50 text-rose-700 border-rose-200' :
+                          q.status === 'analysis' ? 'bg-indigo-50 text-indigo-750 border-indigo-200' :
+                          'bg-amber-50 text-amber-850 border-amber-200'
+                        }`}
+                      >
+                        <option value="pending">Pendente</option>
+                        <option value="analysis">Em Análise</option>
+                        <option value="approved">Aprovado</option>
+                        <option value="rejected">Rejeitado (Libera)</option>
+                        <option value="converted" disabled>Convertido</option>
+                      </select>
                     </div>
 
                     <div>
@@ -799,18 +817,25 @@ export const QuotesView: React.FC = () => {
                           R$ {q.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                         </td>
                         <td className="p-4">
-                          <span className={`px-2.5 py-1 rounded-full text-[9px] font-bold ${
-                            q.status === 'converted' ? 'bg-emerald-500/10 text-emerald-600' :
-                            q.status === 'approved' ? 'bg-blue-500/10 text-blue-600' :
-                            q.status === 'rejected' ? 'bg-rose-500/10 text-rose-600' :
-                            q.status === 'analysis' ? 'bg-indigo-500/10 text-indigo-550' :
-                            'bg-amber-500/10 text-amber-600'
-                          }`}>
-                            {q.status === 'converted' ? 'CONVERTIDO' :
-                             q.status === 'approved' ? 'APROVADO' :
-                             q.status === 'rejected' ? 'REJEITADO' :
-                             q.status === 'analysis' ? 'ANÁLISE' : 'PENDENTE'}
-                          </span>
+                          <select
+                            value={q.status}
+                            onChange={(e) => handleStatusChange(q, e.target.value as QuoteStatus)}
+                            disabled={q.status === 'converted'}
+                            title={q.status === 'converted' ? 'Orçamento já convertido em pedido de venda' : 'Alterar status (Rejeitado libera reservas)'}
+                            className={`px-2.5 py-1 text-[10px] font-bold rounded-lg border cursor-pointer focus:outline-none transition-colors ${
+                              q.status === 'converted' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                              q.status === 'approved' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                              q.status === 'rejected' ? 'bg-rose-50 text-rose-700 border-rose-200' :
+                              q.status === 'analysis' ? 'bg-indigo-50 text-indigo-750 border-indigo-200' :
+                              'bg-amber-50 text-amber-850 border-amber-200'
+                            }`}
+                          >
+                            <option value="pending">Pendente</option>
+                            <option value="analysis">Em Análise</option>
+                            <option value="approved">Aprovado</option>
+                            <option value="rejected">Rejeitado (Libera)</option>
+                            <option value="converted" disabled>Convertido</option>
+                          </select>
                         </td>
                         <td className="p-4 text-right">
                           <div className="flex justify-end gap-2">

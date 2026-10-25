@@ -78,27 +78,72 @@ export interface Client {
 export type CalcMethod = 'fixed' | 'weight';
 export type InventoryStatus = 'active' | 'inactive';
 
+export interface InventoryMovement {
+  id: string;
+  date: string;
+  type: 'entrada' | 'saida' | 'reserva' | 'liberacao_reserva' | 'ajuste' | 'perda' | 'devolucao' | 'conferencia';
+  amount: number;
+  balanceBefore: number;
+  balanceAfter: number;
+  unitValue: number;
+  cost?: number;
+  reason: string;
+  sourceType?: 'compra' | 'orcamento' | 'pedido' | 'producao' | 'inventario' | 'conferencia';
+  sourceId?: string;
+  sourceCode?: string;
+  user?: string;
+}
+
 export interface InventoryItem {
- id: string;
- tenantId?: string;
- name: string;
- category: string;
- code: string;
- description: string;
- supplier: string;
- unit: string; // e.g. 'unidade', 'grama', 'pacote'
- weightG: number; // weight in grams per unit
- quantity: number;
- minQuantity: number;
- unitValue: number;
- calcMethod: CalcMethod;
- notes: string;
- status: InventoryStatus;
- isDeleted?: boolean;
- createdAt: string;
- reserved?: number;
- available?: number;
- imageUrl?: string;
+  id: string;
+  tenantId?: string;
+  name: string;
+  category: string;
+  code: string;
+  description: string;
+  supplier: string;
+  unit: string; // Unidade principal de estoque (e.g. 'unidade', 'grama', 'metro')
+  weightG: number; // Peso em gramas por unidade
+  quantity: number; // Saldo físico em estoque
+  minQuantity: number; // Estoque mínimo
+  reorderPoint?: number; // Ponto de reposição
+  unitValue: number; // Custo unitário atual
+  averageCost?: number; // Custo médio ponderado móvel
+  calcMethod: CalcMethod;
+  notes: string;
+  status: InventoryStatus;
+  isDeleted?: boolean;
+  createdAt: string;
+  updatedAt?: string;
+  reserved?: number; // Quantidade reservada por orçamentos/pedidos
+  available?: number; // Saldo disponível (físico - reservado)
+  imageUrl?: string;
+
+  // Identificação Detalhada
+  materialType?: string; // e.g. 'ABS', 'Cristal', 'Metal', 'Madeira', 'Cordão Encerado'
+  dimensions?: string; // e.g. '8 mm', '10 mm', '45x30 mm'
+  purchaseUrl?: string; // Link de compra (Shopee, Mercado Livre, etc.)
+
+  // 3 Unidades Independentes de Medida & Conversão
+  purchaseUnit?: string; // Unidade de Compra: e.g. 'pacote', 'rolo', 'caixa', 'kg', 'cento'
+  stockUnit?: string; // Unidade de Estoque: e.g. 'unidade', 'grama', 'metro', 'ml'
+  consumptionUnit?: string; // Unidade de Consumo na receita: e.g. 'unidade', 'grama', 'cm'
+  packageQty?: number; // Quantidade utilizável por embalagem de compra (ex: 2000 unid)
+  packageWeightG?: number; // Peso da embalagem de compra (ex: 500 g)
+  quantityOrigin?: 'estimado' | 'fornecedor' | 'conferido'; // Origem da quantidade
+  conversionFactor?: number; // Fator de conversão (quantas unid de estoque/consumo por embalagem)
+  conversionFactorOrigin?: 'estimado' | 'fornecedor' | 'conferido';
+
+  // Detalhamento Financeiro de Aquisição
+  purchasePrice?: number; // Preço bruto da embalagem / nota
+  freightCost?: number; // Frete atribuível
+  discountCost?: number; // Descontos obtidos
+  taxCost?: number; // Tributos não recuperáveis
+  additionalExpenses?: number; // Despesas acessórias
+  totalAcquisitionCost?: number; // Preço - Desc + Frete + Impostos + Despesas
+
+  // Rastreabilidade e Histórico de Movimentações
+  movements?: InventoryMovement[];
 }
 
 export interface ProductMaterialComposition {
@@ -173,6 +218,7 @@ export interface DocumentSnapshot {
 
 export interface Quote {
  id: string;
+ quoteNumber?: string;
  tenantId?: string;
  clientId: string;
  clientName: string;
@@ -183,6 +229,8 @@ export interface Quote {
  total: number;
  status: QuoteStatus;
  date: string;
+ validUntil?: string; // Data de validade da proposta
+ notes?: string;
  isDeleted?: boolean;
  createdAt: string;
  snapshot?: DocumentSnapshot;
@@ -209,6 +257,8 @@ export interface Order {
  id: string;
  tenantId?: string;
  orderNumber: string;
+ originQuoteId?: string; // Vínculo ao Orçamento de Origem
+ originQuoteCode?: string; // Código amigável (ex: Q-1029)
  clientId: string;
  clientName: string;
  items: OrderItem[];

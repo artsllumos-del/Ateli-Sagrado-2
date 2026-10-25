@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useDb } from '../context/DbContext';
-import { Settings2, RotateCcw, Clock, Eye, EyeOff, ChevronUp, ChevronDown, Check, X, Sparkles, LayoutGrid } from 'lucide-react';
+import { Settings2, RotateCcw, Clock, Eye, EyeOff, ChevronUp, ChevronDown, Check, X, Sparkles, LayoutGrid, Package, ShoppingBag, Users, FileText, ArrowRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from './Toast';
 import { Tabs, Button, Skeleton } from './ui';
@@ -631,6 +631,95 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onViewChange, onQu
         bannerConfig={bannerConfig}
         setBannerConfig={setBannerConfig}
       />
+
+      {/* ONBOARDING GUIDANCE CARD FOR CLEAN PRODUCTION ACCOUNTS */}
+      {clients.length === 0 && activeInventory.length === 0 && products.length === 0 && activeOrders.length === 0 && (
+        <div className="mb-6 bg-gradient-to-br from-amber-50/90 via-white to-stone-50 border-2 border-amber-300/80 rounded-3xl p-6 shadow-sm">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-amber-200/60 pb-4 mb-4">
+            <div>
+              <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 text-xs font-bold mb-2">
+                <Sparkles size={13} /> Ambiente Limpo Pronto para Produção
+              </div>
+              <h2 className="text-xl font-serif font-bold text-stone-900">
+                Boas-vindas ao Ateliê Sagrado ERP
+              </h2>
+              <p className="text-xs text-stone-600 mt-1">
+                Sua conta foi inicializada sem registros operacionais de demonstração. Siga o fluxo passo a passo para começar a operar:
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <button
+              onClick={() => onViewChange('inventory')}
+              className="p-4 bg-white rounded-2xl border border-stone-200 hover:border-amber-400 hover:shadow-md transition-all text-left flex flex-col justify-between group cursor-pointer"
+            >
+              <div>
+                <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center font-bold text-sm mb-3 group-hover:scale-105 transition-transform">
+                  <Package size={18} />
+                </div>
+                <div className="text-xs font-bold text-amber-800 uppercase tracking-wider mb-1">Passo 1</div>
+                <h3 className="font-bold text-sm text-stone-900">Cadastrar Insumos</h3>
+                <p className="text-[11px] text-stone-500 mt-1">Pérolas, fios, metais, cruzes e materiais base para estoque.</p>
+              </div>
+              <div className="mt-3 flex items-center gap-1 text-xs font-bold text-amber-700 group-hover:text-amber-800">
+                <span>Ir para Estoque</span> <ArrowRight size={13} />
+              </div>
+            </button>
+
+            <button
+              onClick={() => onViewChange('products')}
+              className="p-4 bg-white rounded-2xl border border-stone-200 hover:border-amber-400 hover:shadow-md transition-all text-left flex flex-col justify-between group cursor-pointer"
+            >
+              <div>
+                <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center font-bold text-sm mb-3 group-hover:scale-105 transition-transform">
+                  <ShoppingBag size={18} />
+                </div>
+                <div className="text-xs font-bold text-amber-800 uppercase tracking-wider mb-1">Passo 2</div>
+                <h3 className="font-bold text-sm text-stone-900">Cadastrar Produtos</h3>
+                <p className="text-[11px] text-stone-500 mt-1">Defina composição de matérias-primas, mão de obra e preço de venda.</p>
+              </div>
+              <div className="mt-3 flex items-center gap-1 text-xs font-bold text-amber-700 group-hover:text-amber-800">
+                <span>Ir para Produtos</span> <ArrowRight size={13} />
+              </div>
+            </button>
+
+            <button
+              onClick={() => onViewChange('clients')}
+              className="p-4 bg-white rounded-2xl border border-stone-200 hover:border-amber-400 hover:shadow-md transition-all text-left flex flex-col justify-between group cursor-pointer"
+            >
+              <div>
+                <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center font-bold text-sm mb-3 group-hover:scale-105 transition-transform">
+                  <Users size={18} />
+                </div>
+                <div className="text-xs font-bold text-amber-800 uppercase tracking-wider mb-1">Passo 3</div>
+                <h3 className="font-bold text-sm text-stone-900">Cadastrar Clientes</h3>
+                <p className="text-[11px] text-stone-500 mt-1">Pessoas Físicas, noivas, paróquias ou lojistas parceiros.</p>
+              </div>
+              <div className="mt-3 flex items-center gap-1 text-xs font-bold text-amber-700 group-hover:text-amber-800">
+                <span>Ir para Clientes</span> <ArrowRight size={13} />
+              </div>
+            </button>
+
+            <button
+              onClick={() => onViewChange('quotes')}
+              className="p-4 bg-white rounded-2xl border border-stone-200 hover:border-amber-400 hover:shadow-md transition-all text-left flex flex-col justify-between group cursor-pointer"
+            >
+              <div>
+                <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center font-bold text-sm mb-3 group-hover:scale-105 transition-transform">
+                  <FileText size={18} />
+                </div>
+                <div className="text-xs font-bold text-amber-800 uppercase tracking-wider mb-1">Passo 4</div>
+                <h3 className="font-bold text-sm text-stone-900">Emitir Orçamento</h3>
+                <p className="text-[11px] text-stone-500 mt-1">Crie propostas comerciais e converta em ordens de produção.</p>
+              </div>
+              <div className="mt-3 flex items-center gap-1 text-xs font-bold text-amber-700 group-hover:text-amber-800">
+                <span>Ir para Orçamentos</span> <ArrowRight size={13} />
+              </div>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* RENDER CUSTOMIZED ACTIVE WIDGET GRID */}
       <div className="grid grid-cols-12 gap-6">

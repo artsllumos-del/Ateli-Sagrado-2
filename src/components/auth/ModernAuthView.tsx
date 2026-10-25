@@ -249,34 +249,6 @@ export const ModernAuthView: React.FC<ModernAuthViewProps> = ({ onSuccess }) => 
                 </>
               )}
             </button>
-
-            {/* Quick Demo Credentials by Ateliê */}
-            <div className="mt-4 p-3 bg-amber-50/80 rounded-xl border border-amber-200/60 space-y-2">
-              <div className="flex items-center gap-1.5 text-xs font-bold text-amber-900">
-                <ShieldCheck size={16} className="text-amber-700 shrink-0" />
-                <span>Acesso Rápido de Demonstração por Ateliê:</span>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
-                <button
-                  type="button"
-                  onClick={() => { setEmailOrUsername('Admin'); setPassword('301310Lr'); }}
-                  className="p-2 bg-white rounded-lg border border-amber-200 text-left hover:bg-amber-100/60 transition-colors cursor-pointer"
-                >
-                  <div className="font-bold text-amber-950">Ateliê Sagrado</div>
-                  <div className="text-slate-600 text-[10px]">👑 Admin (301310Lr)</div>
-                  <div className="text-slate-500 text-[10px]">💼 Rosana / 🔨 Lucas</div>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { setEmailOrUsername('AdminLuz'); setPassword('301310Lr'); }}
-                  className="p-2 bg-white rounded-lg border border-emerald-200 text-left hover:bg-emerald-50 transition-colors cursor-pointer"
-                >
-                  <div className="font-bold text-emerald-950">Studio Luz Divina</div>
-                  <div className="text-slate-600 text-[10px]">👑 AdminLuz (301310Lr)</div>
-                  <div className="text-slate-500 text-[10px]">💼 Carlos / 🔨 Mariana</div>
-                </button>
-              </div>
-            </div>
           </form>
         )}
 

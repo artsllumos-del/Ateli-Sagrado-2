@@ -3,6 +3,7 @@ import { useDb } from '../context/DbContext';
 import { useSubscription } from '../hooks/useSubscription';
 import { Product, ProductMaterialComposition, ProductStatus, ProductPaymentVariation } from '../types/erp';
 import { calculateProductCostBreakdown } from '../utils/pricing';
+import { calculateOfficialProductPrice } from '../utils/costing';
 import { 
   Search, Plus, Edit3, Trash2, X, Sparkles, AlertTriangle, HelpCircle, 
   Layers, Clock, DollarSign, Info, Eye, ArrowUpRight, CreditCard, ShieldCheck,
@@ -75,6 +76,11 @@ export const ProductsView: React.FC<ProductsViewProps> = ({ initialScreen = 'lis
   // Material selector state
   const [tempMaterialId, setTempMaterialId] = useState('');
   const [tempQty, setTempQty] = useState(1);
+
+  // Simulation states
+  const [simulationMargin, setSimulationMargin] = useState(50);
+  const [simulationTax, setSimulationTax] = useState(0);
+  const [showSimulator, setShowSimulator] = useState(false);
 
   // Active items
   const activeProducts = products.filter(p => !p.isDeleted);
@@ -555,47 +561,103 @@ export const ProductsView: React.FC<ProductsViewProps> = ({ initialScreen = 'lis
                 </div>
 
                 {/* Insumo Selector Bar */}
-                <div className="bg-slate-50 border border-slate-200 p-4 rounded-2xl flex flex-col sm:flex-row items-stretch sm:items-end gap-3 text-xs">
-                  <div className="flex-1">
-                    <label className="block font-bold text-slate-600 mb-1">
-                      Selecionar Matéria-Prima do Estoque
-                    </label>
-                    <select
-                      value={tempMaterialId}
-                      onChange={(e) => setTempMaterialId(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-800 cursor-pointer font-medium"
+                <div className="bg-slate-50/80 border border-slate-200 p-4 rounded-2xl space-y-3 text-xs">
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-end gap-3">
+                    <div className="flex-1">
+                      <label className="block font-bold text-slate-700 mb-1">
+                        Selecionar Matéria-Prima do Estoque
+                      </label>
+                      <select
+                        value={tempMaterialId}
+                        onChange={(e) => setTempMaterialId(e.target.value)}
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-800 cursor-pointer font-medium focus:ring-2 focus:ring-amber-500/20"
+                      >
+                        <option value="" disabled>Selecione um insumo cadastrado...</option>
+                        {activeInsumos.map(i => {
+                          const unitCost = i.averageCost || i.unitValue || 0;
+                          const avail = i.available ?? i.quantity;
+                          const unitLabel = i.consumptionUnit || i.unit;
+                          return (
+                            <option key={i.id} value={i.id}>
+                              {i.code ? `[${i.code}] ` : ''}{i.name} • Custo: R$ {unitCost.toFixed(unitCost < 1 ? 4 : 2)}/{unitLabel} • Saldo Disp: {avail} {unitLabel}
+                            </option>
+                          );
+                        })}
+                      </select>
+                    </div>
+
+                    <div className="w-full sm:w-36">
+                      <label className="block font-bold text-slate-700 mb-1">
+                        Qtd Necessária
+                      </label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0.01"
+                        value={tempQty}
+                        onChange={(e) => setTempQty(Math.max(0.01, Number(e.target.value)))}
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-900 font-bold font-mono focus:ring-2 focus:ring-amber-500/20"
+                      />
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleAddCompositionItem}
+                      disabled={!tempMaterialId}
+                      className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white font-bold rounded-xl transition-all cursor-pointer h-10 shrink-0 flex items-center justify-center gap-1.5 shadow-sm active:scale-95"
                     >
-                      <option value="" disabled>Selecione um insumo cadastrado...</option>
-                      {activeInsumos.map(i => (
-                        <option key={i.id} value={i.id}>
-                          {i.name} ({i.unit} • R$ {i.unitValue.toFixed(2)})
-                        </option>
-                      ))}
-                    </select>
+                      <Plus size={15} className="text-amber-400" />
+                      Vincular Insumo
+                    </button>
                   </div>
 
-                  <div className="w-full sm:w-32">
-                    <label className="block font-bold text-slate-600 mb-1">
-                      Quantidade
-                    </label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0.01"
-                      value={tempQty}
-                      onChange={(e) => setTempQty(Number(e.target.value))}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-900 font-bold"
-                    />
-                  </div>
+                  {/* Auto-Loaded Material Details Card */}
+                  {(() => {
+                    const selectedMat = inventory.find(i => i.id === tempMaterialId);
+                    if (!selectedMat) return null;
+                    const unitCost = selectedMat.averageCost || selectedMat.unitValue || 0;
+                    const avail = selectedMat.available ?? selectedMat.quantity;
+                    const unitLabel = selectedMat.consumptionUnit || selectedMat.unit;
+                    const itemComponentCost = tempQty * unitCost;
+                    const lossFactor = 1 + ((formData.lossPercent || 0) / 100);
+                    const costWithLoss = itemComponentCost * lossFactor;
+                    const isExceeding = tempQty > avail;
 
-                  <button
-                    type="button"
-                    onClick={handleAddCompositionItem}
-                    className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl transition-all cursor-pointer h-10 shrink-0 flex items-center justify-center gap-1.5 shadow-sm active:scale-95"
-                  >
-                    <Plus size={15} className="text-amber-400" />
-                    Vincular Insumo
-                  </button>
+                    return (
+                      <div className="bg-white border border-slate-200/90 rounded-xl p-3 grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-[11px] animate-fade-in shadow-2xs">
+                        <div>
+                          <span className="text-slate-400 block text-[9.5px] uppercase font-bold">Insumo</span>
+                          <span className="font-bold text-slate-800 truncate block">
+                            {selectedMat.code ? `[${selectedMat.code}] ` : ''}{selectedMat.name}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 block text-[9.5px] uppercase font-bold">Custo Unitário</span>
+                          <span className="font-mono font-bold text-slate-800">
+                            R$ {unitCost.toFixed(unitCost < 1 ? 4 : 2)} <span className="text-[10px] text-slate-400 font-normal">/ {unitLabel}</span>
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 block text-[9.5px] uppercase font-bold">Saldo Disponível</span>
+                          <span className={`font-mono font-bold ${avail <= 0 ? 'text-rose-600' : isExceeding ? 'text-amber-600' : 'text-emerald-700'}`}>
+                            {avail} {unitLabel}
+                          </span>
+                          <span className="text-[9.5px] text-slate-400 block">Físico: {selectedMat.quantity} | Res: {selectedMat.reserved || 0}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 block text-[9.5px] uppercase font-bold">Custo Prev. ({formData.lossPercent}% perda)</span>
+                          <span className="font-mono font-bold text-slate-900">
+                            R$ {costWithLoss.toFixed(costWithLoss < 1 ? 4 : 2)}
+                          </span>
+                          {isExceeding && (
+                            <span className="text-[9px] text-amber-600 font-bold block">
+                              ⚠️ Qtd excede saldo livre
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 {/* Table of Composition items: Mobile (< sm) and Desktop (>= sm) */}
@@ -850,66 +912,201 @@ export const ProductsView: React.FC<ProductsViewProps> = ({ initialScreen = 'lis
                 </div>
               </div>
 
-              {/* Real-Time Cost Summary Box */}
-              <div className="bg-white border border-slate-200/80 rounded-3xl p-6 shadow-xs space-y-4">
-                <h4 className="font-serif font-bold text-base text-slate-900 border-b border-slate-100 pb-3 flex items-center justify-between">
-                  <span>DRE do Produto em Tempo Real</span>
-                  <Calculator size={16} className="text-amber-600" />
-                </h4>
+              {/* Real-Time Cost Summary Box & Official Pricing Engine */}
+              {(() => {
+                const manufacturingCost = liveCostBreakdown.materialsCost + liveCostBreakdown.lossCost + liveCostBreakdown.laborCost;
+                const allocatedFixedCosts = liveCostBreakdown.indirectCostsTotal;
+                const variableTaxesPercent = customFeePix || settings?.taxPercent || 0;
+                const targetMarginPercent = formData.targetMarginPercent || 50;
 
-                <div className="space-y-2 text-xs">
-                  <div className="flex justify-between py-1 border-b border-slate-100">
-                    <span className="text-slate-500">Insumos Diretos (BOM):</span>
-                    <span className="font-mono font-bold text-slate-800">
-                      R$ {liveCostBreakdown.materialsCost.toFixed(2)}
-                    </span>
-                  </div>
+                const officialPricing = calculateOfficialProductPrice({
+                  manufacturingCost,
+                  allocatedFixedCosts,
+                  variableTaxesPercent,
+                  targetMarginPercent
+                });
 
-                  <div className="flex justify-between py-1 border-b border-slate-100">
-                    <span className="text-slate-500">Perda Técnica ({formData.lossPercent}%):</span>
-                    <span className="font-mono font-bold text-slate-800">
-                      R$ {liveCostBreakdown.lossCost.toFixed(2)}
-                    </span>
-                  </div>
+                const simPricing = calculateOfficialProductPrice({
+                  manufacturingCost,
+                  allocatedFixedCosts,
+                  variableTaxesPercent: simulationTax,
+                  targetMarginPercent: simulationMargin
+                });
 
-                  <div className="flex justify-between py-1 border-b border-slate-100">
-                    <span className="text-slate-500">Mão de Obra ({formData.productionTimeMin} min):</span>
-                    <span className="font-mono font-bold text-slate-800">
-                      R$ {liveCostBreakdown.laborCost.toFixed(2)}
-                    </span>
-                  </div>
+                const isInvalid = !officialPricing.isValid;
 
-                  <div className="flex justify-between py-1 border-b border-slate-100">
-                    <span className="text-slate-500">Custos Indiretos & Fixos:</span>
-                    <span className="font-mono font-bold text-slate-800">
-                      R$ {liveCostBreakdown.indirectCostsTotal.toFixed(2)}
-                    </span>
-                  </div>
+                return (
+                  <div className="bg-white border border-slate-200/80 rounded-3xl p-6 shadow-xs space-y-4">
+                    <h4 className="font-serif font-bold text-base text-slate-900 border-b border-slate-100 pb-3 flex items-center justify-between">
+                      <span>DRE e Custeio Automático</span>
+                      <Calculator size={16} className="text-amber-600" />
+                    </h4>
 
-                  <div className="flex justify-between py-2 text-sm font-black border-t-2 border-slate-900 text-slate-900">
-                    <span>CUSTO TOTAL BASE:</span>
-                    <span className="font-mono text-rose-600">
-                      R$ {liveCostBreakdown.totalBaseCost.toFixed(2)}
-                    </span>
-                  </div>
-                </div>
+                    <div className="space-y-2 text-xs">
+                      <div className="flex justify-between py-1 border-b border-slate-100">
+                        <span className="text-slate-500">Insumos Diretos (BOM):</span>
+                        <span className="font-mono font-bold text-slate-800">
+                          R$ {liveCostBreakdown.materialsCost.toFixed(2)}
+                        </span>
+                      </div>
 
-                <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 space-y-2">
-                  <div className="flex justify-between items-baseline">
-                    <span className="text-xs font-bold text-amber-950">Preço de Venda (Pix):</span>
-                    <span className="text-lg font-black font-mono text-slate-900">
-                      R$ {formData.sellingPrice.toFixed(2)}
-                    </span>
-                  </div>
+                      <div className="flex justify-between py-1 border-b border-slate-100">
+                        <span className="text-slate-500">Perda Técnica ({formData.lossPercent}%):</span>
+                        <span className="font-mono font-bold text-slate-800">
+                          R$ {liveCostBreakdown.lossCost.toFixed(2)}
+                        </span>
+                      </div>
 
-                  <div className="flex justify-between items-center text-xs pt-1 border-t border-amber-500/20">
-                    <span className="font-bold text-slate-700">Lucro Líquido Estimado:</span>
-                    <span className={`font-mono font-bold ${liveNetProfit >= 0 ? 'text-emerald-700' : 'text-rose-600'}`}>
-                      R$ {liveNetProfit.toFixed(2)} ({liveMarginPercent.toFixed(1)}%)
-                    </span>
+                      <div className="flex justify-between py-1 border-b border-slate-100">
+                        <span className="text-slate-500">Mão de Obra ({formData.productionTimeMin} min):</span>
+                        <span className="font-mono font-bold text-slate-800">
+                          R$ {liveCostBreakdown.laborCost.toFixed(2)}
+                        </span>
+                      </div>
+
+                      <div className="flex justify-between py-1 border-b border-slate-100">
+                        <span className="text-slate-500 font-semibold text-slate-700">Custo de Fabricação:</span>
+                        <span className="font-mono font-bold text-slate-900">
+                          R$ {manufacturingCost.toFixed(2)}
+                        </span>
+                      </div>
+
+                      <div className="flex justify-between py-1 border-b border-slate-100">
+                        <span className="text-slate-500">Custos Indiretos Fixos Alocados:</span>
+                        <span className="font-mono font-bold text-slate-800">
+                          R$ {allocatedFixedCosts.toFixed(2)}
+                        </span>
+                      </div>
+
+                      <div className="flex justify-between py-2 text-sm font-black border-t-2 border-slate-900 text-slate-900">
+                        <span>CUSTO TOTAL BASE:</span>
+                        <span className="font-mono text-rose-600">
+                          R$ {liveCostBreakdown.totalBaseCost.toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Preço de Venda Atual */}
+                    <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 space-y-2">
+                      <div className="flex justify-between items-baseline">
+                        <div>
+                          <span className="text-xs font-bold text-amber-950 block">Preço de Venda Praticado:</span>
+                          <span className="text-[10px] text-amber-800">Markup atual: {liveCostBreakdown.totalBaseCost > 0 ? (((formData.sellingPrice - liveCostBreakdown.totalBaseCost) / liveCostBreakdown.totalBaseCost) * 100).toFixed(1) : 0}%</span>
+                        </div>
+                        <span className="text-lg font-black font-mono text-slate-900">
+                          R$ {formData.sellingPrice.toFixed(2)}
+                        </span>
+                      </div>
+
+                      <div className="flex justify-between items-center text-xs pt-1 border-t border-amber-500/20">
+                        <span className="font-bold text-slate-700">Lucro Líquido Estimado:</span>
+                        <span className={`font-mono font-bold ${liveNetProfit >= 0 ? 'text-emerald-700' : 'text-rose-600'}`}>
+                          R$ {liveNetProfit.toFixed(2)} ({liveMarginPercent.toFixed(1)}%)
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Preço Oficial Sugerido pela Fórmula */}
+                    <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/90 space-y-2.5 text-xs">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5">
+                          <Sliders size={14} className="text-amber-600" />
+                          <span className="font-bold text-slate-900">Preço Sugerido Oficial</span>
+                        </div>
+                        <span className="text-[10px] font-mono px-2 py-0.5 bg-slate-200/70 text-slate-700 rounded-md font-bold">
+                          Margem: {targetMarginPercent}%
+                        </span>
+                      </div>
+
+                      <p className="text-[10.5px] text-slate-500 leading-snug">
+                        Fórmula: <code className="font-mono bg-white px-1 py-0.5 rounded border border-slate-200 text-slate-700">(Custo Fab + Custos Fixos) / (1 − Taxas − Margem)</code>
+                      </p>
+
+                      {isInvalid ? (
+                        <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 text-[11px] leading-tight">
+                          ⚠️ {officialPricing.errorMessage || 'Soma de taxas e margem excede 100%.'}
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-between pt-1">
+                          <div>
+                            <span className="text-slate-400 text-[10px] block font-mono">Sugerido (Markup {officialPricing.markupPercent}%)</span>
+                            <span className="text-base font-black font-mono text-emerald-700">
+                              R$ {officialPricing.suggestedPrice.toFixed(2)}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setFormData({ ...formData, sellingPrice: officialPricing.suggestedPrice })}
+                            className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[11px] font-bold shadow-xs cursor-pointer transition-all active:scale-95"
+                          >
+                            Aplicar Sugerido
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Simulador Comercial sem alterar o preço oficial */}
+                    <div className="border border-slate-200 rounded-2xl p-3.5 space-y-2.5 bg-white text-xs">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-slate-800 flex items-center gap-1">
+                          <Sparkles size={13} className="text-amber-500" /> Simulação Comercial
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setShowSimulator(!showSimulator)}
+                          className="text-[10.5px] text-amber-700 hover:underline font-bold cursor-pointer"
+                        >
+                          {showSimulator ? 'Ocultar' : 'Simular Margens'}
+                        </button>
+                      </div>
+
+                      {showSimulator && (
+                        <div className="space-y-3 pt-2 border-t border-slate-100 animate-slide-in-up">
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="block text-[10px] font-bold text-slate-500 mb-0.5">Margem Desejada (%)</label>
+                              <input
+                                type="number"
+                                min="1"
+                                max="90"
+                                value={simulationMargin}
+                                onChange={(e) => setSimulationMargin(Math.max(1, Math.min(90, Number(e.target.value))))}
+                                className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 bg-slate-50 font-bold font-mono text-xs"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-bold text-slate-500 mb-0.5">Taxas / Canal (%)</label>
+                              <input
+                                type="number"
+                                min="0"
+                                max="40"
+                                value={simulationTax}
+                                onChange={(e) => setSimulationTax(Math.max(0, Math.min(40, Number(e.target.value))))}
+                                className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 bg-slate-50 font-bold font-mono text-xs"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="bg-amber-50/60 border border-amber-200/60 rounded-xl p-2.5 flex items-center justify-between">
+                            <div>
+                              <span className="text-[10px] text-amber-900 block font-bold">Preço Simulado</span>
+                              <span className="text-sm font-black font-mono text-slate-900">
+                                R$ {simPricing.suggestedPrice.toFixed(2)}
+                              </span>
+                            </div>
+                            <div className="text-right">
+                              <span className="text-[10px] text-amber-900 block font-bold">Lucro Simulado</span>
+                              <span className="text-xs font-mono font-bold text-emerald-700">
+                                R$ {simPricing.estimatedNetProfit.toFixed(2)} ({simulationMargin}%)
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              </div>
+                );
+              })()}
 
               {/* Payment Variations Overrides */}
               <div className="bg-white border border-slate-200/80 rounded-3xl p-6 shadow-xs space-y-3">

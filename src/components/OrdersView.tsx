@@ -291,11 +291,12 @@ export const OrdersView: React.FC<OrdersViewProps> = ({ initialFilter }) => {
   // Filter orders
   const todayDateStr = new Date().toISOString().split('T')[0];
   const filteredOrders = useMemo(() => {
-    const s = search.toLowerCase();
+    const s = (search || '').toLowerCase().trim();
     return activeOrders.filter(o => {
-      const matchesSearch = 
-        o.clientName.toLowerCase().includes(s) || 
-        o.orderNumber.toLowerCase().includes(s);
+      const clientStr = (o.clientName || '').toLowerCase();
+      const orderNumStr = (o.orderNumber || '').toLowerCase();
+      const quoteCodeStr = (o.originQuoteCode || o.originQuoteId || '').toLowerCase();
+      const matchesSearch = !s || clientStr.includes(s) || orderNumStr.includes(s) || quoteCodeStr.includes(s);
       
       const isOrderDelayed = !['completed', 'shipped', 'delivered', 'cancelled'].includes(o.status) && Boolean(o.dueDate && o.dueDate < todayDateStr);
       const matchesStatus = 
@@ -572,8 +573,13 @@ export const OrdersView: React.FC<OrdersViewProps> = ({ initialFilter }) => {
                     {/* Top Row */}
                     <div className="flex justify-between items-start">
                       <div>
-                        <h3 className="font-bold text-sm text-slate-900 font-mono flex items-center gap-2">
-                          {order.orderNumber}
+                        <h3 className="font-bold text-sm text-slate-900 font-mono flex items-center gap-2 flex-wrap">
+                          <span>{order.orderNumber}</span>
+                          {(order.originQuoteCode || order.originQuoteId) && (
+                            <span className="px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-200/80 rounded-md text-[9px] font-semibold tracking-wide">
+                              Origem: {order.originQuoteCode || `Q-${order.originQuoteId?.substring(6, 10)}`}
+                            </span>
+                          )}
                           {isDelayed && (
                             <span className="px-2 py-0.5 bg-rose-500/10 text-rose-600 rounded-md text-[9px] font-bold tracking-wider animate-pulse">
                               ATRASADO

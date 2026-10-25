@@ -169,7 +169,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ initialFilter }) =
 
     const quotesReserving: any[] = [];
     (quotes || [])
-      .filter((q) => !q.isDeleted && q.status === "pending")
+      .filter((q) => !q.isDeleted && (q.status === "pending" || q.status === "analysis" || q.status === "approved"))
       .forEach((q) => {
         let totalRes = 0;
         const prodsList: string[] = [];
@@ -186,7 +186,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ initialFilter }) =
         if (totalRes > 0) {
           quotesReserving.push({
             id: q.id,
-            quoteNumber: q.quoteNumber || "ORC-000",
+            quoteNumber: (q as any).quoteNumber || `ORC-${q.id.substring(6, 11).toUpperCase()}`,
             clientName: q.clientName,
             reservedQty: totalRes,
             productsLabel: prodsList.join(", "),
@@ -223,10 +223,44 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ initialFilter }) =
         }
       });
 
+    const movements = detailsItem.movements && detailsItem.movements.length > 0
+      ? detailsItem.movements
+      : [
+          {
+            id: 'mov_init',
+            date: detailsItem.createdAt || new Date().toISOString(),
+            type: 'entrada' as const,
+            amount: detailsItem.quantity,
+            balanceBefore: 0,
+            balanceAfter: detailsItem.quantity,
+            unitValue: detailsItem.unitValue,
+            cost: Number((detailsItem.quantity * detailsItem.unitValue).toFixed(2)),
+            reason: 'Cadastro inicial de matéria-prima no estoque',
+            sourceType: 'inventario' as const,
+            user: 'Sistema'
+          }
+        ];
+
+    const totalReserved = quotesReserving.reduce((acc, q) => acc + q.reservedQty, 0);
+    const totalConsumed = ordersConsuming.reduce((acc, o) => acc + o.consumedQty, 0);
+    const totalPurchased = detailsItem.quantity + totalConsumed;
+
+    const stats = {
+      totalPurchased,
+      totalConsumed,
+      totalReserved,
+      totalSpent: Number((totalPurchased * detailsItem.unitValue).toFixed(2)),
+      averageCost: detailsItem.averageCost || detailsItem.unitValue,
+      turnoverRatio: totalPurchased > 0 ? Number(((totalConsumed / totalPurchased) * 100).toFixed(1)) : 0,
+      daysRemaining: detailsItem.quantity > 0 ? Math.round(detailsItem.quantity / Math.max(1, totalConsumed / 30)) : 0
+    };
+
     return {
+      movements,
       relatedProducts: relatedProds,
       quotesReserving,
       ordersConsuming,
+      stats
     };
   }, [detailsItem, products, quotes, orders]);
 
@@ -710,14 +744,24 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ initialFilter }) =
     );
   }
 
+  const handleSaveConference = (itemId: string, countedQty: number, notes: string) => {
+    const item = inventory.find((i) => i.id === itemId);
+    if (!item) return;
+    const diff = Number((countedQty - item.quantity).toFixed(2));
+    adjustStock(itemId, diff, notes || 'Conferência física de insumo na bancada', item.category, item.supplier);
+    toast.success("Conferência Gravada", `Estoque atualizado para ${countedQty} ${item.unit}.`);
+  };
+
   if (activeScreen === 'details' && detailsItem && itemDetailsData) {
+    const currentDetailsItem = inventory.find((i) => i.id === detailsItem.id) || detailsItem;
     return (
       <InventoryDetailsScreen
-        item={detailsItem}
+        item={currentDetailsItem}
         itemDetailsData={itemDetailsData}
         onBack={() => setActiveScreen('list')}
         onOpenAdjust={handleOpenAdjust}
         onOpenEdit={handleOpenEdit}
+        onSaveConference={handleSaveConference}
       />
     );
   }

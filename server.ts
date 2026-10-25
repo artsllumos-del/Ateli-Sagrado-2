@@ -246,275 +246,29 @@ function initializeDefaultDb() {
         status: "active",
         ownerId: "u1",
         createdAt: "2026-01-01T00:00:00.000Z"
-      },
-      {
-        id: "tenant_sao_bento",
-        name: "Unidade São Bento",
-        slug: "sao-bento",
-        document: "12.345.678/0002-71",
-        razaoSocial: "Ateliê Sagrado Arte Sacra LTDA - Filial 01",
-        nomeFantasia: "Ateliê Sagrado - São Bento",
-        email: "saobento@ateliesagrado.com.br",
-        phone: "(11) 97654-3210",
-        address: "Av. São Bento, 450 - Centro, São Paulo/SP",
-        primaryColor: "#3B82F6",
-        planId: "starter",
-        status: "active",
-        ownerId: "u1",
-        createdAt: "2026-02-15T00:00:00.000Z"
-      },
-      {
-        id: "tenant_luz_divina",
-        name: "Ateliê Luz Divina",
-        slug: "luz-divina",
-        document: "98.765.432/0001-10",
-        razaoSocial: "Luz Divina Artesanatos ME",
-        nomeFantasia: "Luz Divina",
-        email: "contato@luzdivina.com",
-        phone: "(21) 98888-7777",
-        address: "Rua do Rosário, 88 - Centro, Rio de Janeiro/RJ",
-        primaryColor: "#10B981",
-        planId: "enterprise",
-        status: "active",
-        ownerId: "u1",
-        createdAt: "2026-03-01T00:00:00.000Z"
       }
     ],
     users: [
       {
         id: "u1",
-        name: "Admin do Ateliê",
+        username: "admin",
+        name: "Administrador Titular",
         email: "admin@atelie.com",
         password: hashPassword("123456"),
         role: "ADMIN",
-        photo: "",
-        preferences: { theme: "light", language: "pt-BR" },
-        createdAt: new Date().toISOString()
-      },
-      {
-        id: "u2",
-        name: "Vendedor Oficial",
-        email: "vendedor@atelie.com",
-        password: hashPassword("123456"),
-        role: "VENDEDOR",
-        photo: "",
-        preferences: { theme: "light", language: "pt-BR" },
-        createdAt: new Date().toISOString()
-      },
-      {
-        id: "u3",
-        name: "Operador de Produção",
-        email: "producao@atelie.com",
-        password: hashPassword("123456"),
-        role: "PRODUÇÃO",
+        tenantId: "tenant_atelie_sagrado",
         photo: "",
         preferences: { theme: "light", language: "pt-BR" },
         createdAt: new Date().toISOString()
       }
     ],
-    clients: [
-      {
-        id: "c1",
-        type: "PF",
-        name: "Ana Maria de Sousa",
-        cpf: encryptField("123.456.789-00"),
-        email: "anamaria@gmail.com",
-        phone: encryptField("(11) 99111-2222"),
-        whatsapp: "(11) 99111-2222",
-        cep: "04012-010",
-        street: "Rua Domingos de Morais",
-        number: "500",
-        complement: "Apto 42",
-        neighborhood: "Vila Mariana",
-        city: "São Paulo",
-        state: "SP",
-        createdAt: "2026-05-10T10:00:00Z"
-      },
-      {
-        id: "c2",
-        type: "PJ",
-        name: "Paróquia Nossa Senhora da Paz",
-        nomeFantasia: "Paróquia NS Paz",
-        cnpj: encryptField("98.765.432/0001-11"),
-        responsavel: "Padre Julio Lancellotti",
-        email: "contato@nspaz.org.br",
-        phone: encryptField("(11) 3211-4400"),
-        whatsapp: "(11) 98222-3333",
-        cep: "01519-000",
-        street: "Rua do Glicério",
-        number: "225",
-        neighborhood: "Liberdade",
-        city: "São Paulo",
-        state: "SP",
-        createdAt: "2026-05-15T14:30:00Z"
-      },
-      {
-        id: "c3",
-        type: "PF",
-        name: "Carlos Eduardo Santos",
-        cpf: encryptField("987.654.321-11"),
-        email: "carlosedu@hotmail.com",
-        phone: encryptField("(21) 97100-5050"),
-        whatsapp: "(21) 97100-5050",
-        cep: "22020-001",
-        street: "Avenida Atlântica",
-        number: "1702",
-        neighborhood: "Copacabana",
-        city: "Rio de Janeiro",
-        state: "RJ",
-        createdAt: "2026-05-20T11:15:00Z"
-      }
-    ],
-    inventory: [
-      {
-        id: "m1",
-        name: "Pérola de Água Doce Branca (8mm)",
-        category: "Contas e Pérolas",
-        code: "PER-001",
-        description: "Pérolas naturais cultivadas em água doce, furo passante de 0.8mm.",
-        supplier: "Beads Importadora",
-        unit: "pacote (100 un)",
-        weightG: 120,
-        quantity: 4,
-        minQuantity: 5,
-        unitValue: 45.00,
-        calcMethod: "fixed",
-        notes: "Material de altíssima qualidade para terços de noivas.",
-        status: "active",
-        createdAt: "2026-05-01T09:00:00Z"
-      },
-      {
-        id: "m2",
-        name: "Crucifixo Clássico Folheado a Ouro",
-        category: "Metais e Entremeios",
-        code: "CRU-002",
-        description: "Crucifixo decorado com detalhes barrocos, banho de 5 milésimos de ouro.",
-        supplier: "Metais Sacros Ltda",
-        unit: "unidade",
-        weightG: 15,
-        quantity: 12,
-        minQuantity: 15,
-        unitValue: 18.50,
-        calcMethod: "fixed",
-        notes: "Crucifixo para terços grandes e luxuosos.",
-        status: "active",
-        createdAt: "2026-05-01T09:15:00Z"
-      },
-      {
-        id: "m3",
-        name: "Entremeio de Nossa Senhora das Graças Ouro Velho",
-        category: "Metais e Entremeios",
-        code: "ENT-012",
-        description: "Entremeio resinado com imagem colorida de NS das Graças, banho ouro velho.",
-        supplier: "Metais Sacros Ltda",
-        unit: "unidade",
-        weightG: 8,
-        quantity: 35,
-        minQuantity: 10,
-        unitValue: 6.20,
-        calcMethod: "fixed",
-        notes: "Muito procurado para terços marianos comuns.",
-        status: "active",
-        createdAt: "2026-05-01T09:20:00Z"
-      }
-    ],
-    products: [
-      {
-        id: "p1",
-        name: "Terço de Noiva Imperial - Pérola",
-        category: "Terços de Noiva",
-        sku: "TER-N-001",
-        description: "Terço de luxo montado à mão com pérolas de água doce naturais.",
-        image: "https://images.unsplash.com/photo-1544816155-12df9643f363?q=80&w=300&auto=format&fit=crop",
-        productionTimeMin: 120,
-        finalWeightG: 110,
-        sellingPrice: 320.00,
-        composition: [
-          { materialId: "m1", quantity: 0.5, cost: 22.50 },
-          { materialId: "m2", quantity: 1, cost: 18.50 }
-        ],
-        status: "active",
-        createdAt: "2026-05-25T11:00:00Z"
-      }
-    ],
-    quotes: [
-      {
-        id: "q1",
-        clientId: "c1",
-        clientName: "Ana Maria de Sousa",
-        items: [
-          { productId: "p1", productName: "Terço de Noiva Imperial - Pérola", quantity: 1, unitPrice: 320.00, total: 320.00 }
-        ],
-        subtotal: 320.00,
-        discount: 20.00,
-        shipping: 15.00,
-        total: 315.00,
-        status: "analysis",
-        date: "2026-06-20",
-        createdAt: "2026-06-20T10:00:00Z"
-      }
-    ],
-    orders: [
-      {
-        id: "o1",
-        orderNumber: "00101",
-        clientId: "c2",
-        clientName: "Paróquia Nossa Senhora da Paz",
-        items: [
-          { productId: "p1", productName: "Terço de Noiva Imperial - Pérola", quantity: 2, price: 320.00, total: 640.00 }
-        ],
-        totalValue: 640.00,
-        date: "2026-06-15",
-        dueDate: "2026-06-30",
-        status: "production",
-        productionProgress: 40,
-        timeline: [
-          { id: "e1", date: "2026-06-15T15:00:00Z", description: "Pedido recebido e confirmado financeiramente", user: "vendedor@atelie.com" },
-          { id: "e2", date: "2026-06-16T09:30:00Z", description: "Iniciado planejamento da produção das pérolas", user: "producao@atelie.com" }
-        ],
-        createdAt: "2026-06-15T14:45:00Z"
-      }
-    ],
-    productionTasks: [
-      {
-        id: "t1",
-        orderId: "o1",
-        orderNumber: "00101",
-        productId: "p1",
-        productName: "Terço de Noiva Imperial - Pérola",
-        status: "producing",
-        responsible: "Operador de Produção",
-        startDate: "2026-06-16T09:30:00Z",
-        endDate: null,
-        timeSpentMinutes: 45,
-        totalEstimatedMinutes: 240,
-        createdAt: "2026-06-15T14:45:00Z"
-      }
-    ],
-    transactions: [
-      {
-        id: "tr1",
-        type: "income",
-        category: "Venda de Terço",
-        contactName: "Paróquia Nossa Senhora da Paz",
-        value: 640.00,
-        date: "2026-06-15",
-        paymentMethod: "pix",
-        notes: "Referente ao pedido #00101",
-        createdAt: "2026-06-15T15:00:00Z"
-      },
-      {
-        id: "tr2",
-        type: "expense",
-        category: "Compra de Materiais",
-        contactName: "Beads Importadora",
-        value: 180.00,
-        date: "2026-06-10",
-        paymentMethod: "credit_card",
-        notes: "Aquisição de 4 lotes de pérolas naturais",
-        createdAt: "2026-06-10T11:00:00Z"
-      }
-    ],
+    clients: [],
+    inventory: [],
+    products: [],
+    quotes: [],
+    orders: [],
+    productionTasks: [],
+    transactions: [],
     settings: {
       companyName: "Ateliê Sagrado",
       logo: "📿",
@@ -528,27 +282,18 @@ function initializeDefaultDb() {
       language: 'pt-BR',
       notificationsEnabled: true
     },
-    notifications: [
-      {
-        id: "n1",
-        title: "Estoque em Nível Alerta",
-        message: "O item 'Pérola de Água Doce Branca (8mm)' está com 4 unidades (mínimo: 5 unidades).",
-        type: "low_stock",
-        date: "2026-06-25T12:00:00Z",
-        read: false
-      }
-    ],
+    notifications: [],
     auditLogs: [
       {
         id: "l1",
         user: "admin@atelie.com",
-        action: "Banco de dados inicializado",
+        action: "Sistema Inicializado",
         timestamp: new Date().toISOString(),
-        details: "Ateliê Sagrado ERP inicializado com dados sementes."
+        details: "Ateliê Sagrado ERP inicializado em ambiente de produção limpo."
       }
     ],
-    payables: seedPayables(),
-    receivables: seedReceivables(),
+    payables: [],
+    receivables: [],
     paymentCharges: [],
     paymentConfig: {
       enabled: false,
@@ -560,186 +305,35 @@ function initializeDefaultDb() {
     subscriptions: [],
     ateliers: [
       {
-        id: "atl-matriz",
+        id: "atl_matriz",
         organizationId: "tenant_atelie_sagrado",
-        name: "Ateliê Matriz de Ourivesaria",
+        name: "Bancada Central de Montagem",
         code: "ATL-01",
-        address: "Rua das Flores, 120 - Bancada 1 - São Paulo/SP",
-        phone: "(11) 98765-4321",
-        managerId: "u1",
-        responsibleManager: "Admin do Ateliê",
-        operatorIds: ["u1", "u2", "u3", "u4", "u5"],
+        operatorIds: ["u1"],
         isActive: true,
-        createdAt: "2026-01-01T00:00:00.000Z"
+        notes: "Unidade principal de confecção",
+        createdAt: new Date().toISOString()
       }
-    ]
+    ],
+    passwordResetTokens: []
   };
   saveDatabase();
 }
 
 function seedPayables() {
-  return [
-    {
-      id: "pay1",
-      tenantId: "tenant_atelie_sagrado",
-      description: "Fornecedor de Metais e Cruzes (1/2)",
-      supplierName: "Metais Sacros Brasil",
-      category: "Compra de Materiais",
-      issueDate: "2026-06-01",
-      dueDate: "2026-06-20",
-      amount: 450.00,
-      paidAmount: 0,
-      installmentNumber: 1,
-      totalInstallments: 2,
-      status: "overdue",
-      barcode: "34191.79001 01043.510047 91020.150008 8 99800000045000",
-      pixKey: "financeiro@metaissacros.com.br",
-      notes: "Fatura de insumos de crucifixos em ouro velho",
-      createdAt: "2026-06-01T10:00:00Z"
-    },
-    {
-      id: "pay2",
-      tenantId: "tenant_atelie_sagrado",
-      description: "Fornecedor de Metais e Cruzes (2/2)",
-      supplierName: "Metais Sacros Brasil",
-      category: "Compra de Materiais",
-      issueDate: "2026-06-01",
-      dueDate: "2026-07-20",
-      amount: 450.00,
-      paidAmount: 0,
-      installmentNumber: 2,
-      totalInstallments: 2,
-      status: "pending",
-      barcode: "34191.79001 01043.510047 91020.150008 8 99800000045000",
-      pixKey: "financeiro@metaissacros.com.br",
-      notes: "Segunda parcela de crucifixos",
-      createdAt: "2026-06-01T10:00:00Z"
-    },
-    {
-      id: "pay3",
-      tenantId: "tenant_atelie_sagrado",
-      description: "Aluguel e Condomínio do Ateliê",
-      supplierName: "Imobiliária São José",
-      category: "Custos Fixos",
-      issueDate: "2026-06-01",
-      dueDate: "2026-06-10",
-      amount: 1200.00,
-      paidAmount: 1200.00,
-      installmentNumber: 1,
-      totalInstallments: 1,
-      status: "paid",
-      paymentDate: "2026-06-09",
-      paymentMethod: "pix",
-      notes: "Aluguel mensal quitado via PIX",
-      createdAt: "2026-06-01T08:00:00Z"
-    },
-    {
-      id: "pay_luz_1",
-      tenantId: "tenant_luz_divina",
-      description: "Fornecedor de Cera de Abelha",
-      supplierName: "Apiários da Serra",
-      category: "Compra de Materiais",
-      issueDate: "2026-06-05",
-      dueDate: "2026-06-25",
-      amount: 320.00,
-      paidAmount: 0,
-      installmentNumber: 1,
-      totalInstallments: 1,
-      status: "pending",
-      pixKey: "apiario@serra.com.br",
-      createdAt: "2026-06-05T09:00:00Z"
-    }
-  ];
+  return [];
 }
 
 function seedReceivables() {
-  return [
-    {
-      id: "rec1",
-      tenantId: "tenant_atelie_sagrado",
-      description: "Pedido #00101 - Terço Imperial (1/2)",
-      clientName: "Paróquia Nossa Senhora da Paz",
-      clientId: "c2",
-      orderId: "o1",
-      orderNumber: "00101",
-      category: "Venda de Terço",
-      issueDate: "2026-06-15",
-      dueDate: "2026-06-15",
-      amount: 320.00,
-      receivedAmount: 320.00,
-      installmentNumber: 1,
-      totalInstallments: 2,
-      status: "received",
-      receiptDate: "2026-06-15",
-      paymentMethod: "pix",
-      notes: "Entrada do pedido recebida via PIX",
-      createdAt: "2026-06-15T14:45:00Z"
-    },
-    {
-      id: "rec2",
-      tenantId: "tenant_atelie_sagrado",
-      description: "Pedido #00101 - Terço Imperial (2/2)",
-      clientName: "Paróquia Nossa Senhora da Paz",
-      clientId: "c2",
-      orderId: "o1",
-      orderNumber: "00101",
-      category: "Venda de Terço",
-      issueDate: "2026-06-15",
-      dueDate: "2026-06-30",
-      amount: 320.00,
-      receivedAmount: 0,
-      installmentNumber: 2,
-      totalInstallments: 2,
-      status: "pending",
-      paymentLink: "https://pay.ateliesagrado.com/c/rec2",
-      pixCopyPaste: "00020126580014br.gov.bcb.pix0136pix@ateliesagrado.com.br5204000053039865406320.005802BR5921Atelie Sagrado LTDA6009Sao Paulo62070503REC26304E8A2",
-      notes: "Saldo restante contra entrega do produto",
-      createdAt: "2026-06-15T14:45:00Z"
-    },
-    {
-      id: "rec3",
-      tenantId: "tenant_atelie_sagrado",
-      description: "Restauração de Crucifixo de Madeira",
-      clientName: "Ana Maria de Sousa",
-      clientId: "c1",
-      category: "Restauração",
-      issueDate: "2026-05-20",
-      dueDate: "2026-06-05",
-      amount: 280.00,
-      receivedAmount: 0,
-      installmentNumber: 1,
-      totalInstallments: 1,
-      status: "overdue",
-      paymentLink: "https://pay.ateliesagrado.com/c/rec3",
-      notes: "Cobrança vencida em atraso",
-      createdAt: "2026-05-20T11:00:00Z"
-    },
-    {
-      id: "rec_luz_1",
-      tenantId: "tenant_luz_divina",
-      description: "Vela Votiva Decorada",
-      clientName: "Igreja de São Bento",
-      category: "Velas",
-      issueDate: "2026-06-10",
-      dueDate: "2026-06-25",
-      amount: 190.00,
-      receivedAmount: 190.00,
-      installmentNumber: 1,
-      totalInstallments: 1,
-      status: "received",
-      receiptDate: "2026-06-12",
-      paymentMethod: "pix",
-      createdAt: "2026-06-10T09:00:00Z"
-    }
-  ];
+  return [];
 }
 
 function ensureFinancialConsistency() {
-  if (!db.payables || db.payables.length === 0) {
-    db.payables = seedPayables();
+  if (!db.payables) {
+    db.payables = [];
   }
-  if (!db.receivables || db.receivables.length === 0) {
-    db.receivables = seedReceivables();
+  if (!db.receivables) {
+    db.receivables = [];
   }
   if (!db.paymentCharges) {
     db.paymentCharges = [];
@@ -1438,6 +1032,111 @@ app.post('/api/auth/login', (req, res) => {
   });
 });
 
+app.post('/api/auth/register', (req, res) => {
+  const { name, email, password, companyName, planId } = req.body;
+  if (!name || !email || !password) {
+    return res.status(400).json({ error: 'Validation', message: 'Nome, e-mail e senha são obrigatórios.' });
+  }
+
+  const cleanEmail = email.trim().toLowerCase();
+  const existingUser = (db.users || []).find((u: any) => u.email && u.email.toLowerCase() === cleanEmail);
+  if (existingUser) {
+    return res.status(409).json({ error: 'Conflict', message: 'Já existe um usuário cadastrado com este e-mail.' });
+  }
+
+  const tenantSlug = (companyName || name).toLowerCase().replace(/[^a-z0-9]/g, '-').slice(0, 30) || 'atelie';
+  const newTenantId = 'tenant_' + tenantSlug + '_' + Date.now().toString(36);
+  const newTenant = {
+    id: newTenantId,
+    name: companyName || `${name} Ateliê`,
+    slug: tenantSlug,
+    document: '',
+    razaoSocial: companyName || `${name} Ateliê`,
+    nomeFantasia: companyName || `${name} Ateliê`,
+    email: cleanEmail,
+    phone: '',
+    address: '',
+    primaryColor: '#D4AF37',
+    planId: planId || 'free_trial',
+    status: 'active',
+    ownerId: '',
+    createdAt: new Date().toISOString()
+  };
+
+  const newUser = {
+    id: 'u_' + Date.now(),
+    username: cleanEmail.split('@')[0].replace(/[^a-zA-Z0-9]/g, '_'),
+    name,
+    email: cleanEmail,
+    password: hashPassword(password),
+    role: 'ADMIN',
+    tenantId: newTenantId,
+    photo: '',
+    preferences: { theme: 'light', language: 'pt-BR' },
+    createdAt: new Date().toISOString()
+  };
+
+  newTenant.ownerId = newUser.id;
+
+  db.tenants = db.tenants || [];
+  db.tenants.push(newTenant);
+  db.users = db.users || [];
+  db.users.push(newUser);
+
+  saveDatabase();
+  writeAuditLog(cleanEmail, 'Conta Criada', `Novo ateliê registrado: ${newTenant.name} (${newTenantId}) com usuário admin ${name}`);
+
+  const payload = {
+    id: newUser.id,
+    name: newUser.name,
+    username: newUser.username,
+    email: newUser.email,
+    role: newUser.role,
+    tenantId: newTenantId,
+    activeTenantId: newTenantId
+  };
+
+  const accessToken = signJwt(payload, 3600);
+  const refreshToken = signJwt({ id: newUser.id, tokenVersion: 1 }, 86400 * 7);
+
+  res.status(201).json({
+    user: {
+      id: newUser.id,
+      name: newUser.name,
+      username: newUser.username,
+      email: newUser.email,
+      role: newUser.role,
+      tenantId: newTenantId,
+      activeTenantId: newTenantId,
+      photo: '',
+      preferences: newUser.preferences
+    },
+    tenant: newTenant,
+    accessToken,
+    refreshToken
+  });
+});
+
+app.get('/api/database', authenticateToken, (req, res) => {
+  const tId = req.tenantId!;
+  res.json({
+    tenants: (db.tenants || []).filter((t: any) => t.id === tId),
+    clients: (db.clients || []).filter((c: any) => matchesTenant(c, tId)),
+    inventory: (db.inventory || []).filter((i: any) => matchesTenant(i, tId)),
+    products: (db.products || []).filter((p: any) => matchesTenant(p, tId)),
+    quotes: (db.quotes || []).filter((q: any) => matchesTenant(q, tId)),
+    orders: (db.orders || []).filter((o: any) => matchesTenant(o, tId)),
+    productionTasks: (db.productionTasks || []).filter((pt: any) => matchesTenant(pt, tId)),
+    transactions: (db.transactions || []).filter((tr: any) => matchesTenant(tr, tId)),
+    payables: (db.payables || []).filter((pb: any) => matchesTenant(pb, tId)),
+    receivables: (db.receivables || []).filter((rc: any) => matchesTenant(rc, tId)),
+    paymentCharges: (db.paymentCharges || []).filter((pc: any) => matchesTenant(pc, tId)),
+    notifications: (db.notifications || []).filter((n: any) => matchesTenant(n, tId)),
+    ateliers: (db.ateliers || []).filter((a: any) => matchesTenant(a, tId)),
+    settings: db.settings || {}
+  });
+});
+
 app.post('/api/auth/refresh', (req, res) => {
   const { refreshToken } = req.body;
   if (!refreshToken) {
@@ -2092,6 +1791,167 @@ app.delete('/api/quotes/:id', authenticateToken, requireRole(['VENDEDOR', 'ADMIN
   res.json({ success: true });
 });
 
+app.post('/api/quotes/:id/convert', authenticateToken, requireRole(['VENDEDOR', 'ADMIN']), (req, res) => {
+  const idx = db.quotes.findIndex(q => q.id === req.params.id && matchesTenant(q, req.tenantId!));
+  if (idx === -1) return res.status(404).json({ error: 'Não encontrado', message: 'Orçamento não encontrado nesta organização.' });
+
+  const quote = db.quotes[idx];
+  if (quote.status === 'converted') {
+    return res.status(400).json({ error: 'Bad Request', message: 'Este orçamento já foi convertido em pedido anteriormente.' });
+  }
+
+  // 1. Verify materials availability
+  const missingMaterials: any[] = [];
+  (quote.items || []).forEach((item: any) => {
+    const prod = db.products.find(p => p.id === item.productId && matchesTenant(p, req.tenantId!));
+    if (prod && prod.composition) {
+      prod.composition.forEach((comp: any) => {
+        const mat = db.inventory.find(i => i.id === comp.materialId && matchesTenant(i, req.tenantId!));
+        if (mat) {
+          const reqQty = comp.quantity * item.quantity;
+          if ((mat.quantity || 0) < reqQty) {
+            missingMaterials.push({
+              name: mat.name,
+              required: reqQty,
+              available: mat.quantity || 0,
+              unit: mat.unit
+            });
+          }
+        }
+      });
+    }
+  });
+
+  if (missingMaterials.length > 0) {
+    return res.status(400).json({
+      error: 'Estoque Insuficiente',
+      message: 'Insumos insuficientes em estoque para realizar a conversão do orçamento.',
+      missingMaterials
+    });
+  }
+
+  // 2. Deduct materials & record movements
+  (quote.items || []).forEach((item: any) => {
+    const prod = db.products.find(p => p.id === item.productId && matchesTenant(p, req.tenantId!));
+    if (prod && prod.composition) {
+      prod.composition.forEach((comp: any) => {
+        const mat = db.inventory.find(i => i.id === comp.materialId && matchesTenant(i, req.tenantId!));
+        if (mat) {
+          const deducted = Number((comp.quantity * item.quantity).toFixed(2));
+          const prev = mat.quantity || 0;
+          mat.quantity = Math.max(0, Number((prev - deducted).toFixed(2)));
+          mat.movements = mat.movements || [];
+          mat.movements.unshift({
+            id: 'mov_' + Date.now() + Math.random().toString(36).substr(2, 4),
+            date: new Date().toISOString(),
+            type: 'saida',
+            amount: deducted,
+            balanceBefore: prev,
+            balanceAfter: mat.quantity,
+            unitValue: mat.unitValue || 0,
+            cost: Number((deducted * (mat.unitValue || 0)).toFixed(2)),
+            reason: `Baixa automática: Conversão do Orçamento ${quote.id} no Pedido`,
+            sourceType: 'pedido',
+            sourceId: quote.id,
+            user: req.user!.email
+          });
+        }
+      });
+    }
+  });
+
+  // 3. Mark quote converted
+  quote.status = 'converted';
+
+  // 4. Create Order
+  const year = new Date().getFullYear();
+  const orderNumber = `PED-${year}-${Math.floor(1000 + Math.random() * 9000)}`;
+  const quoteRefCode = `Q-${quote.id.substring(6, 11).toUpperCase()}`;
+
+  const newOrder = {
+    id: 'order_' + Date.now(),
+    tenantId: req.tenantId!,
+    orderNumber,
+    originQuoteId: quote.id,
+    originQuoteCode: quoteRefCode,
+    clientId: quote.clientId,
+    clientName: quote.clientName,
+    items: (quote.items || []).map((i: any) => ({
+      productId: i.productId,
+      productName: i.productName,
+      quantity: i.quantity,
+      price: i.unitPrice || i.price || 0,
+      total: i.total || ((i.unitPrice || i.price || 0) * i.quantity)
+    })),
+    totalValue: quote.total,
+    date: new Date().toISOString().split('T')[0],
+    dueDate: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    status: 'received',
+    productionProgress: 0,
+    timeline: [
+      {
+        id: 'timeline_' + Date.now(),
+        date: new Date().toISOString(),
+        description: `Pedido gerado a partir da conversão do orçamento ${quoteRefCode}`,
+        user: req.user!.email
+      }
+    ],
+    createdAt: new Date().toISOString()
+  };
+
+  db.orders = db.orders || [];
+  db.orders.unshift(newOrder);
+
+  // 5. Register Production Task for items
+  db.productionTasks = db.productionTasks || [];
+  (quote.items || []).forEach((item: any, idx: number) => {
+    db.productionTasks.push({
+      id: `task_${Date.now()}_${idx}`,
+      tenantId: req.tenantId!,
+      orderId: newOrder.id,
+      orderNumber,
+      productId: item.productId,
+      productName: item.productName,
+      status: 'todo',
+      responsible: 'Equipe de Produção',
+      startDate: null,
+      endDate: null,
+      timeSpentMinutes: 0,
+      totalEstimatedMinutes: 45 * item.quantity,
+      createdAt: new Date().toISOString()
+    });
+  });
+
+  // 6. Register Receivable
+  db.receivables = db.receivables || [];
+  const newReceivable = {
+    id: 'rec_' + Date.now(),
+    tenantId: req.tenantId!,
+    description: `Pedido de Venda #${orderNumber} (${quoteRefCode}) - ${quote.clientName}`,
+    clientName: quote.clientName,
+    clientId: quote.clientId,
+    orderId: newOrder.id,
+    orderNumber,
+    category: 'Venda de Produtos',
+    issueDate: newOrder.date,
+    dueDate: newOrder.dueDate,
+    amount: newOrder.totalValue,
+    receivedAmount: 0,
+    installmentNumber: 1,
+    totalInstallments: 1,
+    status: 'pending',
+    paymentMethod: 'pix',
+    notes: `Título gerado pela conversão do orçamento ${quoteRefCode}`,
+    createdAt: new Date().toISOString()
+  };
+  db.receivables.push(newReceivable);
+
+  saveDatabase();
+  writeAuditLog(req.user!.email, 'Orçamento convertido em pedido', `Orçamento ${quoteRefCode} convertido no Pedido #${orderNumber}`);
+
+  res.status(201).json({ success: true, order: newOrder, receivable: newReceivable });
+});
+
 // Orders API with strict tenant isolation
 app.get('/api/orders', authenticateToken, (req, res) => {
   const list = (db.orders || []).filter(o => matchesTenant(o, req.tenantId!));
@@ -2212,11 +2072,90 @@ app.post('/api/orders', authenticateToken, requireRole(['VENDEDOR', 'ADMIN']), (
     db.productionTasks.push(newTask);
   });
 
+  // Auto-generate Accounts Receivable record linked to this order
+  const newReceivable = {
+    id: 'rec_' + Date.now(),
+    tenantId: req.tenantId!,
+    description: `Pedido de Venda #${orderNumber} - ${clientName}`,
+    clientName,
+    clientId,
+    orderId: newOrder.id,
+    orderNumber,
+    category: 'Venda de Produtos',
+    issueDate: newOrder.date,
+    dueDate: newOrder.dueDate,
+    amount: newOrder.totalValue,
+    receivedAmount: 0,
+    installmentNumber: 1,
+    totalInstallments: 1,
+    status: 'pending',
+    paymentMethod: req.body.paymentMethod || 'pix',
+    notes: `Título gerado automaticamente pelo Pedido #${orderNumber}`,
+    createdAt: new Date().toISOString()
+  };
+  db.receivables = db.receivables || [];
+  db.receivables.push(newReceivable);
+
   db.orders.push(newOrder);
   saveDatabase();
   writeAuditLog(req.user!.email, 'Pedido de venda criado', `Gerado pedido #${orderNumber} para ${clientName} na unidade ${req.tenantId}`);
 
-  res.status(201).json({ success: true, order: newOrder });
+  res.status(201).json({ success: true, order: newOrder, receivable: newReceivable });
+});
+
+app.post('/api/orders/:id/cancel', authenticateToken, (req, res) => {
+  const idx = db.orders.findIndex(o => o.id === req.params.id && matchesTenant(o, req.tenantId!));
+  if (idx === -1) return res.status(404).json({ error: 'Não encontrado', message: 'Pedido não encontrado.' });
+
+  const order = db.orders[idx];
+  if (order.isCancelled || order.status === 'cancelled') {
+    return res.status(400).json({ error: 'Bad Request', message: 'Este pedido já está cancelado.' });
+  }
+
+  // Restore inventory stock
+  (order.items || []).forEach((item: any) => {
+    const prod = db.products.find(p => p.id === item.productId && matchesTenant(p, req.tenantId!));
+    if (prod && prod.composition) {
+      prod.composition.forEach((comp: any) => {
+        const mat = db.inventory.find(i => i.id === comp.materialId && matchesTenant(i, req.tenantId!));
+        if (mat) {
+          mat.quantity = Number(((mat.quantity || 0) + (comp.quantity * item.quantity)).toFixed(2));
+        }
+      });
+    }
+  });
+
+  // Cancel associated receivable
+  db.receivables = db.receivables || [];
+  db.receivables.forEach((r: any) => {
+    if (r.orderId === order.id || (r.orderNumber && r.orderNumber === order.orderNumber)) {
+      r.status = 'cancelled';
+    }
+  });
+
+  // Reverse / cancel associated production tasks
+  db.productionTasks = db.productionTasks || [];
+  db.productionTasks.forEach((t: any) => {
+    if (t.orderId === order.id) {
+      t.status = 'todo';
+      t.isCancelled = true;
+    }
+  });
+
+  // Mark order cancelled
+  order.status = 'cancelled';
+  order.isCancelled = true;
+  order.timeline = order.timeline || [];
+  order.timeline.push({
+    id: 'timeline_' + Date.now(),
+    date: new Date().toISOString(),
+    description: 'Pedido cancelado. Insumos estornados ao estoque e contas a receber canceladas.',
+    user: req.user!.email
+  });
+
+  saveDatabase();
+  writeAuditLog(req.user!.email, 'Pedido cancelado', `Cancelado pedido #${order.orderNumber}. Insumos e financeiro estornados.`);
+  res.json({ success: true, order });
 });
 
 app.put('/api/orders/:id', authenticateToken, (req, res) => {
@@ -3093,7 +3032,7 @@ app.get('/api/docs', (req, res) => {
 async function startServer() {
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: { middlewareMode: true, hmr: false },
       appType: "spa"
     });
     app.use(vite.middlewares);

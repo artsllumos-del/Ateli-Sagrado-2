@@ -36,9 +36,21 @@ export const DashboardAlerts: React.FC<DashboardAlertsProps> = ({
   // 2. Stock Alerts
   const criticalStockItems = inventory.filter(i => !i.isDeleted && i.quantity === 0);
   const lowStockItems = inventory.filter(i => !i.isDeleted && i.quantity > 0 && i.quantity <= i.minQuantity);
+  const reorderPointItems = inventory.filter(i => {
+    if (i.isDeleted) return false;
+    const avail = i.available ?? i.quantity;
+    const point = i.reorderPoint || i.minQuantity;
+    return avail > 0 && avail <= point && i.quantity > i.minQuantity;
+  });
+  const reservedExhaustedItems = inventory.filter(i => {
+    if (i.isDeleted) return false;
+    const avail = i.available ?? i.quantity;
+    return i.quantity > 0 && avail === 0 && (i.reserved || 0) > 0;
+  });
 
-  // 3. Commercial Alerts
-  const pendingQuotes = quotes.filter(q => q.status === 'pending');
+  // 3. Commercial Alerts & Reservations
+  const pendingQuotes = quotes.filter(q => !q.isDeleted && q.status === 'pending');
+  const quotesWithReservations = quotes.filter(q => !q.isDeleted && (q.status === 'pending' || q.status === 'analysis'));
 
   // Let's bundle alerts in an orderly array
   interface AlertItem {
@@ -146,19 +158,53 @@ export const DashboardAlerts: React.FC<DashboardAlertsProps> = ({
     });
   }
 
-  // Pending quotes
-  if (pendingQuotes.length > 0) {
+  // Reserved stock exhausted (Physical stock exists, but 100% committed to quotes/orders)
+  if (reservedExhaustedItems.length > 0) {
     alertsList.push({
-      id: 'pending_quotes',
+      id: 'reserved_exhausted',
+      type: 'stock',
+      title: 'Saldo Livre Comprometido por Reservas',
+      message: `${reservedExhaustedItems.length} insumo(s) possuem estoque físico, mas saldo disponível está zerado devido a reservas (${reservedExhaustedItems.map(m => m.name).slice(0, 2).join(', ')}).`,
+      priority: 'high',
+      icon: <Package className="text-amber-600" size={15} />,
+      bgColor: 'bg-amber-50/60',
+      borderColor: 'border-amber-200',
+      textColor: 'text-amber-950',
+      actionText: 'Ver Reservas no Estoque',
+      targetView: 'inventory'
+    });
+  }
+
+  // Reorder point reached
+  if (reorderPointItems.length > 0) {
+    alertsList.push({
+      id: 'reorder_point',
+      type: 'stock',
+      title: 'Ponto de Reposição Atingido',
+      message: `${reorderPointItems.length} insumo(s) atingiram o ponto de reposição planejado: ${reorderPointItems.map(m => m.name).slice(0, 2).join(', ')}.`,
+      priority: 'medium',
+      icon: <Package className="text-blue-600" size={15} />,
+      bgColor: 'bg-blue-50/50',
+      borderColor: 'border-blue-150',
+      textColor: 'text-blue-900',
+      actionText: 'Comprar Reposição',
+      targetView: 'purchases'
+    });
+  }
+
+  // Pending quotes holding reservations
+  if (quotesWithReservations.length > 0) {
+    alertsList.push({
+      id: 'pending_quotes_res',
       type: 'commercial',
-      title: 'Orçamentos Pendentes',
-      message: `Há ${pendingQuotes.length} orçamento(s) aguardando aprovação comercial de clientes.`,
+      title: 'Orçamentos Retendo Reservas',
+      message: `Há ${quotesWithReservations.length} orçamento(s) em aberto retendo materiais no estoque. Acompanhe a decisão do cliente ou libere as reservas.`,
       priority: 'low',
-      icon: <FileText className="text-blue-600" size={15} />,
-      bgColor: 'bg-slate-50',
-      borderColor: 'border-slate-200/60',
-      textColor: 'text-slate-900',
-      actionText: 'Ver Orçamentos',
+      icon: <FileText className="text-purple-600" size={15} />,
+      bgColor: 'bg-purple-50/40',
+      borderColor: 'border-purple-150',
+      textColor: 'text-purple-950',
+      actionText: 'Gerenciar Orçamentos',
       targetView: 'quotes'
     });
   }

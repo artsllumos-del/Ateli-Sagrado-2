@@ -23,6 +23,7 @@ import {
   ReceiptOcrData,
   AccountPayable,
   AccountReceivable,
+  ReceivableStatus,
   OnlinePaymentCharge,
   OnlinePaymentConfig
 } from '../types/erp';
@@ -1280,16 +1281,23 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
  } else if (loadedTenants.length > 0) {
    setCurrentTenantId(loadedTenants[0].id);
  }
+ // Purge legacy mock data if detected in localStorage
+ ['clients', 'inventory', 'products', 'quotes', 'orders', 'production_tasks', 'transactions', 'payables', 'receivables', 'payment_charges'].forEach(k => {
+  const raw = localStorage.getItem(`as_${k}`);
+  if (raw && (raw.includes('"id":"c1"') || raw.includes('"id":"m1"') || raw.includes('"id":"p1"') || raw.includes('"id":"o1"') || raw.includes('"id":"pay1"'))) {
+   localStorage.setItem(`as_${k}`, JSON.stringify([]));
+  }
+ });
 
- setClients(loadData('clients', initialClients));
- setInventory(loadData('inventory', initialInventory));
- setProducts(loadData('products', initialProducts));
- setQuotes(loadData('quotes', initialQuotes));
- setOrders(loadData('orders', initialOrders));
- setProductionTasks(loadData('production_tasks', initialProductionTasks));
- setTransactions(loadData('transactions', initialTransactions));
- setPayables(loadData('payables', initialPayables));
- setReceivables(loadData('receivables', initialReceivables));
+ setClients(loadData('clients', []));
+ setInventory(loadData('inventory', []));
+ setProducts(loadData('products', []));
+ setQuotes(loadData('quotes', []));
+ setOrders(loadData('orders', []));
+ setProductionTasks(loadData('production_tasks', []));
+ setTransactions(loadData('transactions', []));
+ setPayables(loadData('payables', []));
+ setReceivables(loadData('receivables', []));
  setPaymentCharges(loadData('payment_charges', []));
  const storedPayConfig = localStorage.getItem('as_payment_config');
  if (storedPayConfig) {
@@ -1302,9 +1310,9 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
 
  setAgendaActivities(loadData('agenda_activities', initialAgendaActivities));
  setAuditLogs(loadData('audit_logs', initialAuditLogs));
- setUsers(loadData('users', initialUsers));
+ setUsers(loadData('users', []));
  setAteliers(loadData('ateliers', initialAteliers));
- setNotifications(loadData('notifications', initialNotifications));
+ setNotifications(loadData('notifications', []));
 
  const storedSettings = localStorage.getItem('as_settings');
  let loadedSettings = defaultSettings;
@@ -1853,62 +1861,94 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
  };
 
  const deleteInventoryItem = (id: string) => {
- // Soft delete
- const updated = inventory.map(i => i.id === id ? { ...i, isDeleted: true } : i);
- setInventory(updated);
- saveToLocal('inventory', updated);
+  const target = inventoryWithReserved.find(i => i.id === id) || inventory.find(i => i.id === id);
+  if (target && (target.reserved || 0) > 0) {
+    toast.warning(
+      'Exclusão Bloqueada',
+      `O insumo "${target.name}" possui ${target.reserved} ${target.unit} em reserva ativa vinculada a orçamentos ou pedidos. Libere as reservas antes de excluir.`
+    );
+    return;
+  }
+  // Soft delete
+  const updated = inventory.map(i => i.id === id ? { ...i, isDeleted: true } : i);
+  setInventory(updated);
+  saveToLocal('inventory', updated);
+  toast.success('Insumo arquivado', `Insumo "${target?.name || ''}" foi removido do estoque ativo.`);
  };
 
  const adjustStock = (id: string, amount: number, notes: string, category: string, contactName: string, newUnitValue?: number, customExpenseValue?: number) => {
- const target = inventory.find(i => i.id === id);
- if (!target) return;
+  const target = inventoryWithReserved.find(i => i.id === id) || inventory.find(i => i.id === id);
+  if (!target) return;
 
- const safeAmount = safeNumber(amount, 0);
- if (safeAmount === 0) return;
+  const safeAmount = safeNumber(amount, 0);
+  if (safeAmount === 0) return;
 
- const newQty = roundQty(Math.max(0, target.quantity + safeAmount));
- const updatedFields: Partial<InventoryItem> = { quantity: newQty };
- if (safeAmount > 0 && newUnitValue !== undefined && newUnitValue > 0) {
-  updatedFields.unitValue = calculateWeightedAverageCost(target.quantity, target.unitValue, safeAmount, newUnitValue);
- } else if (newUnitValue !== undefined && newUnitValue > 0) {
-  updatedFields.unitValue = roundCurrency(newUnitValue);
- }
- updateInventoryItem(id, updatedFields);
+  // Check if reduction violates active reservation
+  const reservedQty = target.reserved || 0;
+  if (safeAmount < 0 && (target.quantity + safeAmount) < reservedQty) {
+    toast.warning(
+      'Ajuste Bloqueado',
+      `A retirada compromete a reserva de ${reservedQty} ${target.unit} já alocada a orçamentos ativos. Saldo disponível insuficiente.`
+    );
+    return;
+  }
 
- // Generate audit log
- addAuditLog({
-  user: user?.name || 'Administrador',
-  action: `Ajustou estoque de "${target.name}": de ${target.quantity} para ${newQty} ${target.unit} (Ajuste: ${amount > 0 ? '+' : ''}${amount}). Obs: ${notes || 'Sem observações'}`,
-  module: 'inventory'
- });
+  const newQty = roundQty(Math.max(0, target.quantity + safeAmount));
+  const finalUnitVal = safeAmount > 0 && newUnitValue !== undefined && newUnitValue > 0
+    ? calculateWeightedAverageCost(target.quantity, target.unitValue, safeAmount, newUnitValue)
+    : (newUnitValue !== undefined && newUnitValue > 0 ? roundCurrency(newUnitValue) : target.unitValue);
 
- // Record financial transaction if buying stock
- if (safeAmount > 0) {
- const value = customExpenseValue !== undefined && customExpenseValue > 0
-  ? customExpenseValue
-  : safeAmount * (newUnitValue || target.unitValue);
- addTransaction({
- type: 'expense',
- category: 'Compra de Matéria-Prima',
- contactName: contactName || target.supplier || 'Fornecedor Diverso',
- value: roundCurrency(value),
- date: new Date().toISOString().split('T')[0],
- paymentMethod: 'Pix',
- notes: `Estoque+: ${safeAmount} ${target.unit} de ${target.name}. Obs: ${notes}`
- });
- } else if (safeAmount < 0) {
-    addTransaction({
-      type: 'expense',
-      category: 'Perda/Ajuste de Estoque',
-      contactName: contactName || 'Ateliê Sagrado',
-      value: 0,
-      date: new Date().toISOString().split('T')[0],
-      paymentMethod: 'Outros',
-      notes: `Estoque-: ${Math.abs(safeAmount)} ${target.unit} de ${target.name}. Obs: ${notes}`
-    });
-  } else if (false) {
- // Just stock correction/reduction log
- }
+  const movRecord = {
+    id: 'mov_' + Date.now(),
+    date: new Date().toISOString(),
+    type: (safeAmount > 0 ? 'entrada' : 'saida') as any,
+    quantity: Math.abs(safeAmount),
+    unitCost: finalUnitVal,
+    totalCost: Math.abs(safeAmount) * finalUnitVal,
+    balanceAfter: newQty,
+    referenceType: 'ajuste' as any,
+    notes: notes || (safeAmount > 0 ? 'Ajuste manual de entrada' : 'Ajuste manual de saída')
+  };
+
+  const updatedFields: Partial<InventoryItem> = { 
+    quantity: newQty,
+    unitValue: finalUnitVal,
+    movements: [movRecord, ...(target.movements || [])]
+  };
+  updateInventoryItem(id, updatedFields);
+
+  // Generate audit log
+  addAuditLog({
+   user: user?.name || 'Administrador',
+   action: `Ajustou estoque de "${target.name}": de ${target.quantity} para ${newQty} ${target.unit} (Ajuste: ${amount > 0 ? '+' : ''}${amount}). Obs: ${notes || 'Sem observações'}`,
+   module: 'inventory'
+  });
+
+  // Record financial transaction if buying stock
+  if (safeAmount > 0) {
+  const value = customExpenseValue !== undefined && customExpenseValue > 0
+   ? customExpenseValue
+   : safeAmount * (newUnitValue || target.unitValue);
+  addTransaction({
+  type: 'expense',
+  category: 'Compra de Matéria-Prima',
+  contactName: contactName || target.supplier || 'Fornecedor Diverso',
+  value: roundCurrency(value),
+  date: new Date().toISOString().split('T')[0],
+  paymentMethod: 'Pix',
+  notes: `Estoque+: ${safeAmount} ${target.unit} de ${target.name}. Obs: ${notes}`
+  });
+  } else if (safeAmount < 0) {
+     addTransaction({
+       type: 'expense',
+       category: 'Perda/Ajuste de Estoque',
+       contactName: contactName || 'Ateliê Sagrado',
+       value: 0,
+       date: new Date().toISOString().split('T')[0],
+       paymentMethod: 'Outros',
+       notes: `Estoque-: ${Math.abs(safeAmount)} ${target.unit} de ${target.name}. Obs: ${notes}`
+     });
+   }
  };
 
  // Helper to check if subscription is expired (Modo Limitado)
@@ -2119,10 +2159,13 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
   };
  const year = new Date().getFullYear();
  const orderNum = `PED-${year}-${Math.floor(1000 + Math.random() * 9000)}`;
+ const originQuoteCode = quote.quoteNumber || `Q-${quoteId.substring(6, 10)}`;
  const newOrder: Order = {
  id: 'order_' + Date.now(),
  tenantId: quote.tenantId || currentTenantId,
  orderNumber: orderNum,
+ originQuoteId: quote.id,
+ originQuoteCode,
  clientId: quote.clientId,
  clientName: quote.clientName,
  items: quote.items.map(i => ({
@@ -2141,7 +2184,7 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
  { 
  id: 't_' + Date.now(), 
  date: new Date().toISOString().replace('T', ' ').substring(0, 16), 
- description: `Pedido gerado a partir do orçamento Q-${quoteId.substring(6, 10)}`, 
+ description: `Pedido gerado a partir do orçamento ${originQuoteCode}`, 
  user: user?.name || "Ateliê Sagrado" 
  }
  ],
@@ -2152,6 +2195,12 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
   const updatedOrders = [newOrder, ...orders];
  setOrders(updatedOrders);
  saveToLocal('orders', updatedOrders);
+
+ // Sincroniza com endpoint persistente no backend
+ fetch(`/api/quotes/${quoteId}/convert`, {
+   method: 'POST',
+   headers: getAuthHeaders(quote.tenantId || currentTenantId)
+ }).catch(() => {});
 
  // 5. Register a Production task for each item in the order
  const newTasks: ProductionTask[] = quote.items.map((item, idx) => {
@@ -2177,7 +2226,33 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
  setProductionTasks(updatedTasks);
  saveToLocal('production_tasks', updatedTasks);
 
- // 6. Automatically post Financial Receipt (since we assume converting a quote into order is a confirmed sales value)
+ // 6. Automatically register Account Receivable and Financial Receipt
+ const newReceivable: AccountReceivable = {
+  id: 'rec_' + Date.now(),
+  tenantId: quote.tenantId || currentTenantId,
+  description: `Pedido de Venda #${orderNum} - ${quote.clientName}`,
+  clientName: quote.clientName,
+  clientId: quote.clientId,
+  orderId: newOrder.id,
+  orderNumber: orderNum,
+  category: 'Venda de Produtos',
+  issueDate: newOrder.date,
+  dueDate: newOrder.dueDate,
+  amount: newOrder.totalValue,
+  receivedAmount: newOrder.totalValue,
+  installmentNumber: 1,
+  totalInstallments: 1,
+  status: 'received',
+  paymentMethod: 'Pix',
+  receiptDate: newOrder.date,
+  notes: `Recebimento Ref. Pedido ${orderNum}`,
+  createdAt: new Date().toISOString()
+ };
+ setReceivables(prev => {
+  const updatedRecs = [newReceivable, ...prev];
+  saveToLocal('receivables', updatedRecs);
+  return updatedRecs;
+ });
  addTransaction({
  type: 'income',
  category: 'Venda de Produtos',
@@ -2363,6 +2438,34 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
  );
  }
  }
+ });
+
+ // Add Account Receivable entry
+ const newReceivable: AccountReceivable = {
+  id: 'rec_' + Date.now(),
+  tenantId: (orderData as any).tenantId || currentTenantId,
+  description: `Pedido de Venda #${orderNum} - ${orderData.clientName}`,
+  clientName: orderData.clientName,
+  clientId: orderData.clientId,
+  orderId: newOrder.id,
+  orderNumber: orderNum,
+  category: 'Venda de Produtos',
+  issueDate: newOrder.date,
+  dueDate: newOrder.dueDate,
+  amount: newOrder.totalValue,
+  receivedAmount: newOrder.totalValue,
+  installmentNumber: 1,
+  totalInstallments: 1,
+  status: 'received',
+  paymentMethod: 'Pix',
+  receiptDate: newOrder.date,
+  notes: `Recebimento Ref. Pedido ${orderNum}`,
+  createdAt: new Date().toISOString()
+ };
+ setReceivables(prev => {
+  const updatedRecs = [newReceivable, ...prev];
+  saveToLocal('receivables', updatedRecs);
+  return updatedRecs;
  });
 
  // Add financial entry
@@ -2680,6 +2783,16 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
    });
    setTransactions(updatedTransactions);
    saveToLocal('transactions', updatedTransactions);
+
+   // Cancel associated receivables
+   const updatedReceivables = receivables.map(r => {
+     if (r.orderId === orderId || (r.orderNumber && r.orderNumber === order.orderNumber)) {
+       return { ...r, status: 'cancelled' as ReceivableStatus };
+     }
+     return r;
+   });
+   setReceivables(updatedReceivables);
+   saveToLocal('receivables', updatedReceivables);
 
    // 4. Update the order object to reflect cancelled state
    const updatedOrders = orders.map(o => {

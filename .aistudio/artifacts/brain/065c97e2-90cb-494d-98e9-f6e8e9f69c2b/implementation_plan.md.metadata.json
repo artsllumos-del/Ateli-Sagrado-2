@@ -1,6 +1,6 @@
 {
-  "summary": "Plano de reestruturação arquitetural e visual do Núcleo Financeiro & Controladoria e do sistema ERP: eliminação de modais em favor de páginas/sub-views dedicadas com navegação e botão voltar, simplificação radical do módulo financeiro (focando em Entradas, Saídas, Contas a Pagar e Contas a Receber essenciais), botão flutuante universal de Home em todas as páginas, e refinamento tipográfico e estético eliminando blocos soltos e excesso de scroll.",
-  "updatedAt": "2026-10-17T13:54:01.569466977Z",
+  "summary": "Plano mestre de refatoração estrutural, integração global de dados, remoção de registros de teste, fonte única da verdade e preparação para produção do Ateliê Sagrado ERP.",
+  "updatedAt": "2026-10-18T19:07:29.002912001Z",
   "requestFeedback": true,
   "userFacing": true
 }
