@@ -2,6 +2,7 @@ import React from 'react';
 
 export interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
   hoverable?: boolean;
+  flashlight?: boolean;
   padding?: 'none' | 'sm' | 'md' | 'lg';
 }
 
@@ -15,6 +16,7 @@ const paddingStyles = {
 export const Card = React.forwardRef<HTMLDivElement, CardProps>(({
   children,
   hoverable = false,
+  flashlight = false,
   padding = 'md',
   className = '',
   ...props
@@ -23,13 +25,15 @@ export const Card = React.forwardRef<HTMLDivElement, CardProps>(({
     <div
       ref={ref}
       className={`
-        bg-white rounded-2xl border border-[rgba(42,36,32,0.06)] shadow-xs
-        ${hoverable ? 'transition-all duration-200 hover:shadow-md hover:border-[rgba(42,36,32,0.12)]' : ''}
+        bg-white rounded-2xl border border-[rgba(42,36,32,0.06)] shadow-xs relative
+        ${flashlight ? 'flashlight-card group' : ''}
+        ${hoverable && !flashlight ? 'transition-all duration-200 hover:shadow-md hover:border-[rgba(42,36,32,0.12)]' : ''}
         ${paddingStyles[padding]}
         ${className}
       `}
       {...props}
     >
+      {flashlight && <div className="flashlight-border" />}
       {children}
     </div>
   );
@@ -52,7 +56,7 @@ export const CardTitle: React.FC<React.HTMLAttributes<HTMLHeadingElement>> = ({
   className = '',
   ...props
 }) => (
-  <h3 className={`text-sm sm:text-base font-bold text-slate-900 tracking-tight flex items-center gap-2 ${className}`} {...props}>
+  <h3 className={`text-sm sm:text-base font-serif font-bold text-slate-900 tracking-tight flex items-center gap-2 ${className}`} {...props}>
     {children}
   </h3>
 );

@@ -3,6 +3,7 @@ import { DbProvider, useDb } from './context/DbContext';
 import { AuthProvider } from './context/AuthContext';
 import { AppShell } from './components/layout/AppShell';
 import { ModernAuthView } from './components/auth/ModernAuthView';
+import { LandingPageView } from './components/landing/LandingPageView';
 import { DashboardView } from './components/DashboardView';
 import { InventoryView } from './components/InventoryView';
 import { ProductsView } from './components/ProductsView';
@@ -30,6 +31,11 @@ const AppContent: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [viewParams, setViewParams] = useState<Record<string, any>>({});
 
+  // Unauthenticated screen routing: 'landing' (presentation) or 'auth' (login / register)
+  const isDirectLogin = typeof window !== 'undefined' && (window.location.pathname === '/login' || window.location.pathname === '/register');
+  const [unauthScreen, setUnauthScreen] = useState<'landing' | 'auth'>(isDirectLogin ? 'auth' : 'landing');
+  const [authInitialMode, setAuthInitialMode] = useState<'login' | 'register'>('login');
+
   const user = authUser || dbUser;
 
   const isFirstSetup = settings?.firstSetup;
@@ -50,11 +56,38 @@ const AppContent: React.FC = () => {
     );
   }
 
-  // If user is not authenticated, display ModernAuthView
+  // If user is not authenticated: show Landing Page as the presentation & lead acquisition front door,
+  // or ModernAuthView if they chose to log in or register.
   if (!user) {
+    if (unauthScreen === 'landing') {
+      return (
+        <>
+          <LandingPageView
+            onLogin={() => {
+              setAuthInitialMode('login');
+              setUnauthScreen('auth');
+            }}
+            onRegister={(planId) => {
+              setAuthInitialMode('register');
+              setUnauthScreen('auth');
+            }}
+            onOpenApp={() => {
+              setAuthInitialMode('login');
+              setUnauthScreen('auth');
+            }}
+            isAuthenticated={false}
+          />
+          <ToastContainer />
+        </>
+      );
+    }
+
     return (
       <>
-        <ModernAuthView />
+        <ModernAuthView
+          initialMode={authInitialMode}
+          onBackToLanding={() => setUnauthScreen('landing')}
+        />
         <ToastContainer />
       </>
     );
@@ -120,6 +153,16 @@ const AppContent: React.FC = () => {
         return <UserProfileView />;
       case 'settings':
         return <SettingsView onViewChange={handleNavigate} />;
+      case 'landing':
+        return (
+          <LandingPageView
+            onLogin={() => {}}
+            onRegister={() => {}}
+            onOpenApp={() => setCurrentView('dashboard')}
+            isAuthenticated={true}
+            userName={user?.name}
+          />
+        );
       default:
         return <DashboardView onViewChange={handleNavigate} onQuickAction={handleQuickAction} />;
     }

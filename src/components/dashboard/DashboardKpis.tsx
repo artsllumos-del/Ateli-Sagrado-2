@@ -597,19 +597,20 @@ export const DashboardKpis: React.FC<DashboardKpisProps> = ({
         </div>
       </div>
 
-      {/* KPI Cards Grid */}
+      {/* KPI Cards Grid with Design System Flashlight Spotlight Effect */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 sm:gap-3.5">
         {filteredKpis.map((kpi) => (
           <div
             key={kpi.id}
             onClick={() => handleKpiCardClick(kpi)}
-            className={`erp-card erp-card-hover p-3.5 sm:p-4 cursor-pointer flex flex-col justify-between h-36 group relative overflow-hidden transition-all ${
+            className={`flashlight-card erp-card erp-card-hover p-3.5 sm:p-4 cursor-pointer flex flex-col justify-between h-36 group relative overflow-hidden transition-all ${
               selectedKpi?.id === kpi.id
                 ? 'ring-2 ring-amber-500 border-amber-400 bg-amber-50/20 shadow-md'
                 : ''
             }`}
           >
-            <div className="flex items-start justify-between gap-1">
+            <div className="flashlight-border" />
+            <div className="flex items-start justify-between gap-1 relative z-10">
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider line-clamp-1">
                 {kpi.title}
               </span>
@@ -618,7 +619,7 @@ export const DashboardKpis: React.FC<DashboardKpisProps> = ({
               </div>
             </div>
 
-            <div className="my-1.5">
+            <div className="my-1.5 relative z-10">
               <h4 className="text-base sm:text-lg font-bold font-serif text-slate-900 truncate">
                 {kpi.value}
               </h4>
@@ -631,7 +632,7 @@ export const DashboardKpis: React.FC<DashboardKpisProps> = ({
               </div>
             </div>
 
-            <div className="flex items-center justify-between pt-1 border-t border-slate-100">
+            <div className="flex items-center justify-between pt-1 border-t border-slate-100 relative z-10">
               <span className={`text-[9px] font-bold flex items-center gap-1 select-none transition-colors ${
                 selectedKpi?.id === kpi.id ? 'text-amber-800' : 'text-slate-400 group-hover:text-slate-700'
               }`}>

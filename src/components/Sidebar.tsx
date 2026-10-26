@@ -57,6 +57,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, isO
     { id: 'production', label: 'Chão de Fábrica', icon: Hammer },
     { id: 'financial', label: 'Fluxo Financeiro', icon: TrendingUp },
     { id: 'subscription', label: 'Assinatura', icon: CreditCard },
+    { id: 'landing', label: 'Ver Apresentação', icon: Sparkles },
     { id: 'profile', label: 'Meu Perfil & Segurança', icon: UserCheck },
     { id: 'settings', label: 'Configurações', icon: Settings },
   ];

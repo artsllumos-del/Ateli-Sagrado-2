@@ -20,13 +20,21 @@ import { PlanId } from '../../domain/types/auth';
 
 interface ModernAuthViewProps {
   onSuccess?: () => void;
+  initialMode?: 'login' | 'register' | 'recover' | 'reset';
+  initialPlanId?: PlanId;
+  onBackToLanding?: () => void;
 }
 
-export const ModernAuthView: React.FC<ModernAuthViewProps> = ({ onSuccess }) => {
+export const ModernAuthView: React.FC<ModernAuthViewProps> = ({ 
+  onSuccess, 
+  initialMode = 'login',
+  initialPlanId = 'basic',
+  onBackToLanding 
+}) => {
   const { login, loginWithGoogle, register, recoverPassword, resetPassword, loading } = useAuth();
   const { availablePlans } = useSubscription();
 
-  const [mode, setMode] = useState<'login' | 'register' | 'recover' | 'reset'>('login');
+  const [mode, setMode] = useState<'login' | 'register' | 'recover' | 'reset'>(initialMode);
 
   // Form States
   const [emailOrUsername, setEmailOrUsername] = useState('');
@@ -140,18 +148,31 @@ export const ModernAuthView: React.FC<ModernAuthViewProps> = ({ onSuccess }) => 
 
       <div className="w-full max-w-xl bg-white border border-stone-200/80 shadow-2xl shadow-stone-900/10 rounded-3xl p-6 sm:p-10 relative z-10 transition-all border-t-4 border-t-amber-600">
         
+        {/* Back to Landing Page CTA */}
+        {onBackToLanding && (
+          <div className="mb-4 text-left">
+            <button
+              type="button"
+              onClick={onBackToLanding}
+              className="text-xs font-semibold text-stone-500 hover:text-amber-600 transition-colors flex items-center gap-1.5 cursor-pointer"
+            >
+              <span>← Voltar à Apresentação / Início</span>
+            </button>
+          </div>
+        )}
+
         {/* Header Branding */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-amber-50 border border-amber-200/60 text-amber-600 mb-4 shadow-sm relative overflow-hidden">
             <Compass size={32} className="animate-spin-slow text-amber-600" />
           </div>
-          <h1 className="text-3xl font-bold tracking-tight text-stone-900">
+          <h1 className="text-3xl font-serif font-bold tracking-tight text-stone-900">
             Ateliê Sagrado ERP
           </h1>
-          <p className="text-xs uppercase tracking-widest text-amber-600 font-bold mt-1">
+          <p className="text-xs uppercase tracking-widest text-amber-600 font-bold mt-1 font-mono">
             Gestão Inteligente de Ateliês & Produção
           </p>
-          <div className="w-12 h-[2px] bg-amber-500/30 mx-auto mt-3 rounded-full" />
+          <div className="w-12 h-[2px] bg-gold-500 mx-auto mt-3 rounded-full" />
         </div>
 
         {/* Auth Mode Tabs */}

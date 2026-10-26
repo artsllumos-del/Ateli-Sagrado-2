@@ -47,11 +47,11 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5">
         <div className="space-y-1 min-w-0">
           {kicker && (
-            <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700 block">
+            <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-amber-700 block">
               {kicker}
             </span>
           )}
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 truncate">
+          <h1 className="text-xl sm:text-2xl font-serif font-bold tracking-tight text-slate-900 truncate">
             {title}
           </h1>
           {description && (

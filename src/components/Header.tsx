@@ -72,6 +72,7 @@ interface HeaderProps {
   production: 'Chão de Fábrica (Produção)',
   financial: 'Fluxo Financeiro',
   subscription: 'Assinatura',
+  landing: 'Apresentação (Landing Page)',
   profile: 'Meu Perfil',
   account_security: 'Segurança & Sessões',
   settings: 'Configurações',
@@ -196,25 +197,36 @@ interface HeaderProps {
    {!settings?.firstSetup && (
     <div className="flex items-center gap-1.5 sm:gap-3">
 
-     {/* Visual Subscription Remaining Time Indicator */}
-     <button
-      type="button"
-      onClick={() => onViewChange('subscription')}
-      title={isExpired ? 'Assinatura Vencida - Clique para ver opções de regularização e planos na aba de Assinatura' : `Tempo restante da assinatura: ${formattedRemainingTime}. Clique para gerenciar sua assinatura.`}
-      className={`hidden sm:flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-2xs select-none shrink-0 ${
-       isExpired || isUrgent
-        ? 'bg-red-50 text-red-700 border border-red-300 ring-2 ring-red-400/20 hover:bg-red-100'
-        : 'bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100/70'
-      }`}
-     >
-      <Clock size={13} className={isExpired || isUrgent ? 'text-red-600 shrink-0' : 'text-emerald-600 shrink-0'} />
-      <span className="font-semibold whitespace-nowrap">
-       {formattedRemainingTime}
-      </span>
-      {isUrgent && !isExpired && (
-       <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping" />
-      )}
-     </button>
+      {/* Visual Subscription Remaining Time Indicator */}
+      <button
+       type="button"
+       onClick={() => onViewChange('subscription')}
+       title={isExpired ? 'Assinatura Vencida - Clique para ver opções de regularização e planos na aba de Assinatura' : `Tempo restante da assinatura: ${formattedRemainingTime}. Clique para gerenciar sua assinatura.`}
+       className={`hidden sm:flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-2xs select-none shrink-0 ${
+        isExpired || isUrgent
+         ? 'bg-red-50 text-red-700 border border-red-300 ring-2 ring-red-400/20 hover:bg-red-100'
+         : 'bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100/70'
+       }`}
+      >
+       <Clock size={13} className={isExpired || isUrgent ? 'text-red-600 shrink-0' : 'text-emerald-600 shrink-0'} />
+       <span className="font-semibold whitespace-nowrap">
+        {formattedRemainingTime}
+       </span>
+       {isUrgent && !isExpired && (
+        <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping" />
+       )}
+      </button>
+
+      {/* Landing Page Showcase Trigger Button */}
+      <button
+        type="button"
+        onClick={() => onViewChange('landing')}
+        title="Ver Apresentação do Produto / Landing Page"
+        className="hidden xl:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-950 text-xs font-bold cursor-pointer shadow-2xs transition-all active:scale-95 select-none shrink-0"
+      >
+        <Sparkles size={13} className="text-gold-600" />
+        <span>Ver Apresentação</span>
+      </button>
    
     {/* Global Quick Search Button & Keyboard Trigger */}
     <button

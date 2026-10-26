@@ -8,20 +8,29 @@
   --font-display: "Playfair Display", "Georgia", serif;
   --font-script: "Pinyon Script", "Great Vibes", cursive;
 
-  /* Theme Palette */
+  /* Design System Palette */
   --color-bg-app: #FAF7F2;
   --color-bg-card: #FFFFFF;
+  --color-gold-400: #F0C76B;
   --color-gold-500: #D4A039;
   --color-gold-600: #B8862A;
   --color-gold-700: #8F651B;
+  --color-gold-800: #68470F;
+  --color-terracotta-400: #D47559;
   --color-terracotta-500: #B5563D;
+  --color-terracotta-600: #913D27;
+  --color-obsidian-950: #07090E;
+  --color-obsidian-900: #0D111A;
+  --color-obsidian-800: #141A26;
+  --color-obsidian-700: #1F2738;
   --color-ink-900: #2A2420;
   --color-ink-600: #6B6258;
   --color-ink-300: #B8AFA3;
 
-  --color-linho-50: #FAF7F2;
+  --color-linho-50: #FAF8F5;
   --color-linho-100: #FAF3E7;
-  --color-linho-200: #F3EAD9;
+  --color-linho-200: #EBDDC9;
+  --color-linho-300: #DFCBB0;
 
   --color-liturgical-500: #446C94;
   --color-liturgical-bg: #EDF3F9;
@@ -361,5 +370,247 @@ header {
     border-bottom-right-radius: 0 !important;
   }
 }
+
+/* =========================================================
+   DESIGN SYSTEM UTILITY CLASSES (FROM DESIGN SYSTEM REFERENCE)
+   ========================================================= */
+
+/* 1. Flashlight Spotlight Effect */
+.flashlight-card {
+  position: relative;
+  background: rgba(13, 17, 26, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 1.25rem;
+  overflow: hidden;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+html:not(.dark) .flashlight-card,
+body:not(.dark) .flashlight-card {
+  background: #FFFFFF;
+  border: 1px solid rgba(42, 36, 32, 0.08);
+  box-shadow: 0 1px 3px rgba(42, 36, 32, 0.03), 0 4px 14px rgba(42, 36, 32, 0.02);
+}
+
+.flashlight-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(
+    600px circle at var(--mouse-x, 50%) var(--mouse-y, 50%),
+    rgba(212, 160, 57, 0.12),
+    transparent 45%
+  );
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.flashlight-card:hover::before {
+  opacity: 1;
+}
+
+.flashlight-border {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1.5px;
+  background: radial-gradient(
+    450px circle at var(--mouse-x, 50%) var(--mouse-y, 50%),
+    rgba(212, 160, 57, 0.75),
+    transparent 40%
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.flashlight-card:hover .flashlight-border {
+  opacity: 1;
+}
+
+/* 2. Border Beam Button */
+@keyframes rotate-beam {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.btn-beam-container {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  padding: 1.5px;
+  overflow: hidden;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.beam-border {
+  position: absolute;
+  inset: -150%;
+  pointer-events: none;
+  background: conic-gradient(
+    from 0deg at 50% 50%,
+    transparent 0deg,
+    rgba(240, 199, 107, 0.95) 45deg,
+    rgba(212, 160, 57, 1) 90deg,
+    transparent 140deg
+  );
+  animation: rotate-beam 3s linear infinite;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: 1;
+}
+
+.btn-beam-container:hover .beam-border {
+  opacity: 1;
+}
+
+.btn-beam {
+  position: relative;
+  z-index: 2;
+  border-radius: 9999px;
+  width: 100%;
+  height: 100%;
+}
+
+/* 3. Floating Natural Badges */
+@keyframes lz2Float {
+  0%, 100% {
+    transform: translateY(0px) rotate(var(--r, 0deg));
+  }
+  50% {
+    transform: translateY(-8px) rotate(calc(var(--r, 0deg) + 1.8deg));
+  }
+}
+
+.lz2-float {
+  animation: lz2Float 5.6s ease-in-out infinite;
+  will-change: transform;
+}
+
+/* 4. Halo Glow Button */
+.lz-halo {
+  box-shadow: 0 0 0 0 rgba(212, 160, 57, 0.4);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.lz-halo:hover {
+  box-shadow: 0 0 30px 8px rgba(212, 160, 57, 0.45);
+  transform: translateY(-2px);
+}
+
+/* 5. Infinite Proof Marquee */
+@keyframes lz2Marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+.lz2-proof-scroll {
+  display: flex;
+  width: max-content;
+  animation: lz2Marquee 42s linear infinite;
+}
+
+.lz2-proof-scroll:hover {
+  animation-play-state: paused;
+}
+
+.lz2-proof-row {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  padding: 0 0.625rem;
+}
+
+.marquee-mask {
+  mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+  -webkit-mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+}
+
+/* 6. Beautiful Shadow */
+.beautiful-shadow {
+  box-shadow: 0px 0px 0px 1px rgba(0,0,0,0.06),
+              0px 1px 1px -0.5px rgba(0,0,0,0.06),
+              0px 3px 3px -1.5px rgba(0,0,0,0.06),
+              0px 6px 6px -3px rgba(0,0,0,0.06),
+              0px 12px 12px -6px rgba(0,0,0,0.06),
+              0px 24px 24px -12px rgba(0,0,0,0.06);
+}
+
+/* 7. Tree-line Hierarchy Navigation */
+.tree-line {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 50%;
+  width: 1.15rem;
+  border-left: 1.5px solid rgba(212, 160, 57, 0.35);
+  border-bottom: 1.5px solid rgba(212, 160, 57, 0.35);
+  border-bottom-left-radius: 0.75rem;
+}
+
+.tree-vertical {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  border-left: 1.5px solid rgba(212, 160, 57, 0.35);
+}
+
+/* 8. Background Grid Pattern & Glow Points */
+.bg-grid {
+  background-size: 38px 38px;
+  background-image: 
+    linear-gradient(to right, rgba(212, 160, 57, 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(212, 160, 57, 0.05) 1px, transparent 1px);
+}
+
+.glow-point {
+  position: absolute;
+  width: 480px;
+  height: 480px;
+  background: radial-gradient(circle, rgba(212, 160, 57, 0.16) 0%, rgba(212, 160, 57, 0) 70%);
+  border-radius: 50%;
+  pointer-events: none;
+  filter: blur(50px);
+  z-index: 0;
+}
+
+html:not(.dark) .glow-point,
+body:not(.dark) .glow-point {
+  background: radial-gradient(circle, rgba(212, 160, 57, 0.08) 0%, rgba(212, 160, 57, 0) 70%);
+}
+
+/* 9. Glassmorphism Panels */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(42, 36, 32, 0.08);
+  box-shadow: 0 1px 3px rgba(42, 36, 32, 0.02), 0 6px 16px rgba(42, 36, 32, 0.02);
+}
+
+.glass-nav {
+  background: rgba(255, 253, 249, 0.94);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(42, 36, 32, 0.09);
+  box-shadow: 0 4px 20px rgba(42, 36, 32, 0.05);
+}
+
+.section-divider {
+  width: 100%;
+  height: 1px;
+  background: linear-gradient(to right, transparent, rgba(212, 160, 57, 0.45), transparent);
+}
+
 
 

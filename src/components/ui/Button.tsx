@@ -29,7 +29,7 @@ const variantStyles: Record<ButtonVariant, string> = {
   ghost: 'bg-transparent text-slate-600 hover:bg-slate-100/80 active:bg-slate-200 text-slate-700 focus-visible:ring-2 focus-visible:ring-slate-300',
   danger: 'bg-rose-600 text-white hover:bg-rose-700 active:bg-rose-800 shadow-xs border border-transparent focus-visible:ring-2 focus-visible:ring-rose-500/20',
   success: 'bg-emerald-600 text-white hover:bg-emerald-700 active:bg-emerald-800 shadow-xs border border-transparent focus-visible:ring-2 focus-visible:ring-emerald-500/20',
-  gold: 'bg-gradient-to-r from-amber-500 to-amber-600 text-white hover:from-amber-600 hover:to-amber-700 active:from-amber-700 active:to-amber-800 shadow-xs border border-amber-600/30 focus-visible:ring-2 focus-visible:ring-amber-500/30',
+  gold: 'bg-gold-gradient text-stone-950 font-bold hover:brightness-110 active:scale-[0.98] shadow-md border border-gold-400/40 focus-visible:ring-2 focus-visible:ring-gold-500/30',
   subtle: 'bg-amber-50 text-amber-900 hover:bg-amber-100 active:bg-amber-200/80 border border-amber-200/60 focus-visible:ring-2 focus-visible:ring-amber-400/20',
 };
 

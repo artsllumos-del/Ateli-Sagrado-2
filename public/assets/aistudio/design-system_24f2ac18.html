@@ -1,0 +1,2106 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark scroll-smooth">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ateliê Sagrado ERP — Design System & Gestão Sacra</title>
+  <meta name="description" content="Design System refinado e Sistema ERP completo para produção de terços artesanais, joias litúrgicas e artigos sacros." />
+  
+  <!-- Google Fonts: Playfair Display, Geist, Geist Mono, Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@300;400;500;600&family=Geist:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,400;0,600;0,700;0,900;1,400;1,600&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Geist', 'Inter', 'sans-serif'],
+            serif: ['Playfair Display', 'Georgia', 'serif'],
+            mono: ['Geist Mono', 'JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            gold: {
+              400: '#F0C76B',
+              500: '#D4A039',
+              600: '#B8862A',
+              700: '#8F651B',
+              800: '#68470F',
+            },
+            terracotta: {
+              400: '#D47559',
+              500: '#B5563D',
+              600: '#913D27',
+            },
+            obsidian: {
+              950: '#07090E',
+              900: '#0D111A',
+              800: '#141A26',
+              700: '#1F2738',
+            },
+            linho: {
+              50: '#FAF8F5',
+              100: '#F5EFE6',
+              200: '#EBDDC9',
+              300: '#DFCBB0',
+            }
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    /* =========================================================
+       DESIGN SYSTEM CORE TOKENS (COMBINED FROM HTMLS COLLECTION)
+       ========================================================= */
+    :root {
+      --mouse-x: 50%;
+      --mouse-y: 50%;
+      --gold-primary: #D4A039;
+      --gold-secondary: #B8862A;
+      --gold-glow: rgba(212, 160, 57, 0.45);
+      --ease-premium: cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    body {
+      font-family: 'Geist', sans-serif;
+      overflow-x: hidden;
+      transition: background-color 0.3s ease, color 0.3s ease;
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(212, 160, 57, 0.35);
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(212, 160, 57, 0.65);
+    }
+
+    /* 1. Flashlight Spotlight Effect (animation-clean / animations-gemini) */
+    .flashlight-card {
+      position: relative;
+      background: rgba(13, 17, 26, 0.75);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 1.25rem;
+      overflow: hidden;
+      transition: transform 0.25s var(--ease-premium), border-color 0.25s ease, box-shadow 0.25s ease;
+    }
+
+    html:not(.dark) .flashlight-card {
+      background: rgba(255, 255, 255, 0.9);
+      border: 1px solid rgba(42, 36, 32, 0.1);
+    }
+
+    .flashlight-card::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      background: radial-gradient(
+        600px circle at var(--mouse-x, 50%) var(--mouse-y, 50%),
+        rgba(212, 160, 57, 0.14),
+        transparent 45%
+      );
+      opacity: 0;
+      transition: opacity 0.4s ease;
+      pointer-events: none;
+      z-index: 2;
+    }
+
+    .flashlight-card:hover::before {
+      opacity: 1;
+    }
+
+    .flashlight-border {
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      padding: 1.5px;
+      background: radial-gradient(
+        450px circle at var(--mouse-x, 50%) var(--mouse-y, 50%),
+        rgba(212, 160, 57, 0.8),
+        transparent 40%
+      );
+      -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+      opacity: 0;
+      transition: opacity 0.4s ease;
+      pointer-events: none;
+      z-index: 3;
+    }
+
+    .flashlight-card:hover .flashlight-border {
+      opacity: 1;
+    }
+
+    /* 2. Border Beam Button (animation-clean / animations-gemini) */
+    @keyframes rotate-beam {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    .btn-beam-container {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 9999px;
+      padding: 1.5px;
+      overflow: hidden;
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    .beam-border {
+      position: absolute;
+      inset: -150%;
+      pointer-events: none;
+      background: conic-gradient(
+        from 0deg at 50% 50%,
+        transparent 0deg,
+        rgba(240, 199, 107, 0.95) 45deg,
+        rgba(212, 160, 57, 1) 90deg,
+        transparent 140deg
+      );
+      animation: rotate-beam 3s linear infinite;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      z-index: 1;
+    }
+
+    .btn-beam-container:hover .beam-border {
+      opacity: 1;
+    }
+
+    .btn-beam {
+      position: relative;
+      z-index: 2;
+      border-radius: 9999px;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* 3. Floating Natural Badges (modocriador.com.br) */
+    @keyframes lz2Float {
+      0%, 100% {
+        transform: translateY(0px) rotate(var(--r, 0deg));
+      }
+      50% {
+        transform: translateY(-8px) rotate(calc(var(--r, 0deg) + 1.8deg));
+      }
+    }
+
+    .lz2-float {
+      animation: lz2Float 5.6s ease-in-out infinite;
+      will-change: transform;
+    }
+
+    /* 4. Halo Glow Button (modocriador.com.br) */
+    .lz-halo {
+      box-shadow: 0 0 0 0 rgba(212, 160, 57, 0.4);
+      transition: all 0.3s var(--ease-premium);
+    }
+    .lz-halo:hover {
+      box-shadow: 0 0 30px 8px rgba(212, 160, 57, 0.45);
+      transform: translateY(-2px);
+    }
+
+    /* 5. Infinite Proof Marquee (modocriador.com.br / animations-gemini) */
+    @keyframes lz2Marquee {
+      0% { transform: translateX(0); }
+      100% { transform: translateX(-50%); }
+    }
+
+    .lz2-proof-scroll {
+      display: flex;
+      width: max-content;
+      animation: lz2Marquee 42s linear infinite;
+    }
+
+    .lz2-proof-scroll:hover {
+      animation-play-state: paused;
+    }
+
+    .lz2-proof-row {
+      display: flex;
+      align-items: center;
+      gap: 1.25rem;
+      padding: 0 0.625rem;
+    }
+
+    .marquee-mask {
+      mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+      -webkit-mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+    }
+
+    /* 6. Beautiful Shadow (sidebar / ZincMail) */
+    .beautiful-shadow {
+      box-shadow: 0px 0px 0px 1px rgba(0,0,0,0.06),
+                  0px 1px 1px -0.5px rgba(0,0,0,0.06),
+                  0px 3px 3px -1.5px rgba(0,0,0,0.06),
+                  0px 6px 6px -3px rgba(0,0,0,0.06),
+                  0px 12px 12px -6px rgba(0,0,0,0.06),
+                  0px 24px 24px -12px rgba(0,0,0,0.06);
+    }
+
+    /* 7. Tree-line Hierarchy Navigation (marketplace-light / LuxeLane) */
+    .tree-line {
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 50%;
+      width: 1.15rem;
+      border-left: 1.5px solid rgba(212, 160, 57, 0.35);
+      border-bottom: 1.5px solid rgba(212, 160, 57, 0.35);
+      border-bottom-left-radius: 0.75rem;
+    }
+
+    .tree-vertical {
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      border-left: 1.5px solid rgba(212, 160, 57, 0.35);
+    }
+
+    /* 8. Text Reveal & Scroll Animations (animation-clean) */
+    .char {
+      display: inline-block;
+      opacity: 0;
+      transform: translateY(100%);
+      clip-path: polygon(0 0, 100% 0, 100% 0, 0 0);
+      transition: all 0.8s var(--ease-premium);
+    }
+
+    .char.revealed {
+      opacity: 1;
+      transform: translateY(0);
+      clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
+    }
+
+    .animate-on-scroll {
+      opacity: 0.01;
+      filter: blur(10px);
+      transform: translateY(24px);
+      transition: opacity 0.8s var(--ease-premium), transform 0.8s var(--ease-premium), filter 0.8s var(--ease-premium);
+    }
+
+    .animate-on-scroll.in-view {
+      opacity: 1;
+      filter: blur(0);
+      transform: translateY(0);
+    }
+
+    /* 9. Background Grid Pattern & Glow Points (saas-developer / animations-gemini2) */
+    .bg-grid {
+      background-size: 38px 38px;
+      background-image: 
+        linear-gradient(to right, rgba(212, 160, 57, 0.05) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(212, 160, 57, 0.05) 1px, transparent 1px);
+    }
+
+    .glow-point {
+      position: absolute;
+      width: 480px;
+      height: 480px;
+      background: radial-gradient(circle, rgba(212, 160, 57, 0.16) 0%, rgba(212, 160, 57, 0) 70%);
+      border-radius: 50%;
+      pointer-events: none;
+      filter: blur(50px);
+      z-index: 0;
+    }
+
+    /* 10. Glassmorphism Panels (financial-infrastruc / saas-developer) */
+    .glass-panel {
+      background: rgba(13, 17, 26, 0.78);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    html:not(.dark) .glass-panel {
+      background: rgba(255, 255, 255, 0.85);
+      border: 1px solid rgba(42, 36, 32, 0.09);
+    }
+
+    .glass-nav {
+      background: rgba(9, 12, 18, 0.82);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    html:not(.dark) .glass-nav {
+      background: rgba(250, 247, 242, 0.88);
+      border: 1px solid rgba(42, 36, 32, 0.1);
+    }
+
+    /* 11. Gradients & Luxury Accents (barbershop-landing / animations-gemini2) */
+    .text-gold-gradient {
+      background: linear-gradient(135deg, #F0C76B 0%, #D4A039 50%, #B8862A 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .bg-gold-gradient {
+      background: linear-gradient(135deg, #F0C76B 0%, #D4A039 50%, #B8862A 100%);
+    }
+
+    .section-divider {
+      width: 100%;
+      height: 1px;
+      background: linear-gradient(to right, transparent, rgba(212, 160, 57, 0.45), transparent);
+    }
+
+    /* Interactive Rosary Particle Canvas */
+    #stardust-canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 1;
+    }
+  </style>
+</head>
+
+<body class="bg-[#07090E] text-stone-100 dark:bg-[#07090E] dark:text-stone-100 transition-colors duration-300">
+
+  <!-- ==========================================
+       BACKGROUND STARDUST CANVAS & GLOW POINTS
+       ========================================== -->
+  <div class="fixed inset-0 pointer-events-none overflow-hidden z-0">
+    <canvas id="stardust-canvas"></canvas>
+    <div class="glow-point -top-24 -left-24"></div>
+    <div class="glow-point top-1/3 -right-32 opacity-70"></div>
+    <div class="glow-point bottom-10 left-1/4 opacity-50"></div>
+    <div class="absolute inset-0 bg-grid pointer-events-none opacity-40"></div>
+  </div>
+
+  <!-- ==========================================
+       TOP FLOATING GLASS DOCK (NAVIGATION)
+       ========================================== -->
+  <header class="sticky top-4 z-50 px-4 sm:px-8 max-w-7xl mx-auto">
+    <nav class="glass-nav rounded-full px-4 sm:px-6 py-3 flex items-center justify-between shadow-2xl transition-all">
+      
+      <!-- Brand Emblem -->
+      <a href="#hero" class="flex items-center gap-3 group">
+        <div class="w-10 h-10 rounded-full bg-gold-gradient flex items-center justify-center shadow-lg shadow-gold-500/20 group-hover:scale-105 transition-transform">
+          <svg class="w-5 h-5 text-stone-950" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2v20M5 8h14" />
+            <circle cx="12" cy="8" r="1.5" fill="currentColor" />
+          </svg>
+        </div>
+        <div>
+          <span class="font-serif text-lg sm:text-xl font-bold tracking-tight text-stone-100 flex items-center gap-1.5">
+            Ateliê Sagrado
+            <span class="text-[10px] uppercase font-mono px-2 py-0.5 rounded-full bg-gold-500/20 text-gold-400 font-semibold border border-gold-500/30">ERP 2.4</span>
+          </span>
+          <span class="block text-[10px] text-stone-400 tracking-wider uppercase font-mono">Gestão & Produção Devocional</span>
+        </div>
+      </a>
+
+      <!-- Navigation Links -->
+      <div class="hidden md:flex items-center gap-6 text-xs sm:text-sm font-medium text-stone-300">
+        <a href="#visao-geral" class="hover:text-gold-400 transition-colors">Visão Geral</a>
+        <a href="#workspace" class="hover:text-gold-400 transition-colors">ERP Interativo</a>
+        <a href="#calculadora" class="hover:text-gold-400 transition-colors">Calculadora Sacra</a>
+        <a href="#tecnologias" class="hover:text-gold-400 transition-colors">Diferenciais</a>
+        <a href="#planos" class="hover:text-gold-400 transition-colors">Planos</a>
+        <a href="#faq" class="hover:text-gold-400 transition-colors">Dúvidas</a>
+      </div>
+
+      <!-- Action Cluster -->
+      <div class="flex items-center gap-3">
+        <!-- Theme Toggle (Linho / Obsidian) -->
+        <button id="themeToggleBtn" type="button" class="w-9 h-9 rounded-full bg-stone-800/80 border border-white/10 hover:border-gold-500/50 flex items-center justify-center text-stone-300 hover:text-gold-400 transition-all cursor-pointer" title="Alternar tema">
+          <svg id="themeIconSun" class="w-4 h-4 hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+          <svg id="themeIconMoon" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+        </button>
+
+        <!-- Border Beam Launch ERP CTA -->
+        <a href="/login" class="text-xs font-semibold text-stone-400 hover:text-amber-400 transition-colors px-2 py-1">Entrar</a>
+        <div class="btn-beam-container lz-halo">
+          <div class="beam-border"></div>
+          <a href="/login" class="btn-beam px-4 sm:px-5 py-2 sm:py-2.5 bg-gold-gradient text-stone-950 font-semibold text-xs sm:text-sm tracking-tight flex items-center gap-2 shadow-lg">
+            <span>Abrir Sistema</span>
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </a>
+        </div>
+      </div>
+    </nav>
+  </header>
+
+  <!-- ==========================================
+       DOBRA 1: HERO DE ALTO IMPACTO (INTERATIVO)
+       ========================================== -->
+  <section id="hero" class="relative z-10 pt-16 sm:pt-24 pb-20 px-4 sm:px-8 max-w-7xl mx-auto text-center">
+    
+    <!-- Floating Natural Badges (Inspired by modocriador.com.br) -->
+    <div class="lz2-float hidden lg:flex items-center gap-2 absolute left-2 top-28 px-4 py-2 rounded-full bg-gold-400 text-stone-950 font-bold text-xs shadow-xl" style="--r: -6deg;">
+      <span class="w-2 h-2 rounded-full bg-stone-950 animate-ping"></span>
+      <span>✨ 100% Precificado e Lucrativo!</span>
+    </div>
+
+    <div class="lz2-float hidden lg:flex items-center gap-2 absolute right-4 top-24 px-4 py-2 rounded-full bg-stone-100 text-stone-950 font-bold text-xs shadow-xl" style="--r: 5deg;">
+      <span>📿 54 Terços em Produção Hoje</span>
+    </div>
+
+    <div class="lz2-float hidden lg:flex items-center gap-2 absolute left-6 bottom-16 px-4 py-2 rounded-full bg-emerald-400 text-stone-950 font-bold text-xs shadow-xl" style="--r: 4deg;">
+      <span>⚡ Orçamento Formal em 15s</span>
+    </div>
+
+    <div class="lz2-float hidden lg:flex items-center gap-2 absolute right-8 bottom-20 px-4 py-2 rounded-full bg-terracotta-500 text-white font-bold text-xs shadow-xl" style="--r: -3deg;">
+      <span>📦 Estoque de Cristais & Fios OK</span>
+    </div>
+
+    <!-- Small Header Tag -->
+    <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-gold-500/30 bg-gold-500/10 text-gold-400 text-xs font-mono uppercase tracking-wider mb-6 animate-pulse">
+      <span class="w-1.5 h-1.5 rounded-full bg-gold-400"></span>
+      Design System & Solução Definitiva para Ateliês Sacros
+    </div>
+
+    <!-- Main Headline with Text Reveal Effect -->
+    <h1 class="font-serif text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight max-w-5xl mx-auto leading-[1.1] mb-6">
+      A Arte Sacra da Criação com a <br />
+      <span class="text-gold-gradient font-serif italic">Precisão Exata do ERP.</span>
+    </h1>
+
+    <p class="max-w-3xl mx-auto text-base sm:text-lg lg:text-xl text-stone-300 leading-relaxed font-light mb-10">
+      Desenvolvido especificamente para artesãos de terços marianos, de noiva, joias devocionais e peças litúrgicas.
+      Elimine a incerteza no preço de venda, rastreie cada conta de cristal e feche encomendas com orçamentos dignos da sua vocação.
+    </p>
+
+    <!-- CTAs Cluster -->
+    <div class="flex flex-wrap items-center justify-center gap-4">
+      <div class="btn-beam-container lz-halo">
+        <div class="beam-border"></div>
+        <a href="/login" class="btn-beam px-7 py-3.5 bg-gold-gradient text-stone-950 font-bold text-base tracking-tight flex items-center gap-2.5 shadow-2xl">
+          <span>Acessar o ERP</span>
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </a>
+      </div>
+
+      <a href="#calculadora" class="px-6 py-3.5 rounded-full bg-stone-900/80 hover:bg-stone-800 border border-stone-700 text-stone-200 font-semibold text-sm transition-all hover:scale-105 flex items-center gap-2">
+        <svg class="w-4 h-4 text-gold-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 6v12"/></svg>
+        <span>Testar Calculadora de Preço</span>
+      </a>
+    </div>
+
+    <!-- Quick highlights bar (Inspired by modocriador pills) -->
+    <div class="mt-14 max-w-4xl mx-auto grid grid-cols-2 sm:grid-cols-4 gap-3 text-left">
+      <div class="p-3.5 rounded-2xl glass-panel flex items-center gap-3">
+        <div class="w-7 h-7 rounded-full bg-gold-500/20 text-gold-400 flex items-center justify-center font-bold text-xs">✓</div>
+        <div class="text-xs">
+          <p class="font-bold text-stone-100">Fórmula de Terço</p>
+          <p class="text-[11px] text-stone-400">Contas + Fio + Cruz</p>
+        </div>
+      </div>
+      <div class="p-3.5 rounded-2xl glass-panel flex items-center gap-3">
+        <div class="w-7 h-7 rounded-full bg-gold-500/20 text-gold-400 flex items-center justify-center font-bold text-xs">✓</div>
+        <div class="text-xs">
+          <p class="font-bold text-stone-100">Chão de Fábrica</p>
+          <p class="text-[11px] text-stone-400">Kanban por Bancada</p>
+        </div>
+      </div>
+      <div class="p-3.5 rounded-2xl glass-panel flex items-center gap-3">
+        <div class="w-7 h-7 rounded-full bg-gold-500/20 text-gold-400 flex items-center justify-center font-bold text-xs">✓</div>
+        <div class="text-xs">
+          <p class="font-bold text-stone-100">Controle de Estoque</p>
+          <p class="text-[11px] text-stone-400">Avisos de Reposição</p>
+        </div>
+      </div>
+      <div class="p-3.5 rounded-2xl glass-panel flex items-center gap-3">
+        <div class="w-7 h-7 rounded-full bg-gold-500/20 text-gold-400 flex items-center justify-center font-bold text-xs">✓</div>
+        <div class="text-xs">
+          <p class="font-bold text-stone-100">Orçamentos PDF</p>
+          <p class="text-[11px] text-stone-400">Envio em 1 Clique</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==========================================
+       DOBRA 2: MÉTRICAS & PROVA SOCIAL (MARQUEE)
+       ========================================== -->
+  <section id="visao-geral" class="relative z-10 py-12 border-y border-stone-800/80 bg-stone-950/60">
+    <div class="max-w-7xl mx-auto px-4 sm:px-8 mb-10">
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
+        <div>
+          <div class="text-3xl sm:text-5xl font-extrabold text-gold-400 font-mono tracking-tight tabular-nums">+28.400</div>
+          <div class="text-xs sm:text-sm text-stone-400 mt-1 font-medium">Terços e Artigos Confeccionados</div>
+        </div>
+        <div>
+          <div class="text-3xl sm:text-5xl font-extrabold text-gold-400 font-mono tracking-tight tabular-nums">99.8%</div>
+          <div class="text-xs sm:text-sm text-stone-400 mt-1 font-medium">Margem de Lucro Garantida</div>
+        </div>
+        <div>
+          <div class="text-3xl sm:text-5xl font-extrabold text-gold-400 font-mono tracking-tight tabular-nums">R$ 1.8M+</div>
+          <div class="text-xs sm:text-sm text-stone-400 mt-1 font-medium">Faturados por Nossos Ateliês</div>
+        </div>
+        <div>
+          <div class="text-3xl sm:text-5xl font-extrabold text-gold-400 font-mono tracking-tight tabular-nums">15 seg</div>
+          <div class="text-xs sm:text-sm text-stone-400 mt-1 font-medium">Tempo Médio para Gerar Proposta</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Infinite Proof Marquee Row (HTMLS Assets Showcase) -->
+    <div class="overflow-hidden marquee-mask">
+      <div class="lz2-proof-scroll">
+        <div class="lz2-proof-row">
+          
+          <!-- Proof Item 1: Artisan Rosary Work -->
+          <div class="w-64 h-36 rounded-2xl overflow-hidden relative border border-white/10 group shrink-0">
+            <img src="HTMLS/barbershop-landing-51.aura.build/assets/photo-1599351431202-1e0f013789_12f22dc1e8ca.jpg" alt="Montagem de terço artesanal" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+            <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent p-3 flex flex-col justify-end">
+              <span class="text-xs font-bold text-gold-300">Bancada de Montagem</span>
+              <span class="text-[10px] text-stone-300">Contas de Cristal 8mm Checo</span>
+            </div>
+          </div>
+
+          <!-- Proof Item 2: Golden Details -->
+          <div class="w-64 h-36 rounded-2xl overflow-hidden relative border border-white/10 group shrink-0">
+            <img src="HTMLS/barbershop-landing-51.aura.build/assets/photo-1621605815971-fbc98d6650_df200a8ce972.jpg" alt="Cruz e entremeios dourados" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+            <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent p-3 flex flex-col justify-end">
+              <span class="text-xs font-bold text-gold-300">Metais Nobres & Crucifixos</span>
+              <span class="text-[10px] text-stone-300">Banho Ouro 18k e Verniz Cataforético</span>
+            </div>
+          </div>
+
+          <!-- Proof Item 3: Master Artisan -->
+          <div class="w-64 h-36 rounded-2xl overflow-hidden relative border border-white/10 group shrink-0">
+            <img src="HTMLS/barbershop-landing-51.aura.build/assets/photo-1557862921-37829c790f19_09279be69e29.jpg" alt="Mestre Artesão" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+            <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent p-3 flex flex-col justify-end">
+              <span class="text-xs font-bold text-gold-300">Ateliê São José</span>
+              <span class="text-[10px] text-stone-300">+420 terços entregues este ano</span>
+            </div>
+          </div>
+
+          <!-- Proof Item 4: Tools & Workshop -->
+          <div class="w-64 h-36 rounded-2xl overflow-hidden relative border border-white/10 group shrink-0">
+            <img src="HTMLS/barbershop-landing-51.aura.build/assets/photo-1600180758890-6b94519a8b_04e812884c97.jpg" alt="Alicates e fios para terços" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+            <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent p-3 flex flex-col justify-end">
+              <span class="text-xs font-bold text-gold-300">Ferramentaria & Precisão</span>
+              <span class="text-[10px] text-stone-300">Alicates de bico redondo e corte fino</span>
+            </div>
+          </div>
+
+          <!-- Proof Item 5: Rosary Bride Finished -->
+          <div class="w-64 h-36 rounded-2xl overflow-hidden relative border border-white/10 group shrink-0">
+            <img src="HTMLS/barbershop-landing-51.aura.build/assets/photo-1597116648852-75764ecaf6_76921d88f400.jpg" alt="Terço de Noiva Luxo" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+            <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent p-3 flex flex-col justify-end">
+              <span class="text-xs font-bold text-gold-300">Terço para Noivas</span>
+              <span class="text-[10px] text-stone-300">Orçamento de R$ 480 aprovado</span>
+            </div>
+          </div>
+
+          <!-- Proof Item 6: Dashboard in Action (from Modo Criador assets) -->
+          <div class="w-64 h-36 rounded-2xl overflow-hidden relative border border-white/10 group shrink-0">
+            <img src="HTMLS/modocriador.com.br (1)/modocriador.com.br/site/www.modocriador.com.br/assets/hero-notebook-BoKMWp6N.webp" alt="ERP em Laptop" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+            <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent p-3 flex flex-col justify-end">
+              <span class="text-xs font-bold text-gold-300">Painel Financeiro & Vendas</span>
+              <span class="text-[10px] text-stone-300">Controle total de fluxo de caixa</span>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Repeated row for infinite loop -->
+        <div class="lz2-proof-row" aria-hidden="true">
+          <div class="w-64 h-36 rounded-2xl overflow-hidden relative border border-white/10 group shrink-0">
+            <img src="HTMLS/barbershop-landing-51.aura.build/assets/photo-1599351431202-1e0f013789_12f22dc1e8ca.jpg" alt="Montagem de terço artesanal" class="w-full h-full object-cover" />
+            <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent p-3 flex flex-col justify-end">
+              <span class="text-xs font-bold text-gold-300">Bancada de Montagem</span>
+              <span class="text-[10px] text-stone-300">Contas de Cristal 8mm Checo</span>
+            </div>
+          </div>
+          <div class="w-64 h-36 rounded-2xl overflow-hidden relative border border-white/10 group shrink-0">
+            <img src="HTMLS/barbershop-landing-51.aura.build/assets/photo-1621605815971-fbc98d6650_df200a8ce972.jpg" alt="Cruz e entremeios dourados" class="w-full h-full object-cover" />
+            <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent p-3 flex flex-col justify-end">
+              <span class="text-xs font-bold text-gold-300">Metais Nobres & Crucifixos</span>
+              <span class="text-[10px] text-stone-300">Banho Ouro 18k e Verniz Cataforético</span>
+            </div>
+          </div>
+          <div class="w-64 h-36 rounded-2xl overflow-hidden relative border border-white/10 group shrink-0">
+            <img src="HTMLS/barbershop-landing-51.aura.build/assets/photo-1557862921-37829c790f19_09279be69e29.jpg" alt="Mestre Artesão" class="w-full h-full object-cover" />
+            <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent p-3 flex flex-col justify-end">
+              <span class="text-xs font-bold text-gold-300">Ateliê São José</span>
+              <span class="text-[10px] text-stone-300">+420 terços entregues este ano</span>
+            </div>
+          </div>
+          <div class="w-64 h-36 rounded-2xl overflow-hidden relative border border-white/10 group shrink-0">
+            <img src="HTMLS/barbershop-landing-51.aura.build/assets/photo-1600180758890-6b94519a8b_04e812884c97.jpg" alt="Alicates e fios para terços" class="w-full h-full object-cover" />
+            <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent p-3 flex flex-col justify-end">
+              <span class="text-xs font-bold text-gold-300">Ferramentaria & Precisão</span>
+              <span class="text-[10px] text-stone-300">Alicates de bico redondo e corte fino</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==========================================
+       DOBRA 3: WORKSPACE ERP VIVO & FUNCIONAL
+       (COMBINAÇÃO CRIATIVA: ZINCMAIL + LUXELANE)
+       ========================================== -->
+  <section id="workspace" class="relative z-10 py-20 px-4 sm:px-8 max-w-7xl mx-auto">
+    
+    <div class="text-center max-w-3xl mx-auto mb-12">
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-gold-500/30 bg-gold-500/10 text-gold-400 text-xs font-mono uppercase tracking-wider mb-3">
+        Interface Funcional & Interativa
+      </div>
+      <h2 class="font-serif text-3xl sm:text-5xl font-bold tracking-tight text-stone-100">
+        O ERP Que Seu Ateliê <span class="text-gold-gradient italic">Sempre Mereceu.</span>
+      </h2>
+      <p class="text-stone-400 text-sm sm:text-base mt-3">
+        Experimente os módulos em tempo real abaixo. Navegue pela barra lateral, mude de telas, calcule custos e mova pedidos na bancada.
+      </p>
+    </div>
+
+    <!-- ERP Window Shell Container (LuxeLane rounded-[36px] + ZincMail sidebar) -->
+    <div class="glass-panel rounded-[32px] sm:rounded-[40px] beautiful-shadow overflow-hidden border border-stone-800 flex flex-col lg:flex-row min-h-[780px] relative">
+      
+      <!-- ================= SIDEBAR (ZINCMAIL + TREE NAVIGATION LUXELANE) ================= -->
+      <aside class="sidebar w-full lg:w-72 bg-stone-950/90 border-b lg:border-b-0 lg:border-r border-stone-800 p-5 flex flex-col justify-between shrink-0">
+        
+        <div>
+          <!-- Account Switcher Header (ZincMail pattern) -->
+          <div class="relative mb-6">
+            <button id="accountBtn" type="button" class="w-full flex items-center justify-between p-2.5 rounded-2xl bg-stone-900 border border-stone-800 hover:border-gold-500/40 transition-all cursor-pointer">
+              <div class="flex items-center gap-3">
+                <div class="relative">
+                  <img src="HTMLS/sidebar/assets/photo-1581182800629-7d90925ad0_a477d4304349.jpg" alt="Artesã Chefe" class="w-9 h-9 rounded-xl object-cover border border-gold-500/40" />
+                  <span class="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-400 rounded-full border-2 border-stone-950"></span>
+                </div>
+                <div class="text-left">
+                  <div class="text-xs font-bold text-stone-100">Irmã Clara M.</div>
+                  <div class="text-[10px] text-gold-400 font-mono">Ateliê Mater Dei</div>
+                </div>
+              </div>
+              <svg id="accountChevron" class="w-4 h-4 text-stone-400 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+            </button>
+
+            <!-- Dropdown Menu (ZincMail pattern) -->
+            <div id="accountMenu" class="hidden absolute top-full left-0 right-0 mt-2 p-3 bg-stone-900 border border-stone-700 rounded-2xl shadow-2xl z-30 text-xs">
+              <div class="pb-2 mb-2 border-b border-stone-800">
+                <p class="font-bold text-stone-200">Ateliê Sagrado Multi-Unidade</p>
+                <p class="text-[10px] text-stone-400">clara.artesanato@sagrado.org</p>
+              </div>
+              <button class="w-full text-left py-1.5 px-2 rounded-lg hover:bg-stone-800 text-stone-300 flex items-center gap-2" onclick="showToast('info', 'Unidade Alternada', 'Você está agora na filial Basílica Central')">
+                <span class="w-2 h-2 rounded-full bg-gold-400"></span> Unidade Basílica
+              </button>
+              <button class="w-full text-left py-1.5 px-2 rounded-lg hover:bg-stone-800 text-stone-300 flex items-center gap-2" onclick="showToast('info', 'Unidade Alternada', 'Você está na filial Ateliê Matriz')">
+                <span class="w-2 h-2 rounded-full bg-emerald-400"></span> Ateliê Matriz
+              </button>
+            </div>
+          </div>
+
+          <!-- Nav Items with Tree Lines (LuxeLane Pattern) -->
+          <nav class="space-y-1">
+            
+            <!-- Tab 1: Dashboard -->
+            <button type="button" class="erp-tab-btn active w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-xs transition-all text-left" data-target="tab-dashboard">
+              <svg class="w-4 h-4 text-gold-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
+              <span>Painel do Ateliê</span>
+            </button>
+
+            <!-- Group: Produtos com Tree-lines -->
+            <div class="pt-2">
+              <div class="flex items-center gap-3 px-3 py-1.5 text-stone-400 font-semibold text-[11px] uppercase font-mono tracking-wider">
+                <svg class="w-3.5 h-3.5 text-stone-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20M2 12h20"/></svg>
+                <span>Produção Devocional</span>
+              </div>
+              
+              <!-- Nested Submenu with Tree connectors -->
+              <div class="relative ml-5 pl-4 pt-1 space-y-1">
+                <div class="tree-vertical"></div>
+                
+                <!-- Tree item: Calculadora -->
+                <button type="button" class="erp-tab-btn relative w-full flex items-center gap-2.5 px-2.5 py-1.5 text-xs text-stone-300 hover:text-gold-400 transition-colors text-left" data-target="tab-calculadora">
+                  <div class="tree-line"></div>
+                  <span>Calculadora de Preço</span>
+                  <span class="ml-auto text-[9px] px-1.5 py-0.5 rounded bg-gold-500/20 text-gold-400 font-mono">IA</span>
+                </button>
+
+                <!-- Tree item: Chão de Fábrica (Kanban) -->
+                <button type="button" class="erp-tab-btn relative w-full flex items-center gap-2.5 px-2.5 py-1.5 text-xs text-stone-300 hover:text-gold-400 transition-colors text-left" data-target="tab-kanban">
+                  <div class="tree-line"></div>
+                  <span>Chão de Fábrica (Kanban)</span>
+                </button>
+
+                <!-- Tree item: Estoque de Insumos -->
+                <button type="button" class="erp-tab-btn relative w-full flex items-center gap-2.5 px-2.5 py-1.5 text-xs text-stone-300 hover:text-gold-400 transition-colors text-left" data-target="tab-estoque">
+                  <div class="tree-line"></div>
+                  <span>Contas, Metais & Fios</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Tab 5: Orçamentos -->
+            <button type="button" class="erp-tab-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-xs text-stone-300 hover:text-gold-400 transition-all text-left" data-target="tab-orcamentos">
+              <svg class="w-4 h-4 text-stone-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" x2="8" y1="13" y2="13"/><line x1="16" x2="8" y1="17" y2="17"/></svg>
+              <span>Gerador de Orçamentos</span>
+            </button>
+          </nav>
+        </div>
+
+        <!-- Sidebar Footer Action (ZincMail style) -->
+        <div class="pt-4 border-t border-stone-800">
+          <button type="button" onclick="showNewSupplyModal()" class="w-full py-2.5 px-3 rounded-xl bg-gold-gradient text-stone-950 font-bold text-xs flex items-center justify-center gap-2 hover:brightness-110 shadow-lg cursor-pointer transition-transform active:scale-95">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+            <span>+ Adicionar Insumo</span>
+          </button>
+        </div>
+      </aside>
+
+      <!-- ================= MAIN VIEWPORT CONTENT (DYNAMIC TABS) ================= -->
+      <main class="flex-1 p-5 sm:p-8 overflow-y-auto max-h-[780px] bg-stone-950/40">
+
+        <!-- ================= TAB 1: DASHBOARD & KPIS ================= -->
+        <div id="tab-dashboard" class="erp-tab-content space-y-6">
+          
+          <!-- Top Bar in View -->
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-stone-800">
+            <div>
+              <h3 class="font-serif text-xl sm:text-2xl font-bold text-stone-100">Painel Geral de Produção</h3>
+              <p class="text-xs text-stone-400">Ateliê Mater Dei • Mês de Outubro • 18 Pedidos em Andamento</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> Sistema Online
+              </span>
+              <button onclick="showToast('success', 'Dados Sincronizados', 'Todas as bancadas e estoque estão 100% atualizados.')" class="px-3 py-1.5 rounded-lg bg-stone-800 hover:bg-stone-700 text-xs text-stone-300 font-medium transition cursor-pointer">
+                ↻ Atualizar
+              </button>
+            </div>
+          </div>
+
+          <!-- 4 Flashlight KPI Cards (animation-clean / animations-gemini) -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            
+            <div class="flashlight-card p-5 group">
+              <div class="flashlight-border"></div>
+              <div class="flex items-center justify-between text-xs text-stone-400 mb-2">
+                <span>Faturamento do Mês</span>
+                <span class="text-emerald-400 font-mono font-bold">+24.5%</span>
+              </div>
+              <div class="text-2xl font-bold font-mono text-gold-400">R$ 14.850<span class="text-sm font-normal text-stone-400">,00</span></div>
+              <div class="text-[11px] text-stone-400 mt-2">Meta de R$ 18.000 (82% atingido)</div>
+              <div class="w-full bg-stone-800 h-1.5 rounded-full mt-2 overflow-hidden">
+                <div class="bg-gold-500 h-full rounded-full" style="width: 82%"></div>
+              </div>
+            </div>
+
+            <div class="flashlight-card p-5 group">
+              <div class="flashlight-border"></div>
+              <div class="flex items-center justify-between text-xs text-stone-400 mb-2">
+                <span>Terços em Confecção</span>
+                <span class="text-gold-400 font-mono font-bold">18 Ativos</span>
+              </div>
+              <div class="text-2xl font-bold font-mono text-stone-100">54 Peças</div>
+              <div class="text-[11px] text-stone-400 mt-2">6 aguardam crucifixo folheado</div>
+              <div class="w-full bg-stone-800 h-1.5 rounded-full mt-2 overflow-hidden">
+                <div class="bg-amber-500 h-full rounded-full" style="width: 65%"></div>
+              </div>
+            </div>
+
+            <div class="flashlight-card p-5 group">
+              <div class="flashlight-border"></div>
+              <div class="flex items-center justify-between text-xs text-stone-400 mb-2">
+                <span>Lucro Médio por Peça</span>
+                <span class="text-emerald-400 font-mono font-bold">68.2%</span>
+              </div>
+              <div class="text-2xl font-bold font-mono text-emerald-400">R$ 62<span class="text-sm font-normal text-stone-400">,80</span></div>
+              <div class="text-[11px] text-stone-400 mt-2">Margem líquida livre de insumos</div>
+              <div class="w-full bg-stone-800 h-1.5 rounded-full mt-2 overflow-hidden">
+                <div class="bg-emerald-500 h-full rounded-full" style="width: 78%"></div>
+              </div>
+            </div>
+
+            <div class="flashlight-card p-5 group">
+              <div class="flashlight-border"></div>
+              <div class="flex items-center justify-between text-xs text-stone-400 mb-2">
+                <span>Alerta de Reposição</span>
+                <span class="text-terracotta-400 font-mono font-bold">Crítico</span>
+              </div>
+              <div class="text-2xl font-bold font-mono text-terracotta-400">2 Insumos</div>
+              <div class="text-[11px] text-stone-400 mt-2">Cristal 8mm Aurora + Fio 210</div>
+              <div class="w-full bg-stone-800 h-1.5 rounded-full mt-2 overflow-hidden">
+                <div class="bg-terracotta-500 h-full rounded-full" style="width: 90%"></div>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Chão de Fábrica Quick Preview Table -->
+          <div class="flashlight-card p-5">
+            <div class="flashlight-border"></div>
+            <div class="flex items-center justify-between mb-4">
+              <div class="flex items-center gap-2">
+                <div class="w-2.5 h-2.5 rounded-full bg-gold-400"></div>
+                <h4 class="font-serif font-bold text-base text-stone-100">Fila Prioritária de Encomendas de Noiva & Batismo</h4>
+              </div>
+              <button onclick="switchTab('tab-kanban')" class="text-xs text-gold-400 hover:underline">Ver Kanban Completo →</button>
+            </div>
+
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-xs">
+                <thead>
+                  <tr class="border-b border-stone-800 text-stone-400 font-mono">
+                    <th class="pb-2">PEDIDO</th>
+                    <th class="pb-2">CLIENTE / DESTINATÁRIO</th>
+                    <th class="pb-2">MODELO DE TERÇO</th>
+                    <th class="pb-2">PRAZO</th>
+                    <th class="pb-2">VALOR</th>
+                    <th class="pb-2">STATUS</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-stone-800/60 font-medium">
+                  <tr>
+                    <td class="py-3 font-mono text-gold-400 font-bold">#TC-104</td>
+                    <td class="py-3">Noiva Maria Eduarda Costa</td>
+                    <td class="py-3 text-stone-300">Terço de Noiva Cristal Checo 10mm com Strass</td>
+                    <td class="py-3 text-amber-400 font-mono">12/Nov (Em 3 dias)</td>
+                    <td class="py-3 font-mono">R$ 380,00</td>
+                    <td class="py-3"><span class="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 text-[10px]">Na Bancada de Montagem</span></td>
+                  </tr>
+                  <tr>
+                    <td class="py-3 font-mono text-gold-400 font-bold">#TC-105</td>
+                    <td class="py-3">Paróquia N. Sra. do Carmo</td>
+                    <td class="py-3 text-stone-300">25 Dezenas de Crisma Madeira Imbuia</td>
+                    <td class="py-3 text-stone-300 font-mono">18/Nov</td>
+                    <td class="py-3 font-mono">R$ 625,00</td>
+                    <td class="py-3"><span class="px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-400 text-[10px]">Aguardando Insumos</span></td>
+                  </tr>
+                  <tr>
+                    <td class="py-3 font-mono text-gold-400 font-bold">#TC-106</td>
+                    <td class="py-3">Pe. Gabriel Rezende</td>
+                    <td class="py-3 text-stone-300">Terço Sacerdotal Hematita 8mm Cruz Prata 925</td>
+                    <td class="py-3 text-emerald-400 font-mono">20/Nov</td>
+                    <td class="py-3 font-mono">R$ 290,00</td>
+                    <td class="py-3"><span class="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px]">Pronto para Envio</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- ================= TAB 2: CALCULADORA DE PRECIFICAÇÃO SACRA (100% FUNCIONAL) ================= -->
+        <div id="tab-calculadora" class="erp-tab-content hidden space-y-6">
+          
+          <div class="pb-4 border-b border-stone-800">
+            <h3 class="font-serif text-xl sm:text-2xl font-bold text-stone-100 flex items-center gap-2">
+              Calculadora de Precificação do Terço
+              <span class="text-xs font-mono font-normal px-2.5 py-0.5 rounded-full bg-gold-500/20 text-gold-400 border border-gold-500/30">Cálculo Reativo em Tempo Real</span>
+            </h3>
+            <p class="text-xs text-stone-400">Nunca mais tenha prejuízo. Calcule custos por milímetro, hora de mão de obra e margem líquida.</p>
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            
+            <!-- Controls (Left 7 Cols) -->
+            <div class="lg:col-span-7 space-y-5 flashlight-card p-5 sm:p-6">
+              <div class="flashlight-border"></div>
+
+              <!-- Rosary Model Selection -->
+              <div>
+                <label class="block text-xs font-mono uppercase text-stone-400 mb-2">1. Modelo do Artigo Devocional</label>
+                <select id="calcModel" class="w-full bg-stone-900 border border-stone-700 text-stone-100 rounded-xl px-3 py-2.5 text-xs sm:text-sm focus:border-gold-500 focus:outline-none transition">
+                  <option value="terco_tradicional" data-beads="59" data-wire="1.8" selected>Terço Mariano Tradicional (59 Contas)</option>
+                  <option value="terco_noiva" data-beads="59" data-wire="2.4">Terço de Noiva Especial Luxo (59 Contas + Strass)</option>
+                  <option value="dezena_carro" data-beads="11" data-wire="0.5">Dezena Automotiva / Berço (11 Contas)</option>
+                  <option value="terco_sacerdotal" data-beads="59" data-wire="2.0">Terço Sacerdotal Nobre (59 Contas Hematita)</option>
+                </select>
+              </div>
+
+              <!-- Beads Selection -->
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-xs font-mono uppercase text-stone-400 mb-2">2. Tipo de Conta / Ave-Maria</label>
+                  <select id="calcBead" class="w-full bg-stone-900 border border-stone-700 text-stone-100 rounded-xl px-3 py-2.5 text-xs focus:border-gold-500 focus:outline-none transition">
+                    <option value="cristal_checo_8mm" data-cost="0.45" selected>Cristal Checo 8mm (R$ 0,45 /un)</option>
+                    <option value="perola_barroca_10mm" data-cost="0.80">Pérola Barroca 10mm (R$ 0,80 /un)</option>
+                    <option value="madeira_imbuia_8mm" data-cost="0.22">Madeira Imbuia 8mm (R$ 0,22 /un)</option>
+                    <option value="pedra_hematita_8mm" data-cost="0.55">Pedra Natural Hematita 8mm (R$ 0,55 /un)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label class="block text-xs font-mono uppercase text-stone-400 mb-2">3. Crucifixo & Entremeio</label>
+                  <select id="calcMetals" class="w-full bg-stone-900 border border-stone-700 text-stone-100 rounded-xl px-3 py-2.5 text-xs focus:border-gold-500 focus:outline-none transition">
+                    <option value="metal_ouro_envelhecido" data-cost="16.50" selected>Conjunto Ouro Envelhecido Italiano (R$ 16,50)</option>
+                    <option value="folheado_ouro_18k" data-cost="48.00">Cruz e Medalha Folheado Ouro 18k (R$ 48,00)</option>
+                    <option value="prata_925" data-cost="65.00">Crucifixo Prata de Lei 925 (R$ 65,00)</option>
+                    <option value="niquel_popular" data-cost="7.20">Conjunto Níquel Básico (R$ 7,20)</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Sliders: Labor Hours & Margin -->
+              <div class="space-y-4 pt-2">
+                <div>
+                  <div class="flex justify-between text-xs mb-1">
+                    <span class="text-stone-300 font-medium">Tempo de Mão de Obra na Bancada:</span>
+                    <span id="laborHoursDisplay" class="font-mono text-gold-400 font-bold">1.5 horas</span>
+                  </div>
+                  <input id="laborHours" type="range" min="0.5" max="5.0" step="0.5" value="1.5" class="w-full accent-gold-500 cursor-pointer" />
+                  <div class="flex justify-between text-[10px] text-stone-500 font-mono">
+                    <span>30min (Dezena)</span>
+                    <span>1.5h (Padrão)</span>
+                    <span>5h (Noiva Ultra Detalhada)</span>
+                  </div>
+                </div>
+
+                <div>
+                  <div class="flex justify-between text-xs mb-1">
+                    <span class="text-stone-300 font-medium">Margem de Lucro Desejada:</span>
+                    <span id="profitMarginDisplay" class="font-mono text-emerald-400 font-bold">60%</span>
+                  </div>
+                  <input id="profitMargin" type="range" min="20" max="85" step="5" value="60" class="w-full accent-emerald-500 cursor-pointer" />
+                  <div class="flex justify-between text-[10px] text-stone-500 font-mono">
+                    <span>20% (Paróquia / Atacado)</span>
+                    <span>60% (Varejo Ateliê)</span>
+                    <span>85% (Alta Joalheria)</span>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+            <!-- Live Calculation Results Card (Right 5 Cols) -->
+            <div class="lg:col-span-5 flashlight-card p-6 flex flex-col justify-between border-gold-500/40 bg-gradient-to-br from-stone-900 to-stone-950">
+              <div class="flashlight-border"></div>
+
+              <div>
+                <span class="text-xs font-mono text-gold-400 uppercase tracking-widest block mb-1">Composição de Preço</span>
+                <h4 id="calcSummaryTitle" class="font-serif text-lg font-bold text-stone-100">Terço Mariano Tradicional</h4>
+                
+                <div class="space-y-2.5 mt-4 text-xs divide-y divide-stone-800">
+                  <div class="flex justify-between pt-2 text-stone-300">
+                    <span>Contas (59 unidades):</span>
+                    <span id="costBeads" class="font-mono text-stone-100 font-bold">R$ 26,55</span>
+                  </div>
+                  <div class="flex justify-between pt-2 text-stone-300">
+                    <span>Crucifixo & Entremeio:</span>
+                    <span id="costMetals" class="font-mono text-stone-100 font-bold">R$ 16,50</span>
+                  </div>
+                  <div class="flex justify-between pt-2 text-stone-300">
+                    <span>Fio Cordone & Fecho:</span>
+                    <span id="costWire" class="font-mono text-stone-100 font-bold">R$ 4,50</span>
+                  </div>
+                  <div class="flex justify-between pt-2 text-stone-300">
+                    <span>Mão de Obra do Artesão:</span>
+                    <span id="costLabor" class="font-mono text-stone-100 font-bold">R$ 37,50</span>
+                  </div>
+                  <div class="flex justify-between pt-2 text-stone-300">
+                    <span>Embalagem & Certificado de Oração:</span>
+                    <span class="font-mono text-stone-100 font-bold">R$ 5,00</span>
+                  </div>
+                </div>
+
+                <div class="mt-6 pt-4 border-t border-stone-700/80">
+                  <div class="flex justify-between text-xs text-stone-400 mb-1">
+                    <span>CUSTO TOTAL DE CONFECÇÃO:</span>
+                    <span id="totalCost" class="font-mono font-bold text-stone-200">R$ 90,05</span>
+                  </div>
+                  <div class="flex justify-between items-baseline mt-2">
+                    <span class="text-sm font-bold text-stone-100">PREÇO SUGERIDO:</span>
+                    <span id="suggestedPrice" class="text-3xl font-extrabold font-mono text-gold-400">R$ 225,12</span>
+                  </div>
+                  <div class="flex justify-between text-xs text-emerald-400 font-mono mt-1 font-bold">
+                    <span>LUCRO LÍQUIDO NO BOLSO:</span>
+                    <span id="netProfit">+ R$ 135,07</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="mt-6 space-y-2">
+                <button type="button" onclick="saveToCatalog()" class="w-full py-3 rounded-xl bg-gold-gradient text-stone-950 font-bold text-xs uppercase tracking-wider hover:brightness-110 shadow-xl transition cursor-pointer flex items-center justify-center gap-2">
+                  <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                  <span>Salvar na Tabela de Preços</span>
+                </button>
+                <button type="button" onclick="generateFormalQuoteFromCalc()" class="w-full py-2.5 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-200 text-xs font-medium transition cursor-pointer">
+                  Exportar Orçamento WhatsApp ➔
+                </button>
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+
+        <!-- ================= TAB 3: CHÃO DE FÁBRICA (KANBAN INTERATIVO) ================= -->
+        <div id="tab-kanban" class="erp-tab-content hidden space-y-6">
+          
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-stone-800">
+            <div>
+              <h3 class="font-serif text-xl sm:text-2xl font-bold text-stone-100">Quadro Kanban de Bancada</h3>
+              <p class="text-xs text-stone-400">Clique em "Avançar Etapa ➔" nos cartões para movimentar os pedidos no fluxo.</p>
+            </div>
+            <button onclick="addNewKanbanOrder()" class="px-3 py-1.5 rounded-lg bg-gold-gradient text-stone-950 text-xs font-bold hover:brightness-110 transition cursor-pointer">
+              + Novo Pedido na Fila
+            </button>
+          </div>
+
+          <!-- 4 Kanban Columns -->
+          <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4" id="kanbanBoard">
+            
+            <!-- Col 1: Aguardando Insumos -->
+            <div class="bg-stone-900/60 rounded-2xl p-4 border border-stone-800/80 flex flex-col">
+              <div class="flex items-center justify-between pb-3 mb-3 border-b border-stone-800">
+                <span class="text-xs font-bold text-stone-300 flex items-center gap-2">
+                  <span class="w-2 h-2 rounded-full bg-blue-400"></span> 1. Aguardando Insumos
+                </span>
+                <span id="colCount1" class="text-[11px] font-mono px-2 py-0.5 rounded-full bg-stone-800 text-stone-300">2</span>
+              </div>
+              <div class="space-y-3 flex-1" id="kanbanCol1">
+                
+                <div class="flashlight-card p-3.5 bg-stone-900 border-stone-700/60 text-xs" id="card-1">
+                  <div class="flashlight-border"></div>
+                  <div class="flex justify-between text-[10px] text-stone-400 font-mono mb-1">
+                    <span>#TC-108</span>
+                    <span class="text-amber-400">Falta Cruz Ouro 18k</span>
+                  </div>
+                  <p class="font-bold text-stone-100">Terço Crisma Prata 925</p>
+                  <p class="text-[11px] text-stone-400">Cliente: Helena Ramos</p>
+                  <div class="mt-3 pt-2 border-t border-stone-800 flex justify-between items-center">
+                    <span class="font-mono text-gold-400 font-bold">R$ 240,00</span>
+                    <button onclick="moveKanban('card-1', 1)" class="px-2 py-1 rounded bg-stone-800 hover:bg-gold-500 hover:text-stone-950 text-[10px] transition cursor-pointer font-bold">
+                      Avançar ➔
+                    </button>
+                  </div>
+                </div>
+
+                <div class="flashlight-card p-3.5 bg-stone-900 border-stone-700/60 text-xs" id="card-2">
+                  <div class="flashlight-border"></div>
+                  <div class="flex justify-between text-[10px] text-stone-400 font-mono mb-1">
+                    <span>#TC-109</span>
+                    <span class="text-stone-400">Fio Chega Hoje</span>
+                  </div>
+                  <p class="font-bold text-stone-100">10 Dezenas Lembrancinha</p>
+                  <p class="text-[11px] text-stone-400">Batizado do Bernardo</p>
+                  <div class="mt-3 pt-2 border-t border-stone-800 flex justify-between items-center">
+                    <span class="font-mono text-gold-400 font-bold">R$ 190,00</span>
+                    <button onclick="moveKanban('card-2', 1)" class="px-2 py-1 rounded bg-stone-800 hover:bg-gold-500 hover:text-stone-950 text-[10px] transition cursor-pointer font-bold">
+                      Avançar ➔
+                    </button>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+            <!-- Col 2: Na Bancada de Montagem -->
+            <div class="bg-stone-900/60 rounded-2xl p-4 border border-stone-800/80 flex flex-col">
+              <div class="flex items-center justify-between pb-3 mb-3 border-b border-stone-800">
+                <span class="text-xs font-bold text-stone-300 flex items-center gap-2">
+                  <span class="w-2 h-2 rounded-full bg-amber-400"></span> 2. Na Bancada
+                </span>
+                <span id="colCount2" class="text-[11px] font-mono px-2 py-0.5 rounded-full bg-stone-800 text-stone-300">2</span>
+              </div>
+              <div class="space-y-3 flex-1" id="kanbanCol2">
+                
+                <div class="flashlight-card p-3.5 bg-stone-900 border-stone-700/60 text-xs" id="card-3">
+                  <div class="flashlight-border"></div>
+                  <div class="flex justify-between text-[10px] text-stone-400 font-mono mb-1">
+                    <span>#TC-104</span>
+                    <span class="text-emerald-400 font-bold">Noiva Urgente</span>
+                  </div>
+                  <p class="font-bold text-stone-100">Terço Noiva Cristal Checo 10mm</p>
+                  <p class="text-[11px] text-stone-400">Maria Eduarda Costa</p>
+                  <div class="mt-3 pt-2 border-t border-stone-800 flex justify-between items-center">
+                    <span class="font-mono text-gold-400 font-bold">R$ 380,00</span>
+                    <button onclick="moveKanban('card-3', 2)" class="px-2 py-1 rounded bg-stone-800 hover:bg-gold-500 hover:text-stone-950 text-[10px] transition cursor-pointer font-bold">
+                      Avançar ➔
+                    </button>
+                  </div>
+                </div>
+
+                <div class="flashlight-card p-3.5 bg-stone-900 border-stone-700/60 text-xs" id="card-4">
+                  <div class="flashlight-border"></div>
+                  <div class="flex justify-between text-[10px] text-stone-400 font-mono mb-1">
+                    <span>#TC-105</span>
+                    <span class="text-stone-400">Em nó franciscano</span>
+                  </div>
+                  <p class="font-bold text-stone-100">Terço Masculino Hematita</p>
+                  <p class="text-[11px] text-stone-400">Dr. Lucas Vasconcelos</p>
+                  <div class="mt-3 pt-2 border-t border-stone-800 flex justify-between items-center">
+                    <span class="font-mono text-gold-400 font-bold">R$ 175,00</span>
+                    <button onclick="moveKanban('card-4', 2)" class="px-2 py-1 rounded bg-stone-800 hover:bg-gold-500 hover:text-stone-950 text-[10px] transition cursor-pointer font-bold">
+                      Avançar ➔
+                    </button>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+            <!-- Col 3: Embalagem & Bênção -->
+            <div class="bg-stone-900/60 rounded-2xl p-4 border border-stone-800/80 flex flex-col">
+              <div class="flex items-center justify-between pb-3 mb-3 border-b border-stone-800">
+                <span class="text-xs font-bold text-stone-300 flex items-center gap-2">
+                  <span class="w-2 h-2 rounded-full bg-purple-400"></span> 3. Embalagem & Certificado
+                </span>
+                <span id="colCount3" class="text-[11px] font-mono px-2 py-0.5 rounded-full bg-stone-800 text-stone-300">1</span>
+              </div>
+              <div class="space-y-3 flex-1" id="kanbanCol3">
+                
+                <div class="flashlight-card p-3.5 bg-stone-900 border-stone-700/60 text-xs" id="card-5">
+                  <div class="flashlight-border"></div>
+                  <div class="flex justify-between text-[10px] text-stone-400 font-mono mb-1">
+                    <span>#TC-102</span>
+                    <span class="text-purple-400">Estojo de Veludo</span>
+                  </div>
+                  <p class="font-bold text-stone-100">Terço São Bento Madeira Nobre</p>
+                  <p class="text-[11px] text-stone-400">Diácono Tiago</p>
+                  <div class="mt-3 pt-2 border-t border-stone-800 flex justify-between items-center">
+                    <span class="font-mono text-gold-400 font-bold">R$ 150,00</span>
+                    <button onclick="moveKanban('card-5', 3)" class="px-2 py-1 rounded bg-stone-800 hover:bg-gold-500 hover:text-stone-950 text-[10px] transition cursor-pointer font-bold">
+                      Avançar ➔
+                    </button>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+            <!-- Col 4: Pronto p/ Envio / Entregue -->
+            <div class="bg-stone-900/60 rounded-2xl p-4 border border-stone-800/80 flex flex-col">
+              <div class="flex items-center justify-between pb-3 mb-3 border-b border-stone-800">
+                <span class="text-xs font-bold text-stone-300 flex items-center gap-2">
+                  <span class="w-2 h-2 rounded-full bg-emerald-400"></span> 4. Pronto p/ Envio
+                </span>
+                <span id="colCount4" class="text-[11px] font-mono px-2 py-0.5 rounded-full bg-stone-800 text-stone-300">1</span>
+              </div>
+              <div class="space-y-3 flex-1" id="kanbanCol4">
+                
+                <div class="flashlight-card p-3.5 bg-stone-900 border-stone-700/60 text-xs" id="card-6">
+                  <div class="flashlight-border"></div>
+                  <div class="flex justify-between text-[10px] text-emerald-400 font-mono mb-1">
+                    <span>#TC-100</span>
+                    <span>Código de Rastreio OK</span>
+                  </div>
+                  <p class="font-bold text-stone-100">Terço Sacerdotal Ouro 18k</p>
+                  <p class="text-[11px] text-stone-400">Pe. Gabriel Rezende</p>
+                  <div class="mt-3 pt-2 border-t border-stone-800 flex justify-between items-center">
+                    <span class="font-mono text-gold-400 font-bold">R$ 290,00</span>
+                    <span class="text-emerald-400 text-[10px] font-bold">Concluído ✓</span>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
+        <!-- ================= TAB 4: ESTOQUE DE MATÉRIAS-PRIMAS ================= -->
+        <div id="tab-estoque" class="erp-tab-content hidden space-y-6">
+          
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-stone-800">
+            <div>
+              <h3 class="font-serif text-xl sm:text-2xl font-bold text-stone-100">Estoque de Contas, Metais e Cordões</h3>
+              <p class="text-xs text-stone-400">Pesquise em tempo real e controle o estoque mínimo de cada item.</p>
+            </div>
+            <div class="flex items-center gap-3">
+              <input id="stockSearch" type="text" placeholder="Buscar cristal, cruz, fio..." oninput="filterStockTable()" class="bg-stone-900 border border-stone-700 text-stone-100 rounded-xl px-3 py-1.5 text-xs w-52 focus:border-gold-500 focus:outline-none" />
+              <button onclick="showNewSupplyModal()" class="px-3 py-1.5 rounded-xl bg-gold-gradient text-stone-950 text-xs font-bold hover:brightness-110 transition cursor-pointer">
+                + Novo Item
+              </button>
+            </div>
+          </div>
+
+          <!-- Inventory Table with Status Badges -->
+          <div class="flashlight-card p-5 overflow-hidden">
+            <div class="flashlight-border"></div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-xs" id="stockTable">
+                <thead>
+                  <tr class="border-b border-stone-800 text-stone-400 font-mono">
+                    <th class="pb-3">CÓDIGO</th>
+                    <th class="pb-3">INSUMO / ESPECIFICAÇÃO</th>
+                    <th class="pb-3">CATEGORIA</th>
+                    <th class="pb-3">ESTOQUE ATUAL</th>
+                    <th class="pb-3">CUSTO UNITÁRIO</th>
+                    <th class="pb-3">SITUAÇÃO</th>
+                    <th class="pb-3 text-right">AÇÕES</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-stone-800/60 font-medium" id="stockTableBody">
+                  <tr data-name="cristal checo aurora boreal 8mm">
+                    <td class="py-3 font-mono text-gold-400 font-bold">INS-001</td>
+                    <td class="py-3">Cristal Checo Lapidado Aurora Boreal 8mm</td>
+                    <td class="py-3 text-stone-400">Contas de Vidro</td>
+                    <td class="py-3 font-mono font-bold text-terracotta-400">82 un (Mín: 250)</td>
+                    <td class="py-3 font-mono">R$ 0,45</td>
+                    <td class="py-3"><span class="px-2 py-0.5 rounded-full bg-terracotta-500/20 text-terracotta-400 text-[10px]">Estoque Crítico</span></td>
+                    <td class="py-3 text-right">
+                      <button onclick="reorderSupply('Cristal Checo 8mm')" class="text-xs text-gold-400 hover:underline">Pedir Reposição</button>
+                    </td>
+                  </tr>
+                  <tr data-name="crucifixo barroco ouro envelhecido">
+                    <td class="py-3 font-mono text-gold-400 font-bold">INS-002</td>
+                    <td class="py-3">Crucifixo Barroco Ouro Envelhecido 5.5cm</td>
+                    <td class="py-3 text-stone-400">Metais Sacros</td>
+                    <td class="py-3 font-mono font-bold text-stone-200">28 un (Mín: 15)</td>
+                    <td class="py-3 font-mono">R$ 11,50</td>
+                    <td class="py-3"><span class="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px]">Normal</span></td>
+                    <td class="py-3 text-right">
+                      <button onclick="reorderSupply('Crucifixo Barroco')" class="text-xs text-stone-400 hover:text-gold-400">Ajustar</button>
+                    </td>
+                  </tr>
+                  <tr data-name="fio cordone poliamida 210 marrom">
+                    <td class="py-3 font-mono text-gold-400 font-bold">INS-003</td>
+                    <td class="py-3">Fio Cordone Poliamida 210/16 Marrom Franciscano</td>
+                    <td class="py-3 text-stone-400">Cordões & Fios</td>
+                    <td class="py-3 font-mono font-bold text-amber-400">45 metros (Mín: 100)</td>
+                    <td class="py-3 font-mono">R$ 0,35 /m</td>
+                    <td class="py-3"><span class="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 text-[10px]">Atenção</span></td>
+                    <td class="py-3 text-right">
+                      <button onclick="reorderSupply('Fio Cordone')" class="text-xs text-gold-400 hover:underline">Pedir Reposição</button>
+                    </td>
+                  </tr>
+                  <tr data-name="entremeio nossa senhora aparecida folheado ouro 18k">
+                    <td class="py-3 font-mono text-gold-400 font-bold">INS-004</td>
+                    <td class="py-3">Entremeio N. Sra. Aparecida Resinado Ouro 18k</td>
+                    <td class="py-3 text-stone-400">Metais Nobres</td>
+                    <td class="py-3 font-mono font-bold text-stone-200">42 un (Mín: 20)</td>
+                    <td class="py-3 font-mono">R$ 18,00</td>
+                    <td class="py-3"><span class="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px]">Normal</span></td>
+                    <td class="py-3 text-right">
+                      <button onclick="reorderSupply('Entremeio N. Sra. Aparecida')" class="text-xs text-stone-400 hover:text-gold-400">Ajustar</button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- ================= TAB 5: GERADOR DE ORÇAMENTOS & PROPOSTAS ================= -->
+        <div id="tab-orcamentos" class="erp-tab-content hidden space-y-6">
+          
+          <div class="pb-4 border-b border-stone-800">
+            <h3 class="font-serif text-xl sm:text-2xl font-bold text-stone-100">Gerador de Propostas & Orçamentos para Clientes</h3>
+            <p class="text-xs text-stone-400">Emita um orçamento formal com visual consagrado para enviar no WhatsApp ou imprimir.</p>
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            
+            <!-- Quote Form (Left 5 Cols) -->
+            <div class="lg:col-span-5 space-y-4 flashlight-card p-5">
+              <div class="flashlight-border"></div>
+              
+              <div>
+                <label class="block text-xs font-mono uppercase text-stone-400 mb-1">Nome da Noiva / Cliente</label>
+                <input id="quoteClientName" type="text" value="Beatriz Mendonça de Alencar" oninput="updateQuotePreview()" class="w-full bg-stone-900 border border-stone-700 text-stone-100 rounded-xl px-3 py-2 text-xs focus:border-gold-500 focus:outline-none" />
+              </div>
+
+              <div>
+                <label class="block text-xs font-mono uppercase text-stone-400 mb-1">Ocasião Especial / Paróquia</label>
+                <input id="quoteOccasion" type="text" value="Casamento na Catedral da Sé • Dezembro/2026" oninput="updateQuotePreview()" class="w-full bg-stone-900 border border-stone-700 text-stone-100 rounded-xl px-3 py-2 text-xs focus:border-gold-500 focus:outline-none" />
+              </div>
+
+              <div>
+                <label class="block text-xs font-mono uppercase text-stone-400 mb-1">Peça Principal</label>
+                <input id="quoteItemDesc" type="text" value="Terço de Noiva Cristal Checo 10mm, Entremeio Sagrada Família Ouro 18k" oninput="updateQuotePreview()" class="w-full bg-stone-900 border border-stone-700 text-stone-100 rounded-xl px-3 py-2 text-xs focus:border-gold-500 focus:outline-none" />
+              </div>
+
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-xs font-mono uppercase text-stone-400 mb-1">Valor do Terço (R$)</label>
+                  <input id="quoteItemPrice" type="number" value="450.00" oninput="updateQuotePreview()" class="w-full bg-stone-900 border border-stone-700 text-stone-100 rounded-xl px-3 py-2 text-xs font-mono focus:border-gold-500 focus:outline-none" />
+                </div>
+                <div>
+                  <label class="block text-xs font-mono uppercase text-stone-400 mb-1">Estojo & Frete (R$)</label>
+                  <input id="quoteFreight" type="number" value="35.00" oninput="updateQuotePreview()" class="w-full bg-stone-900 border border-stone-700 text-stone-100 rounded-xl px-3 py-2 text-xs font-mono focus:border-gold-500 focus:outline-none" />
+                </div>
+              </div>
+
+              <div class="pt-2">
+                <button type="button" onclick="sendQuoteWhatsApp()" class="w-full py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-stone-950 font-bold text-xs uppercase tracking-wider shadow-lg transition flex items-center justify-center gap-2 cursor-pointer">
+                  <span>Enviar Orçamento no WhatsApp</span>
+                  <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+                </button>
+              </div>
+            </div>
+
+            <!-- Proposal Preview Sheet (Right 7 Cols) -->
+            <div class="lg:col-span-7 bg-linho-50 text-stone-900 rounded-3xl p-6 sm:p-8 shadow-2xl border border-stone-300 font-serif relative">
+              <div class="flex justify-between items-start pb-4 border-b border-stone-300">
+                <div>
+                  <h4 class="text-2xl font-bold tracking-tight text-stone-950">Ateliê Sagrado</h4>
+                  <p class="text-xs font-sans text-stone-600">Alta Joalheria Devocional & Terços Sacros</p>
+                </div>
+                <div class="text-right font-sans text-xs text-stone-500">
+                  <p class="font-bold text-stone-900 font-mono">PROPOSTA #2026-94</p>
+                  <p>Validade: 15 dias</p>
+                </div>
+              </div>
+
+              <div class="my-5 font-sans text-xs space-y-1">
+                <p><span class="text-stone-500">Prezada:</span> <strong id="previewClient" class="text-stone-900 font-serif text-sm">Beatriz Mendonça de Alencar</strong></p>
+                <p><span class="text-stone-500">Ocasião:</span> <span id="previewOccasion" class="text-stone-800">Casamento na Catedral da Sé • Dezembro/2026</span></p>
+              </div>
+
+              <div class="my-6">
+                <table class="w-full font-sans text-xs">
+                  <thead>
+                    <tr class="border-b border-stone-300 text-stone-500 uppercase text-[10px] font-mono">
+                      <th class="text-left pb-2">Item Confeccionado sob Medida</th>
+                      <th class="text-right pb-2">Subtotal</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-stone-200">
+                    <tr>
+                      <td class="py-3 pr-4">
+                        <p id="previewItemDesc" class="font-bold text-stone-900">Terço de Noiva Cristal Checo 10mm, Entremeio Sagrada Família Ouro 18k</p>
+                        <p class="text-[11px] text-stone-500 italic font-serif">Confeccionado artesanalmente no fio reforçado, crucifixo barroco banhado a ouro 18k com certificado de oração.</p>
+                      </td>
+                      <td id="previewItemPrice" class="py-3 text-right font-mono font-bold text-stone-900">R$ 450,00</td>
+                    </tr>
+                    <tr>
+                      <td class="py-2 text-stone-600">Estojo em Veludo Luxo com Gravação Personalizada & Envio Seguro</td>
+                      <td id="previewFreight" class="py-2 text-right font-mono font-bold text-stone-900">R$ 35,00</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div class="pt-4 border-t-2 border-stone-900 flex justify-between items-baseline font-sans">
+                <span class="text-xs uppercase font-mono tracking-wider text-stone-600">Investimento Total:</span>
+                <span id="previewTotal" class="text-2xl font-bold font-mono text-gold-700">R$ 485,00</span>
+              </div>
+
+              <div class="mt-6 pt-4 border-t border-stone-200 text-center font-sans text-[11px] text-stone-500">
+                "Tudo para a maior Glória de Deus e santificação da sua família."
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
+      </main>
+
+    </div>
+  </section>
+
+  <!-- ==========================================
+       DOBRA 4: BENTO GRID DE TECNOLOGIAS FORA DA CAIXA
+       (FLASHLIGHT SPOTLIGHT CARDS)
+       ========================================== -->
+  <section id="tecnologias" class="relative z-10 py-20 px-4 sm:px-8 max-w-7xl mx-auto">
+    
+    <div class="text-center max-w-3xl mx-auto mb-14">
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-gold-500/30 bg-gold-500/10 text-gold-400 text-xs font-mono uppercase tracking-wider mb-3">
+        Diferenciais de Outro Nível
+      </div>
+      <h2 class="font-serif text-3xl sm:text-5xl font-bold tracking-tight text-stone-100">
+        Funcionalidades Que <span class="text-gold-gradient italic">Nenhum ERP Genérico</span> Oferece.
+      </h2>
+      <p class="text-stone-400 text-sm sm:text-base mt-3">
+        Cada botão e cálculo foi pensado para a rotina diária de quem trabalha com contas, cruzes, medalhas e devoção.
+      </p>
+    </div>
+
+    <!-- Bento Grid with Flashlight Effect on Every Card -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      
+      <!-- Card 1 -->
+      <div class="flashlight-card p-7 group md:col-span-2">
+        <div class="flashlight-border"></div>
+        <div class="w-12 h-12 rounded-2xl bg-gold-500/20 text-gold-400 flex items-center justify-center mb-6">
+          <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M5 8h14"/><circle cx="12" cy="8" r="2"/></svg>
+        </div>
+        <h3 class="font-serif text-xl sm:text-2xl font-bold text-stone-100 mb-2">IA de Harmonia Litúrgica & Combinações</h3>
+        <p class="text-stone-300 text-sm leading-relaxed mb-4">
+          O sistema sugere automaticamente combinações de contas de acordo com o calendário litúrgico (Azul Mariano, Roxo da Quaresma, Dourado Pascal, Vermelho de Pentecostes), indicando medalhas patronais compatíveis para alavancar suas vendas sazonais.
+        </p>
+        <span class="inline-flex items-center gap-1.5 text-xs text-gold-400 font-mono">
+          Exclusividade Ateliê Sagrado ➔
+        </span>
+      </div>
+
+      <!-- Card 2 -->
+      <div class="flashlight-card p-7 group">
+        <div class="flashlight-border"></div>
+        <div class="w-12 h-12 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center mb-6">
+          <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><path d="M12 12v6M9 15l3 3 3-3"/></svg>
+        </div>
+        <h3 class="font-serif text-xl font-bold text-stone-100 mb-2">Leitor OCR de Nota Fiscal</h3>
+        <p class="text-stone-300 text-xs sm:text-sm leading-relaxed">
+          Tire foto do cupom de compra na 25 de Março ou fornecedor atacadista: o ERP detecta cristais, gramatura de metal e atualiza seu estoque em segundos.
+        </p>
+      </div>
+
+      <!-- Card 3 -->
+      <div class="flashlight-card p-7 group">
+        <div class="flashlight-border"></div>
+        <div class="w-12 h-12 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center mb-6">
+          <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="m4.93 4.93 4.24 4.24M14.83 14.83l4.24 4.24M14.83 9.17l4.24-4.24M4.93 19.07l4.24-4.24"/></svg>
+        </div>
+        <h3 class="font-serif text-xl font-bold text-stone-100 mb-2">Calculador de Fio & Desperdício</h3>
+        <p class="text-stone-300 text-xs sm:text-sm leading-relaxed">
+          Evite ficar sem cordão no último mistério do terço. O algoritmo calcula exatamente os milímetros de folga para nós franciscanos e soldas.
+        </p>
+      </div>
+
+      <!-- Card 4 -->
+      <div class="flashlight-card p-7 group md:col-span-2">
+        <div class="flashlight-border"></div>
+        <div class="w-12 h-12 rounded-2xl bg-purple-500/20 text-purple-400 flex items-center justify-center mb-6">
+          <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M12 18v-6M9 15l3 3 3-3"/></svg>
+        </div>
+        <h3 class="font-serif text-xl sm:text-2xl font-bold text-stone-100 mb-2">Emissão de Certificado de Autenticidade & Consagração</h3>
+        <p class="text-stone-300 text-sm leading-relaxed mb-4">
+          Ao finalizar cada terço, gere um cartão digital ou imprimível com as especificações da pedra, procedência do metal, data de confecção e oração personalizada de bênção para acompanhar a embalagem de presente.
+        </p>
+        <div class="flex items-center gap-4 text-xs font-mono text-stone-400">
+          <span>✓ QR Code de Rastreabilidade</span>
+          <span>✓ Selo Dourado Imprimível</span>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ==========================================
+       DOBRA 5: PASSO A PASSO DO ATELIÊ (WORKFLOW)
+       (INSPIRED BY MODOCRIADOR STEPPER)
+       ========================================== -->
+  <section class="relative z-10 py-16 px-4 sm:px-8 max-w-7xl mx-auto">
+    <div class="glass-panel rounded-3xl p-6 sm:p-10 border border-stone-800">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-8 border-b border-stone-800">
+        <div>
+          <span class="text-xs font-mono text-gold-400 uppercase tracking-widest block mb-1">Como Funciona</span>
+          <h3 class="font-serif text-2xl sm:text-3xl font-bold text-stone-100">Do Primeiro Grânulo ao Lucro Consagrado</h3>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <button type="button" class="px-3.5 py-1.5 rounded-full bg-gold-400 text-stone-950 font-bold text-xs">Passo a Passo</button>
+          <button type="button" class="px-3.5 py-1.5 rounded-full bg-stone-800 text-stone-300 text-xs">Vídeo de 2 min</button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mt-8">
+        
+        <div class="p-5 rounded-2xl bg-stone-900/60 border border-stone-800">
+          <div class="w-8 h-8 rounded-full bg-gold-500/20 text-gold-400 font-bold font-mono text-sm flex items-center justify-center mb-4">01</div>
+          <h4 class="font-serif font-bold text-base text-stone-100 mb-1">Cadastre os Insumos</h4>
+          <p class="text-stone-400 text-xs leading-relaxed">Insira seus cristais, madeiras, medalhas e valores de compra. O sistema cuida dos custos fracionados.</p>
+        </div>
+
+        <div class="p-5 rounded-2xl bg-stone-900/60 border border-stone-800">
+          <div class="w-8 h-8 rounded-full bg-gold-500/20 text-gold-400 font-bold font-mono text-sm flex items-center justify-center mb-4">02</div>
+          <h4 class="font-serif font-bold text-base text-stone-100 mb-1">Crie a Ficha Técnica</h4>
+          <p class="text-stone-400 text-xs leading-relaxed">Monte a receita do terço: 59 contas + 1 cruz + 1 entremeio + tempo de montagem. O preço ideal sai pronto.</p>
+        </div>
+
+        <div class="p-5 rounded-2xl bg-stone-900/60 border border-stone-800">
+          <div class="w-8 h-8 rounded-full bg-gold-500/20 text-gold-400 font-bold font-mono text-sm flex items-center justify-center mb-4">03</div>
+          <h4 class="font-serif font-bold text-base text-stone-100 mb-1">Orce com Encantamento</h4>
+          <p class="text-stone-400 text-xs leading-relaxed">Envie propostas solenes em PDF no WhatsApp para noivas, noivos e paróquias com 1 clique.</p>
+        </div>
+
+        <div class="p-5 rounded-2xl bg-stone-900/60 border border-stone-800">
+          <div class="w-8 h-8 rounded-full bg-gold-500/20 text-gold-400 font-bold font-mono text-sm flex items-center justify-center mb-4">04</div>
+          <h4 class="font-serif font-bold text-base text-stone-100 mb-1">Controle a Bancada</h4>
+          <p class="text-stone-400 text-xs leading-relaxed">Acompanhe as etapas de produção, embale e receba com clareza total de quanto lucrou na peça.</p>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ==========================================
+       DOBRA 6: PLANOS & ASSINATURA INTELIGENTE
+       ========================================== -->
+  <section id="planos" class="relative z-10 py-20 px-4 sm:px-8 max-w-7xl mx-auto">
+    
+    <div class="text-center max-w-3xl mx-auto mb-12">
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-gold-500/30 bg-gold-500/10 text-gold-400 text-xs font-mono uppercase tracking-wider mb-3">
+        Acesso Ilimitado
+      </div>
+      <h2 class="font-serif text-3xl sm:text-5xl font-bold tracking-tight text-stone-100">
+        Um plano. <span class="text-gold-gradient italic">Todos os recursos.</span>
+      </h2>
+      <p class="text-stone-400 text-sm sm:text-base mt-3">
+        O plano vigente do sistema oferece acesso integral aos módulos do Ateliê Sagrado ERP.
+      </p>
+    </div>
+
+    <div class="flashlight-card max-w-2xl mx-auto p-7 sm:p-9 flex flex-col">
+      <div class="flashlight-border"></div>
+      <span class="text-xs font-mono text-gold-400 uppercase tracking-widest">Acesso integral</span>
+      <h3 class="font-serif text-2xl sm:text-3xl font-bold text-stone-100 mt-2">Plano Ateliê Sagrado Completo</h3>
+      <p class="text-sm text-stone-300 mt-2">Acesso completo aos módulos, ferramentas e recursos do ERP.</p>
+
+      <div class="mt-6 mb-6">
+        <span class="text-4xl font-extrabold font-mono text-gold-400">R$ 49,90</span>
+        <span class="text-xs text-stone-400 font-mono">/mês</span>
+      </div>
+
+      <ul class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-stone-200">
+        <li class="flex items-start gap-2"><span class="text-gold-400">✓</span> Acesso aos 11 módulos do ERP</li>
+        <li class="flex items-start gap-2"><span class="text-gold-400">✓</span> Produtos, insumos, pedidos e orçamentos sem limites</li>
+        <li class="flex items-start gap-2"><span class="text-gold-400">✓</span> Precificação, produção e gestão de clientes</li>
+        <li class="flex items-start gap-2"><span class="text-gold-400">✓</span> Fluxo financeiro, relatórios e exportações</li>
+      </ul>
+
+      <p class="text-[11px] text-stone-400 mt-6 leading-relaxed">
+        Esta página não processa pagamentos. A criação de conta continua pelo cadastro do ERP; cobranças online dependem de configuração do gateway.
+      </p>
+      <a href="/register?plan=basic" class="mt-6 w-full py-3.5 rounded-xl bg-gold-gradient text-stone-950 font-bold text-xs uppercase tracking-wider shadow-xl text-center hover:brightness-110 transition">
+        Criar conta com o plano disponível
+      </a>
+    </div>
+  </section>
+
+  <!-- ==========================================
+       DOBRA 7: PERGUNTAS FREQUENTES (FAQ ACCORDION)
+       ========================================== -->
+  <section id="faq" class="relative z-10 py-16 px-4 sm:px-8 max-w-4xl mx-auto">
+    <div class="text-center mb-10">
+      <h3 class="font-serif text-2xl sm:text-4xl font-bold text-stone-100">Perguntas Frequentes</h3>
+      <p class="text-stone-400 text-xs sm:text-sm mt-2">Tire suas dúvidas sobre o ERP feito sob medida para seu artesanato sacro.</p>
+    </div>
+
+    <div class="space-y-3">
+      
+      <!-- FAQ 1 -->
+      <div class="flashlight-card p-4 rounded-2xl cursor-pointer" onclick="toggleFaq(this)">
+        <div class="flex items-center justify-between font-bold text-sm text-stone-200">
+          <span>Como o sistema calcula o preço exato de cada terço?</span>
+          <span class="faq-icon text-gold-400 text-lg transition-transform">+</span>
+        </div>
+        <div class="faq-answer hidden text-xs text-stone-400 mt-3 pt-3 border-t border-stone-800 leading-relaxed">
+          Você cadastra os insumos (ex: cento de contas de cristal, cruz, medalha, metro de fio). Na ficha do produto, você define as quantidades usadas e quanto tempo levou na bancada. O ERP calcula instantaneamente o custo exato da matéria-prima, sua remuneração horária e aplica a margem de lucro que você escolheu.
+        </div>
+      </div>
+
+      <!-- FAQ 2 -->
+      <div class="flashlight-card p-4 rounded-2xl cursor-pointer" onclick="toggleFaq(this)">
+        <div class="flex items-center justify-between font-bold text-sm text-stone-200">
+          <span>Posso enviar propostas e orçamentos direto no WhatsApp da noiva?</span>
+          <span class="faq-icon text-gold-400 text-lg transition-transform">+</span>
+        </div>
+        <div class="faq-answer hidden text-xs text-stone-400 mt-3 pt-3 border-t border-stone-800 leading-relaxed">
+          Sim! O ERP gera um link formal ou folha em PDF pronta para impressão e compartilhamento com as fotos dos insumos, crucifixo e especificações solenes, conferindo altíssima autoridade ao seu ateliê.
+        </div>
+      </div>
+
+      <!-- FAQ 3 -->
+      <div class="flashlight-card p-4 rounded-2xl cursor-pointer" onclick="toggleFaq(this)">
+        <div class="flex items-center justify-between font-bold text-sm text-stone-200">
+          <span>Funciona no celular na bancada enquanto monto as peças?</span>
+          <span class="faq-icon text-gold-400 text-lg transition-transform">+</span>
+        </div>
+        <div class="faq-answer hidden text-xs text-stone-400 mt-3 pt-3 border-t border-stone-800 leading-relaxed">
+          Com certeza. A interface é 100% responsiva e otimizada para tablets e smartphones, permitindo arrastar os pedidos no Kanban e conferir medidas diretamente ao lado dos seus alicates e contas.
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ==========================================
+       RODAPÉ DE LUXO (FOOTER NOBRE)
+       ========================================== -->
+  <footer class="relative z-10 border-t border-stone-800/80 bg-stone-950 py-12 px-4 sm:px-8 text-stone-400 text-xs">
+    <div class="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
+      
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-full bg-gold-gradient flex items-center justify-center text-stone-950 font-bold">
+          ✝
+        </div>
+        <div>
+          <span class="font-serif text-base font-bold text-stone-100">Ateliê Sagrado ERP</span>
+          <p class="text-[11px] text-stone-400">Design System & Sistema de Gestão para Artesanato Sacro</p>
+        </div>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-6 text-stone-400">
+        <a href="#hero" class="hover:text-gold-400 transition">Início</a>
+        <a href="#workspace" class="hover:text-gold-400 transition">ERP Interativo</a>
+        <a href="#calculadora" class="hover:text-gold-400 transition">Calculadora</a>
+        <a href="#planos" class="hover:text-gold-400 transition">Planos</a>
+        <a href="#faq" class="hover:text-gold-400 transition">Dúvidas</a>
+      </div>
+
+      <div class="text-right text-[11px] text-stone-400 font-mono">
+        © 2026 Ateliê Sagrado. Todos os direitos reservados.
+      </div>
+    </div>
+  </footer>
+
+  <!-- ==========================================
+       MODAIS & FEEDBACK TOAST ENGINE
+       ========================================== -->
+  
+  <!-- Toast Notification Container -->
+  <div id="toastContainer" class="fixed bottom-6 right-6 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+  <!-- Modal: Novo Insumo -->
+  <div id="newSupplyModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="glass-panel w-full max-w-md rounded-3xl p-6 border border-stone-700 shadow-2xl relative text-left">
+      <div class="flex justify-between items-center mb-4">
+        <h4 class="font-serif text-lg font-bold text-stone-100">Cadastrar Novo Insumo</h4>
+        <button onclick="closeModal('newSupplyModal')" class="text-stone-400 hover:text-stone-100 text-lg">✕</button>
+      </div>
+      <div class="space-y-3 text-xs">
+        <div>
+          <label class="block text-stone-400 mb-1">Nome do Insumo</label>
+          <input id="inputSupplyName" type="text" placeholder="Ex: Pérola de Água Doce 8mm" class="w-full bg-stone-900 border border-stone-700 rounded-xl px-3 py-2 text-stone-100 focus:outline-none focus:border-gold-500" />
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-stone-400 mb-1">Qtd em Estoque</label>
+            <input id="inputSupplyQty" type="number" placeholder="Ex: 100" class="w-full bg-stone-900 border border-stone-700 rounded-xl px-3 py-2 text-stone-100 focus:outline-none focus:border-gold-500 font-mono" />
+          </div>
+          <div>
+            <label class="block text-stone-400 mb-1">Custo Unitário (R$)</label>
+            <input id="inputSupplyPrice" type="number" step="0.01" placeholder="Ex: 0.65" class="w-full bg-stone-900 border border-stone-700 rounded-xl px-3 py-2 text-stone-100 focus:outline-none focus:border-gold-500 font-mono" />
+          </div>
+        </div>
+        <button type="button" onclick="saveNewSupply()" class="w-full py-3 mt-4 rounded-xl bg-gold-gradient text-stone-950 font-bold text-xs uppercase tracking-wider hover:brightness-110 shadow-lg cursor-pointer">
+          Salvar Insumo no Estoque
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================
+       SCRIPTS: ENGINES & INTERATIVIDADE COMPLETA
+       ========================================== -->
+  <script>
+    // 1. Mouse Spotlight Tracking (--mouse-x, --mouse-y)
+    document.addEventListener('mousemove', (e) => {
+      const cards = document.querySelectorAll('.flashlight-card');
+      cards.forEach(card => {
+        const rect = card.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        card.style.setProperty('--mouse-x', `${x}px`);
+        card.style.setProperty('--mouse-y', `${y}px`);
+      });
+    });
+
+    // 2. Stardust Golden Constellation Canvas
+    const canvas = document.getElementById('stardust-canvas');
+    if (canvas) {
+      const ctx = canvas.getContext('2d');
+      let particles = [];
+      
+      function resizeCanvas() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+      }
+      resizeCanvas();
+      window.addEventListener('resize', resizeCanvas);
+
+      for (let i = 0; i < 45; i++) {
+        particles.push({
+          x: Math.random() * window.innerWidth,
+          y: Math.random() * window.innerHeight,
+          radius: Math.random() * 1.6 + 0.6,
+          vx: (Math.random() - 0.5) * 0.4,
+          vy: (Math.random() - 0.5) * 0.4,
+          alpha: Math.random() * 0.6 + 0.2
+        });
+      }
+
+      function animateStardust() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        particles.forEach((p, index) => {
+          p.x += p.vx;
+          p.y += p.vy;
+          if (p.x < 0) p.x = canvas.width;
+          if (p.x > canvas.width) p.x = 0;
+          if (p.y < 0) p.y = canvas.height;
+          if (p.y > canvas.height) p.y = 0;
+
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(212, 160, 57, ${p.alpha})`;
+          ctx.fill();
+
+          // Connect nearby particles with subtle golden constellation lines
+          for (let j = index + 1; j < particles.length; j++) {
+            const p2 = particles[j];
+            const dist = Math.hypot(p.x - p2.x, p.y - p2.y);
+            if (dist < 110) {
+              ctx.beginPath();
+              ctx.moveTo(p.x, p.y);
+              ctx.lineTo(p2.x, p2.y);
+              ctx.strokeStyle = `rgba(212, 160, 57, ${0.12 * (1 - dist / 110)})`;
+              ctx.stroke();
+            }
+          }
+        });
+        requestAnimationFrame(animateStardust);
+      }
+      animateStardust();
+    }
+
+    // 3. Theme Mode Switcher (Obsidian Dark vs Linho Light)
+    const themeToggleBtn = document.getElementById('themeToggleBtn');
+    const themeIconSun = document.getElementById('themeIconSun');
+    const themeIconMoon = document.getElementById('themeIconMoon');
+
+    themeToggleBtn.addEventListener('click', () => {
+      const isDark = document.documentElement.classList.toggle('dark');
+      if (isDark) {
+        themeIconSun.classList.add('hidden');
+        themeIconMoon.classList.remove('hidden');
+        showToast('info', 'Modo Obsidian Ativado', 'Ambiente escuro com alto contraste litúrgico.');
+      } else {
+        themeIconSun.classList.remove('hidden');
+        themeIconMoon.classList.add('hidden');
+        showToast('info', 'Modo Linho Ativado', 'Ambiente claro com textura de linho e ateliê diurno.');
+      }
+    });
+
+    // 4. Sidebar Account Dropdown Toggle (ZincMail)
+    const accountBtn = document.getElementById('accountBtn');
+    const accountMenu = document.getElementById('accountMenu');
+    const accountChevron = document.getElementById('accountChevron');
+
+    accountBtn.addEventListener('click', () => {
+      const isOpen = !accountMenu.classList.contains('hidden');
+      if (isOpen) {
+        accountMenu.classList.add('hidden');
+        accountChevron.style.transform = 'rotate(0deg)';
+      } else {
+        accountMenu.classList.remove('hidden');
+        accountChevron.style.transform = 'rotate(180deg)';
+      }
+    });
+
+    // 5. Dynamic Tab Navigation in ERP Workspace
+    const tabButtons = document.querySelectorAll('.erp-tab-btn');
+    const tabContents = document.querySelectorAll('.erp-tab-content');
+
+    function switchTab(targetId) {
+      tabContents.forEach(content => {
+        content.classList.add('hidden');
+      });
+      const activeContent = document.getElementById(targetId);
+      if (activeContent) {
+        activeContent.classList.remove('hidden');
+      }
+
+      tabButtons.forEach(btn => {
+        if (btn.getAttribute('data-target') === targetId) {
+          btn.classList.add('bg-stone-800', 'text-gold-400');
+          btn.classList.remove('text-stone-300');
+        } else {
+          btn.classList.remove('bg-stone-800', 'text-gold-400');
+          btn.classList.add('text-stone-300');
+        }
+      });
+    }
+
+    tabButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const targetId = btn.getAttribute('data-target');
+        switchTab(targetId);
+      });
+    });
+
+    // 6. Reactive Rosary Pricing Calculator
+    const calcModel = document.getElementById('calcModel');
+    const calcBead = document.getElementById('calcBead');
+    const calcMetals = document.getElementById('calcMetals');
+    const laborHours = document.getElementById('laborHours');
+    const profitMargin = document.getElementById('profitMargin');
+
+    const laborHoursDisplay = document.getElementById('laborHoursDisplay');
+    const profitMarginDisplay = document.getElementById('profitMarginDisplay');
+    const calcSummaryTitle = document.getElementById('calcSummaryTitle');
+    const costBeadsEl = document.getElementById('costBeads');
+    const costMetalsEl = document.getElementById('costMetals');
+    const costWireEl = document.getElementById('costWire');
+    const costLaborEl = document.getElementById('costLabor');
+    const totalCostEl = document.getElementById('totalCost');
+    const suggestedPriceEl = document.getElementById('suggestedPrice');
+    const netProfitEl = document.getElementById('netProfit');
+
+    function calculateRosary() {
+      const selectedModelOpt = calcModel.options[calcModel.selectedIndex];
+      const selectedBeadOpt = calcBead.options[calcBead.selectedIndex];
+      const selectedMetalOpt = calcMetals.options[calcMetals.selectedIndex];
+
+      const beadCount = parseFloat(selectedModelOpt.getAttribute('data-beads') || 59);
+      const wireMeters = parseFloat(selectedModelOpt.getAttribute('data-wire') || 1.8);
+      const beadUnitCost = parseFloat(selectedBeadOpt.getAttribute('data-cost') || 0.45);
+      const metalCost = parseFloat(selectedMetalOpt.getAttribute('data-cost') || 16.50);
+
+      const hours = parseFloat(laborHours.value);
+      const margin = parseFloat(profitMargin.value);
+
+      laborHoursDisplay.textContent = `${hours} hora${hours > 1 ? 's' : ''}`;
+      profitMarginDisplay.textContent = `${margin}%`;
+      calcSummaryTitle.textContent = selectedModelOpt.textContent.split('(')[0].trim();
+
+      const totalBeadsCost = beadCount * beadUnitCost;
+      const wireCost = wireMeters * 2.50; // R$ 2.50 per meter
+      const laborRate = 25.00; // R$ 25/hour
+      const laborTotal = hours * laborRate;
+      const packagingCost = 5.00;
+
+      const baseCost = totalBeadsCost + metalCost + wireCost + laborTotal + packagingCost;
+      const finalPrice = baseCost / (1 - (margin / 100));
+      const profit = finalPrice - baseCost;
+
+      costBeadsEl.textContent = `R$ ${totalBeadsCost.toFixed(2).replace('.', ',')}`;
+      costMetalsEl.textContent = `R$ ${metalCost.toFixed(2).replace('.', ',')}`;
+      costWireEl.textContent = `R$ ${wireCost.toFixed(2).replace('.', ',')}`;
+      costLaborEl.textContent = `R$ ${laborTotal.toFixed(2).replace('.', ',')}`;
+      totalCostEl.textContent = `R$ ${baseCost.toFixed(2).replace('.', ',')}`;
+      suggestedPriceEl.textContent = `R$ ${finalPrice.toFixed(2).replace('.', ',')}`;
+      netProfitEl.textContent = `+ R$ ${profit.toFixed(2).replace('.', ',')}`;
+    }
+
+    [calcModel, calcBead, calcMetals, laborHours, profitMargin].forEach(el => {
+      if (el) el.addEventListener('input', calculateRosary);
+    });
+    calculateRosary();
+
+    function saveToCatalog() {
+      showToast('success', 'Salvo no Catálogo!', 'O terço foi adicionado com fórmula e preço oficial.');
+    }
+
+    function generateFormalQuoteFromCalc() {
+      switchTab('tab-orcamentos');
+      showToast('info', 'Preço Importado', 'Valores transferidos para a proposta formal.');
+    }
+
+    // 7. Interactive Kanban Card Movement
+    let nextCardId = 110;
+    function moveKanban(cardId, currentStep) {
+      const card = document.getElementById(cardId);
+      if (!card) return;
+
+      const nextStep = currentStep + 1;
+      if (nextStep <= 4) {
+        const nextCol = document.getElementById(`kanbanCol${nextStep}`);
+        if (nextCol) {
+          nextCol.appendChild(card);
+          // update button
+          const btn = card.querySelector('button');
+          if (btn) {
+            if (nextStep === 4) {
+              btn.outerHTML = '<span class="text-emerald-400 text-[10px] font-bold">Concluído ✓</span>';
+            } else {
+              btn.setAttribute('onclick', `moveKanban('${cardId}', ${nextStep})`);
+            }
+          }
+          updateKanbanCounts();
+          showToast('success', 'Pedido Movimentado', 'Avançou para a próxima etapa na bancada.');
+        }
+      }
+    }
+
+    function updateKanbanCounts() {
+      for (let i = 1; i <= 4; i++) {
+        const col = document.getElementById(`kanbanCol${i}`);
+        const count = col ? col.children.length : 0;
+        const countEl = document.getElementById(`colCount${i}`);
+        if (countEl) countEl.textContent = count;
+      }
+    }
+
+    function addNewKanbanOrder() {
+      const id = `card-${nextCardId++}`;
+      const col1 = document.getElementById('kanbanCol1');
+      if (col1) {
+        const div = document.createElement('div');
+        div.className = 'flashlight-card p-3.5 bg-stone-900 border-stone-700/60 text-xs';
+        div.id = id;
+        div.innerHTML = `
+          <div class="flashlight-border"></div>
+          <div class="flex justify-between text-[10px] text-stone-400 font-mono mb-1">
+            <span>#TC-${nextCardId}</span>
+            <span class="text-blue-400">Novo Pedido</span>
+          </div>
+          <p class="font-bold text-stone-100">Terço Mariano Pérolas Barrocas</p>
+          <p class="text-[11px] text-stone-400">Cliente Recém-Registrado</p>
+          <div class="mt-3 pt-2 border-t border-stone-800 flex justify-between items-center">
+            <span class="font-mono text-gold-400 font-bold">R$ 215,00</span>
+            <button onclick="moveKanban('${id}', 1)" class="px-2 py-1 rounded bg-stone-800 hover:bg-gold-500 hover:text-stone-950 text-[10px] transition cursor-pointer font-bold">
+              Avançar ➔
+            </button>
+          </div>
+        `;
+        col1.prepend(div);
+        updateKanbanCounts();
+        showToast('success', 'Novo Pedido Adicionado', 'Ordem iniciada na fila de matéria-prima.');
+      }
+    }
+
+    // 8. Inventory Search Filter
+    function filterStockTable() {
+      const query = document.getElementById('stockSearch').value.toLowerCase();
+      const rows = document.querySelectorAll('#stockTableBody tr');
+      rows.forEach(row => {
+        const name = row.getAttribute('data-name') || '';
+        if (name.includes(query) || row.textContent.toLowerCase().includes(query)) {
+          row.style.display = '';
+        } else {
+          row.style.display = 'none';
+        }
+      });
+    }
+
+    function reorderSupply(name) {
+      showToast('info', 'Reposição Solicitada', `Pedido de compra gerado para ${name}.`);
+    }
+
+    // 9. Interactive Proposal Generator
+    function updateQuotePreview() {
+      const client = document.getElementById('quoteClientName').value || 'Nome do Cliente';
+      const occasion = document.getElementById('quoteOccasion').value || 'Ocasião';
+      const desc = document.getElementById('quoteItemDesc').value || 'Descrição do terço';
+      const itemPrice = parseFloat(document.getElementById('quoteItemPrice').value || 0);
+      const freight = parseFloat(document.getElementById('quoteFreight').value || 0);
+      const total = itemPrice + freight;
+
+      document.getElementById('previewClient').textContent = client;
+      document.getElementById('previewOccasion').textContent = occasion;
+      document.getElementById('previewItemDesc').textContent = desc;
+      document.getElementById('previewItemPrice').textContent = `R$ ${itemPrice.toFixed(2).replace('.', ',')}`;
+      document.getElementById('previewFreight').textContent = `R$ ${freight.toFixed(2).replace('.', ',')}`;
+      document.getElementById('previewTotal').textContent = `R$ ${total.toFixed(2).replace('.', ',')}`;
+    }
+
+    function sendQuoteWhatsApp() {
+      showToast('success', 'Orçamento Pronto!', 'Mensagem formatada com sucesso para envio no WhatsApp.');
+    }
+
+    // 11. FAQ Accordion Toggle
+    function toggleFaq(card) {
+      const answer = card.querySelector('.faq-answer');
+      const icon = card.querySelector('.faq-icon');
+      if (answer) {
+        const isHidden = answer.classList.contains('hidden');
+        if (isHidden) {
+          answer.classList.remove('hidden');
+          icon.textContent = '−';
+          icon.style.transform = 'rotate(180deg)';
+        } else {
+          answer.classList.add('hidden');
+          icon.textContent = '+';
+          icon.style.transform = 'rotate(0deg)';
+        }
+      }
+    }
+
+    // 12. Modal Helpers
+    function showNewSupplyModal() {
+      document.getElementById('newSupplyModal').classList.remove('hidden');
+      document.getElementById('newSupplyModal').classList.add('flex');
+    }
+
+    function closeModal(id) {
+      const modal = document.getElementById(id);
+      if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+      }
+    }
+
+    function saveNewSupply() {
+      const name = document.getElementById('inputSupplyName').value;
+      const qty = document.getElementById('inputSupplyQty').value;
+      const price = document.getElementById('inputSupplyPrice').value;
+
+      if (!name) {
+        showToast('error', 'Campo Obrigatório', 'Informe o nome do insumo.');
+        return;
+      }
+
+      const tbody = document.getElementById('stockTableBody');
+      const tr = document.createElement('tr');
+      tr.setAttribute('data-name', name.toLowerCase());
+      tr.className = 'border-b border-stone-800/60 font-medium';
+      tr.innerHTML = `
+        <td class="py-3 font-mono text-gold-400 font-bold">INS-009</td>
+        <td class="py-3">${name}</td>
+        <td class="py-3 text-stone-400">Novo Insumo</td>
+        <td class="py-3 font-mono font-bold text-stone-200">${qty || 50} un</td>
+        <td class="py-3 font-mono">R$ ${parseFloat(price || 1).toFixed(2).replace('.', ',')}</td>
+        <td class="py-3"><span class="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px]">Normal</span></td>
+        <td class="py-3 text-right">
+          <button onclick="reorderSupply('${name}')" class="text-xs text-stone-400 hover:text-gold-400">Ajustar</button>
+        </td>
+      `;
+      tbody.prepend(tr);
+      closeModal('newSupplyModal');
+      showToast('success', 'Insumo Adicionado', `${name} agora está ativo no estoque.`);
+    }
+
+    // 13. High-End Toast Notification Engine
+    function showToast(type, title, message) {
+      const container = document.getElementById('toastContainer');
+      if (!container) return;
+
+      const toast = document.createElement('div');
+      toast.className = 'pointer-events-auto p-4 rounded-2xl shadow-2xl border text-xs max-w-sm flex items-start gap-3 transition-all duration-300 transform translate-y-4 opacity-0';
+      
+      let borderStyle = 'border-gold-500/50 bg-stone-900 text-stone-100';
+      let icon = '✨';
+
+      if (type === 'success') {
+        borderStyle = 'border-emerald-500/60 bg-stone-900 text-stone-100';
+        icon = '✓';
+      } else if (type === 'error') {
+        borderStyle = 'border-red-500/60 bg-stone-900 text-stone-100';
+        icon = '⚠';
+      } else if (type === 'info') {
+        borderStyle = 'border-blue-500/60 bg-stone-900 text-stone-100';
+        icon = 'ℹ';
+      }
+
+      toast.className += ` ${borderStyle}`;
+      toast.innerHTML = `
+        <div class="w-6 h-6 rounded-full bg-gold-500/20 text-gold-400 flex items-center justify-center font-bold text-xs shrink-0">${icon}</div>
+        <div class="flex-1">
+          <p class="font-bold text-stone-100">${title}</p>
+          <p class="text-[11px] text-stone-400 mt-0.5">${message}</p>
+        </div>
+      `;
+
+      container.appendChild(toast);
+      
+      requestAnimationFrame(() => {
+        toast.classList.remove('translate-y-4', 'opacity-0');
+      });
+
+      setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-y-2');
+        setTimeout(() => toast.remove(), 300);
+      }, 4000);
+    }
+  </script>
+</body>
+</html>
