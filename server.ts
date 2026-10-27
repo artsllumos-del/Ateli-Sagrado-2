@@ -3043,16 +3043,7 @@ async function startServer() {
     next();
   });
 
-  app.use(express.static(distPath, {
-    maxAge: '1d',
-    index: false,
-    setHeaders: (res, filePath) => {
-      if (path.basename(filePath) === 'index.html') {
-        // Never serve a stale development shell: it can contain Vite HMR URLs.
-        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
-      }
-    },
-  }));
+  app.use(express.static(distPath, { maxAge: '1d', index: false }));
   app.get('*', (req, res) => {
     if (req.path.startsWith('/api/')) {
       return res.status(404).json({ error: 'Endpoint não encontrado', path: req.path });
