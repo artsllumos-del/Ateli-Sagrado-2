@@ -2,7 +2,6 @@ import express from 'express';
 import path from 'path';
 import fs from 'fs';
 import crypto from 'crypto';
-import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI } from '@google/genai';
 import dotenv from 'dotenv';
 import { BILLING_PLANS, getPlanById } from './src/domain/billing/plans';
@@ -11,7 +10,8 @@ import { BillingService } from './src/domain/billing/BillingService';
 dotenv.config();
 
 const app = express();
-const PORT = 3000;
+const rawPort = process.env.PORT || 3000;
+const PORT = typeof rawPort === 'string' && isNaN(Number(rawPort)) ? rawPort : Number(rawPort) || 3000;
 
 // Rate limiting map
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
@@ -3028,9 +3028,13 @@ app.get('/api/docs', (req, res) => {
   });
 });
 
-// Vite & Static file handler logic for containers
+// Vite & Static file handler logic for containers and Hostinger Node.js
 async function startServer() {
-  if (process.env.NODE_ENV !== "production") {
+  const isBundled = (typeof __filename !== 'undefined' && (__filename.endsWith('server.cjs') || __filename.includes('dist'))) || !fs.existsSync(path.join(process.cwd(), 'src', 'main.tsx'));
+  const isProduction = process.env.NODE_ENV === "production" || isBundled;
+
+  if (!isProduction) {
+    const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true, hmr: false },
       appType: "spa"
@@ -3038,15 +3042,40 @@ async function startServer() {
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), 'dist');
-    app.use(express.static(distPath));
+    app.use(express.static(distPath, { maxAge: '1d', index: false }));
     app.get('*', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
+      if (req.path.startsWith('/api/')) {
+        return res.status(404).json({ error: 'Endpoint não encontrado', path: req.path });
+      }
+      const indexPath = path.join(distPath, 'index.html');
+      if (fs.existsSync(indexPath)) {
+        res.sendFile(indexPath);
+      } else {
+        res.status(404).send('Build frontend não encontrado. Execute npm run build.');
+      }
     });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Ateliê Sagrado ERP running at http://0.0.0.0:${PORT}`);
-  });
+  if (typeof PORT === 'string' && isNaN(Number(PORT))) {
+    // Unix socket or pipe (Passenger / Hostinger Web App)
+    app.listen(PORT, () => {
+      console.log(`Ateliê Sagrado ERP running on socket ${PORT}`);
+    });
+  } else {
+    const portNumber = typeof PORT === 'number' ? PORT : (Number(PORT) || 3000);
+    app.listen(portNumber, "0.0.0.0", () => {
+      console.log(`Ateliê Sagrado ERP running at http://0.0.0.0:${portNumber}`);
+    });
+  }
 }
+
+// Global process error handlers for production resilience
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception thrown:', err);
+});
 
 startServer();
