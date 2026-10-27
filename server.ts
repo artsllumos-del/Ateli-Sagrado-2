@@ -3035,11 +3035,17 @@ async function startServer() {
 
   if (!isProduction) {
     const { createServer: createViteServer } = await import('vite');
-    const vite = await createViteServer({
-      server: { middlewareMode: true, hmr: false },
-      appType: "spa"
-    });
-    app.use(vite.middlewares);
+  const vite = await createViteServer({
+  server: { middlewareMode: true, hmr: false, ws: false },
+  appType: "spa"
+  });
+
+  // This Express process owns the HTTP server, so Vite cannot establish its
+  // websocket endpoint. Prevent the injected client from retrying that socket.
+  app.get('/@vite/client', (_req, res) => {
+    res.type('application/javascript').send('');
+  });
+  app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath, { maxAge: '1d', index: false }));
