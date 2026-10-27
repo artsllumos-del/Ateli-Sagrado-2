@@ -3032,6 +3032,14 @@ app.get('/api/docs', (req, res) => {
 // development client or websocket is injected into the preview.
 async function startServer() {
   const distPath = path.join(process.cwd(), 'dist');
+
+  // This app is served as a compiled static bundle, not through Vite. Return
+  // a real 404 for Vite's dev-only endpoints instead of falling through to
+  // the SPA shell, which can make the preview attempt a dead HMR websocket.
+  app.get(['/__vite_ping', '/@vite/client', '/@vite/env'], (_req, res) => {
+    res.status(404).end();
+  });
+
   app.use(express.static(distPath, { maxAge: '1d', index: false }));
   app.get('*', (req, res) => {
     if (req.path.startsWith('/api/')) {
