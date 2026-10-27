@@ -3042,7 +3042,7 @@ async function startServer() {
 
   // This Express process owns the HTTP server, so Vite cannot establish its
   // websocket endpoint. Prevent the injected client from retrying that socket.
-  app.get('/@vite/client', (_req, res) => {
+  app.use('/@vite/client', (_req, res) => {
     res.type('application/javascript').send('');
   });
   app.use(vite.middlewares);
