@@ -3028,39 +3028,22 @@ app.get('/api/docs', (req, res) => {
   });
 });
 
-// Vite & Static file handler logic for containers and Hostinger Node.js
+// Static frontend handler. The browser receives only compiled assets, so no
+// development client or websocket is injected into the preview.
 async function startServer() {
-  const isBundled = (typeof __filename !== 'undefined' && (__filename.endsWith('server.cjs') || __filename.includes('dist'))) || !fs.existsSync(path.join(process.cwd(), 'src', 'main.tsx'));
-  const isProduction = process.env.NODE_ENV === "production" || isBundled;
-
-  if (!isProduction) {
-    const { createServer: createViteServer } = await import('vite');
-  const vite = await createViteServer({
-  server: { middlewareMode: true, hmr: false, ws: false },
-  appType: "spa"
+  const distPath = path.join(process.cwd(), 'dist');
+  app.use(express.static(distPath, { maxAge: '1d', index: false }));
+  app.get('*', (req, res) => {
+    if (req.path.startsWith('/api/')) {
+      return res.status(404).json({ error: 'Endpoint não encontrado', path: req.path });
+    }
+    const indexPath = path.join(distPath, 'index.html');
+    if (fs.existsSync(indexPath)) {
+      res.sendFile(indexPath);
+    } else {
+      res.status(404).send('Build frontend não encontrado. Execute npm run build.');
+    }
   });
-
-  // This Express process owns the HTTP server, so Vite cannot establish its
-  // websocket endpoint. Prevent the injected client from retrying that socket.
-  app.use('/@vite/client', (_req, res) => {
-    res.type('application/javascript').send('');
-  });
-  app.use(vite.middlewares);
-  } else {
-    const distPath = path.join(process.cwd(), 'dist');
-    app.use(express.static(distPath, { maxAge: '1d', index: false }));
-    app.get('*', (req, res) => {
-      if (req.path.startsWith('/api/')) {
-        return res.status(404).json({ error: 'Endpoint não encontrado', path: req.path });
-      }
-      const indexPath = path.join(distPath, 'index.html');
-      if (fs.existsSync(indexPath)) {
-        res.sendFile(indexPath);
-      } else {
-        res.status(404).send('Build frontend não encontrado. Execute npm run build.');
-      }
-    });
-  }
 
   if (typeof PORT === 'string' && isNaN(Number(PORT))) {
     // Unix socket or pipe (Passenger / Hostinger Web App)
