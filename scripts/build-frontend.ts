@@ -30,6 +30,8 @@ execFileSync(path.join(root, 'node_modules', '.bin', process.platform === 'win32
 
 const html = await (await import('node:fs/promises')).readFile(path.join(root, 'index.html'), 'utf8');
 const productionHtml = html
+  // Remove development-only clients before emitting the production shell.
+  .replace(/\s*<script[^>]+(?:@vite\/client|vite\/dist\/client)[^>]*><\/script>/gi, '')
   .replace(/\s*<script type="module" src="\/src\/main\.tsx"><\/script>/, '\n    <link rel="stylesheet" href="/assets/main.css" />\n    <script type="module" src="/assets/main.js"></script>');
 
 await (await import('node:fs/promises')).writeFile(path.join(outputDir, 'index.html'), productionHtml);
